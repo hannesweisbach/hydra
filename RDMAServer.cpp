@@ -81,3 +81,28 @@ RDMAServer::~RDMAServer() {
   if(ec != nullptr)
     rdma_destroy_event_channel(ec);
 }
+
+void init_logging(int verbosity) {
+  logging::add_file_log("RDMAServer.log");
+  auto sink = logging::add_console_log(std::cerr);
+
+  sink->set_filter(expr::attr<int>("Severity") >= verbosity);
+  sink->locked_backend()->auto_flush(true);
+}
+
+namespace po = boost::program_options;
+
+
+
+int main(int argc, const char *argv[]) {
+  po::options_description desc("Allowed options");
+  desc.add_options()
+    ("verbosity,v", "set console debug level (0 to 6)")
+  ;
+  
+  po::variables_map vm;
+  po::store(po::parse_command_line(argc, argv, desc), vm);
+  po::notify(vm);    
+  
+  init_logging(vm.count("verbosity"));
+}
