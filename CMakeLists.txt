@@ -1,9 +1,13 @@
-cmake_minimum_required(2.8.9)
+cmake_minimum_required(VERSION 2.8.9)
 
 project(RDMA-DHT)
 
-APPEND_LIST(SERVER_SOURCES RDMAServer.cpp)
+LIST(APPEND SERVER_SOURCES RDMAServer.cpp)
+
+if(UNIX)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -std=c++11")
+endif()
 
 add_executable(dht_server ${SERVER_SOURCES})
-target_link_library(dht_server ibverbs)
-target_link_library(dht_server rdmacm)
+target_link_libraries(dht_server ibverbs)
+target_link_libraries(dht_server rdmacm)
