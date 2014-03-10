@@ -191,14 +191,17 @@ public:
   bool is_valid() const { return type() != type::invalid; }
 };
 
+struct rdma_cm_id;
+
 class request : public msg {
   friend class response;
 
 public:
-  request(uint64_t id, enum subtype r,
-          uint64_t cookie = reinterpret_cast<uintptr_t>(nullptr))
+  request(const rdma_cm_id *id, const enum subtype r,
+          const uint64_t cookie = reinterpret_cast<uintptr_t>(nullptr))
       : msg(type::request, r) {
-    memcpy(data_ + offsetof(header, id), &id, sizeof(id));
+    uint64_t id_ = reinterpret_cast<uintptr_t>(id);
+    memcpy(data_ + offsetof(header, id), &id_, sizeof(id_));
     memcpy(data_ + offsetof(header, cookie), &cookie, sizeof(cookie));
   }
 
@@ -216,11 +219,13 @@ public:
 
   template <typename F> std::future<void> set_completion(F &&f) {
     auto promise = std::make_shared<std::promise<void> >();
-    uint64_t cookie = reinterpret_cast<uintptr_t>(
-        new std::function<void()>([=, functor = std::move(f)]() {
-          functor();
-          promise->set_value();
-        }));
+    uint64_t cookie = reinterpret_cast<uintptr_t>(new std::function<void()>([
+      =,
+      functor = std::move(f)
+    ]() {
+       functor();
+       promise->set_value();
+     }));
     memcpy(data_ + offsetof(header, cookie), &cookie, sizeof(cookie));
     return promise->get_future();
   }
@@ -233,10 +238,10 @@ public:
     return promise->get_future();
   }
 
-  uint64_t id() const {
+  rdma_cm_id *id() const {
     uint64_t id;
     memcpy(&id, data_ + offsetof(header, id), sizeof(id));
-    return id;
+    return reinterpret_cast<rdma_cm_id *>(id);
   }
 
   uint64_t cookie() const {
@@ -248,7 +253,7 @@ public:
 
 class put_request : public request {
 public:
-  put_request(uint64_t id, mr key, mr value)
+  put_request(const rdma_cm_id *id, const mr key, const mr value)
       : request(id, subtype::put) {
     memcpy(data_ + sizeof(header), &key, sizeof(key));
     memcpy(data_ + sizeof(header) + sizeof(key), &value, sizeof(value));
@@ -269,11 +274,11 @@ public:
 
 class remove_request : public request {
 public:
-  remove_request(uint64_t id, mr key)
+  remove_request(const rdma_cm_id *id, const mr key)
       : request(id, subtype::del) {
     memcpy(data_ + sizeof(header), &key, sizeof(key));
   }
-  
+
   struct mr key() const {
     struct mr tmp;
     memcpy(&tmp, data_ + sizeof(header), sizeof(tmp));
@@ -283,8 +288,7 @@ public:
 
 class disconnect_request : public request {
 public:
-  disconnect_request(uint64_t id)
-      : request(id, subtype::disconnect) {}
+  disconnect_request(const rdma_cm_id *id) : request(id, subtype::disconnect) {}
 };
 
 class response : public msg {
@@ -306,16 +310,16 @@ class response : public msg {
 
 public:
   response(const request &request) : msg(type::response, request.subtype()) {
-    auto id = request.id();
+    uint64_t id = reinterpret_cast<uintptr_t>(request.id());
     auto cookie = request.cookie();
     memcpy(data_ + offsetof(header, id), &id, sizeof(id));
     memcpy(data_ + offsetof(header, cookie), &cookie, sizeof(cookie));
   }
 
-  uint64_t id() const {
+  rdma_cm_id *id() const {
     uint64_t id;
     memcpy(&id, data_ + offsetof(header, id), sizeof(id));
-    return id;
+    return reinterpret_cast<rdma_cm_id *>(id);
   }
 
   void complete_() const {
@@ -341,7 +345,7 @@ public:
 
 class bool_response : public response {
 public:
-  bool_response(const request &request, bool ack) : response(request) {
+  bool_response(const request &request, const bool ack) : response(request) {
     memcpy(data_ + sizeof(header), &ack, sizeof(ack));
   }
   bool value() const {
@@ -359,22 +363,22 @@ public:
 
 class remove_response : public bool_response {
 public:
-  remove_response(const request &request, bool ack)
+  remove_response(const request &request, const bool ack)
       : bool_response(std::move(request), std::move(ack)) {}
 };
 
 class notification_init : public msg {
 public:
-  notification_init(uint64_t id, mr init) noexcept
+  notification_init(const rdma_cm_id *id, const mr init) noexcept
       : msg(type::notification, subtype::init) {
     memcpy(data_ + offsetof(header, id), &id, sizeof(id));
     memcpy(data_ + sizeof(header), &init, sizeof(init));
   }
 
-  uint64_t id() const {
+  rdma_cm_id *id() const {
     uint64_t id;
     memcpy(&id, data_ + offsetof(header, id), sizeof(id));
-    return id;
+    return reinterpret_cast<rdma_cm_id *>(id);
   }
 
   mr init() const {
@@ -386,7 +390,8 @@ public:
 
 class notification_resize : public msg {
 public:
-  notification_resize(mr init) : msg(type::notification, subtype::resize) {
+  notification_resize(const mr init)
+      : msg(type::notification, subtype::resize) {
     memcpy(data_ + sizeof(header), &init, sizeof(init));
   }
 

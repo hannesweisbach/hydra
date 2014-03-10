@@ -23,7 +23,7 @@ auto size2Class = [](size_t size) -> size_t {
 hydra::client::client(const std::string &host, const std::string &port)
     : s(host, port), heap(48U, size2Class, s), local_heap(s),
       msg_buffer(local_heap.malloc<msg>(2)),
-      info(local_heap.malloc<node_info>()), id(0xdeadbabe), prefetch(1),
+      info(local_heap.malloc<node_info>()), id(nullptr), prefetch(1),
       remote_table(nullptr) {
   auto f = post_recv(msg_buffer.first.get()[0], msg_buffer.second);
   post_recv(msg_buffer.first.get()[1], msg_buffer.second);

@@ -75,7 +75,7 @@ void node::accept() {
                       clients) mutable { clients.push_back(std::move(id1)); })
       .get();
   log_info() << "ID: " << id_ << " " << (void *)id_->pd;
-  notification_init m(reinterpret_cast<uint64_t>(id_), info.second);
+  notification_init m(id.get(), info.second);
   log_hexdump(m);
   log_info() << m;
   {
@@ -119,7 +119,7 @@ void node::recv(const request &req) {
     handle_del(static_cast<const remove_request &>(req));
     break;
   case msg::subtype::disconnect: {
-    rdma_cm_id *id = reinterpret_cast<rdma_cm_id *>(req.id());
+    rdma_cm_id *id = req.id();
     log_debug() << "Disconnecting " << (void *)id;
     rdma_disconnect(id);
     clients([=](std::vector<RDMAServerSocket::client_t> &clients) {
@@ -143,16 +143,14 @@ void node::handle_add(const put_request &msg) {
   const size_t val_size = msg.value().size;
   const size_t size = key_size + val_size;
 
-  rdma_cm_id *client = reinterpret_cast<rdma_cm_id *>(msg.id());
-
   auto mem = heap.malloc<unsigned char>(size);
   auto key = mem.first.get();
   auto value = key + key_size;
   log_info() << mem.second;
 
-  rdma_read_async__(client, value, val_size, mem.second, msg.value().addr,
+  rdma_read_async__(msg.id(), value, val_size, mem.second, msg.value().addr,
                     msg.value().rkey).get();
-  auto fut = rdma_read_async__(client, key, key_size, mem.second,
+  auto fut = rdma_read_async__(msg.id(), key, key_size, mem.second,
                                msg.key().addr, msg.key().rkey);
   hydra::then(
       std::move(fut),
@@ -201,13 +199,12 @@ void node::handle_del(const remove_request &msg) {
   log_info() << msg;
 
   const size_t size = msg.key().size;
-  rdma_cm_id *client = reinterpret_cast<rdma_cm_id *>(msg.id());
 
   auto mem = local_heap.malloc<unsigned char>(size);
   auto key = mem.first.get();
   log_info() << mem.second;
 
-  auto fut = rdma_read_async__(client, key, size, mem.second, msg.key().addr,
+  auto fut = rdma_read_async__(msg.id(), key, size, mem.second, msg.key().addr,
                                msg.key().rkey);
   hydra::then(
       std::move(fut),
@@ -228,9 +225,7 @@ void node::handle_del(const remove_request &msg) {
 }
 
 void node::ack(const response &r) const {
-  rdma_cm_id *id = reinterpret_cast<rdma_cm_id *>(r.id());
-//  log_info() << r;
-  sendImmediate(id, r);
+  sendImmediate(r.id(), r);
 }
 }
 
