@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstring>
+#include <memory>
 #include <rdma/rdma_verbs.h>
 
 #include "utils.h"
@@ -34,13 +35,13 @@
  *   This means the client has to contact the correct node on its own, routing
  *   between nodes may still take place, but the data (at least the key) has to
  *   be transferred multiple times.
- * 
+ *
  * remove(key, key_len, key_rkey):
  *   where key is a ptr in the clients address space, key_len is the length of
  *   the key in bytes (including a possible terminating zero) and key_rkey is
  *   the rkey for the mr, the key is located in. The key must be contained in
  *   a single mr.
- *   the server reads the key in a local buffer, calculates the hash, table 
+ *   the server reads the key in a local buffer, calculates the hash, table
  *   index and performs necessary modifications of the hash table.
  *   After the server completed the hash table modifications, it signals the
  *   client the completion of the operation including success or failure.
@@ -61,23 +62,6 @@
     memcpy(&member, ptr, sizeof(member));                                      \
     ptr += sizeof(member);                                                     \
   } while (0)
-
-enum DHT_MSG_TYPE {
-  INVALID,
-  ADD,
-  DEL,
-  ACK,
-  NACK,
-  INIT,
-  DISCONNECT,
-  RESIZE
-};
-
-struct msg_header {
-  enum DHT_MSG_TYPE type;
-  uint32_t pad;
-  uint64_t client_id;
-};
 
 struct mr {
   uint64_t addr;
@@ -140,166 +124,278 @@ struct del_data {
 };
 
 struct ack_data {
-  enum DHT_MSG_TYPE acked;
   uint64_t cookie;
   uint64_t key;
   uint32_t key_length;
 };
 
-constexpr size_t max_size = sizeof_largest_type<init_data, add_data, del_data, ack_data>() + sizeof(msg_header);
+class msg {
+public:
+  enum class type {
+    invalid,
+    request,
+    response,
+    notification
+  };
 
-struct dht_msg {
-  enum DHT_MSG_TYPE type;
-  uint64_t client_id;
-  uint8_t data[max_size];
-};
+  enum class subtype {
+    invalid,
+    put,
+    del,
+    disconnect,
+    init,
+    resize
+  };
 
-//TODO: add volatile
-//TODO: use offsetof?
-//TODO: use is_standard_layout?
-//add ackable_msg type/type trait
-//
-struct msg {
+  struct header {
+    enum type type;
+    enum subtype subtype;
+    uint64_t id;
+    uint64_t cookie;
+  };
+
 protected:
-  /*volatile */uint8_t _data[max_size];
+  static constexpr size_t max_size =
+      sizeof_largest_type<init_data, add_data, del_data, ack_data>() +
+      sizeof(header);
+
+  uint8_t data_[max_size];
 
 public:
-  msg(enum DHT_MSG_TYPE type = INVALID, uint64_t id = 0xdeadbabe) noexcept {
-    memcpy(_data, &type, sizeof(type));
-    memcpy(_data + sizeof(type) + sizeof(uint32_t), &id, sizeof(id));
+  msg(enum type type = type::invalid,
+      enum subtype subtype = subtype::invalid) noexcept {
+    memcpy(data_ + offsetof(header, type), &type, sizeof(type));
+    memcpy(data_ + offsetof(header, subtype), &subtype, sizeof(subtype));
   }
-  enum DHT_MSG_TYPE type() const {
-    enum DHT_MSG_TYPE type;
-    memcpy(&type, _data, sizeof(type));
+
+  enum subtype subtype() const {
+    enum subtype stype;
+    memcpy(&stype, data_ + offsetof(header, subtype), sizeof(stype));
+    return stype;
+  }
+
+  enum type type() const {
+    enum type type;
+    memcpy(&type, data_ + offsetof(header, type), sizeof(type));
     return type;
   }
+
+  // TODO: add void * payload() {...}
+
+  bool is_request() const { return type() == type::request; }
+
+  bool is_response() const { return type() == type::response; }
+
+  bool is_notification() const { return type() == type::notification; }
+
+  bool is_valid() const { return type() != type::invalid; }
+};
+
+class request : public msg {
+  friend class response;
+
+public:
+  request(uint64_t id, enum subtype r,
+          uint64_t cookie = reinterpret_cast<uintptr_t>(nullptr))
+      : msg(type::request, r) {
+    memcpy(data_ + offsetof(header, id), &id, sizeof(id));
+    memcpy(data_ + offsetof(header, cookie), &cookie, sizeof(cookie));
+  }
+
+  template <typename T, typename F> std::future<T> set_completion(F &&f) {
+    auto promise = std::make_shared<std::promise<T> >();
+    uint64_t cookie = reinterpret_cast<uintptr_t>(new std::function<void(T)>(
+        [ =, functor = std::move(f) ](T result) {
+                                       // TODO: maybe make functor void(void)
+                                       functor(result);
+                                       promise->set_value(result);
+                                     }));
+    memcpy(data_ + offsetof(header, cookie), &cookie, sizeof(cookie));
+    return promise->get_future();
+  }
+
+  template <typename F> std::future<void> set_completion(F &&f) {
+    auto promise = std::make_shared<std::promise<void> >();
+    uint64_t cookie = reinterpret_cast<uintptr_t>(
+        new std::function<void()>([=, functor = std::move(f)]() {
+          functor();
+          promise->set_value();
+        }));
+    memcpy(data_ + offsetof(header, cookie), &cookie, sizeof(cookie));
+    return promise->get_future();
+  }
+
+  std::future<void> set_completion() {
+    auto promise = std::make_shared<std::promise<void> >();
+    uint64_t cookie = reinterpret_cast<uintptr_t>(
+        new std::function<void()>([=]() { promise->set_value(); }));
+    memcpy(data_ + offsetof(header, cookie), &cookie, sizeof(cookie));
+    return promise->get_future();
+  }
+
   uint64_t id() const {
     uint64_t id;
-    memcpy(&id, _data + sizeof(enum DHT_MSG_TYPE) + sizeof(uint32_t), sizeof(uint64_t));
+    memcpy(&id, data_ + offsetof(header, id), sizeof(id));
     return id;
   }
-  const uint8_t *data() const { return &_data[0]; }
-  size_t size() const { return sizeof(_data); }
-  //const uint8_t *payload() const { return &_data[sizeof(msg_header)]; }
+
+  uint64_t cookie() const {
+    uint64_t cookie;
+    memcpy(&cookie, data_ + offsetof(header, cookie), sizeof(cookie));
+    return cookie;
+  }
 };
 
-class msg_add : public msg {
+class put_request : public request {
 public:
-  msg_add(uint64_t id, uint64_t cookie, mr key, mr value) noexcept : msg(ADD, id) {
-    memcpy(_data + sizeof(msg_header), &cookie, sizeof(cookie));
-    memcpy(_data + sizeof(msg_header) + sizeof(cookie), &key, sizeof(key));
-    memcpy(_data + sizeof(msg_header) + sizeof(cookie) + sizeof(key), &value, sizeof(value));
+  put_request(uint64_t id, mr key, mr value)
+      : request(id, subtype::put) {
+    memcpy(data_ + sizeof(header), &key, sizeof(key));
+    memcpy(data_ + sizeof(header) + sizeof(key), &value, sizeof(value));
   }
-  msg_add(const msg &m) noexcept : msg(m) {}
-  uint64_t cookie() const {
-    uint64_t tmp;
-    memcpy(&tmp, _data + sizeof(msg_header), sizeof(tmp));
-    return tmp;
-  }
+
   struct mr key() const {
     struct mr tmp;
-    memcpy(&tmp, _data + sizeof(msg_header) + sizeof(uint64_t), sizeof(tmp));
+    memcpy(&tmp, data_ + sizeof(header), sizeof(tmp));
     return tmp;
   }
+
   struct mr value() const {
     struct mr tmp;
-    memcpy(&tmp, _data + sizeof(msg_header) + sizeof(uint64_t) + sizeof(mr), sizeof(tmp));
+    memcpy(&tmp, data_ + sizeof(header) + sizeof(mr), sizeof(tmp));
     return tmp;
   }
 };
 
-class msg_del : public msg {
+class remove_request : public request {
 public:
-  msg_del(uint64_t id, uint64_t cookie, mr key) noexcept : msg(DEL, id) {
-    memcpy(_data + sizeof(msg_header), &cookie, sizeof(cookie));
-    memcpy(_data + sizeof(msg_header) + sizeof(cookie), &key, sizeof(key));
+  remove_request(uint64_t id, mr key)
+      : request(id, subtype::del) {
+    memcpy(data_ + sizeof(header), &key, sizeof(key));
   }
-  msg_del(const msg &m) noexcept : msg(m) {}
-  uint64_t cookie() const {
-    uint64_t tmp;
-    memcpy(&tmp, _data + sizeof(msg_header), sizeof(tmp));
-    return tmp;
-  }
+  
   struct mr key() const {
     struct mr tmp;
-    memcpy(&tmp, _data + sizeof(msg_header) + sizeof(uint64_t), sizeof(tmp));
+    memcpy(&tmp, data_ + sizeof(header), sizeof(tmp));
     return tmp;
   }
 };
 
-class msg_ack : public msg {
+class disconnect_request : public request {
 public:
-  msg_ack(const msg &m) noexcept : msg(m) {}
-  //I think this is better.
-  msg_ack(const msg_add& m) noexcept : msg_ack(m.type(), m.cookie(), m.key()) {}
-  msg_ack(const msg_del& m) noexcept : msg_ack(m.type(), m.cookie(), m.key()) {}
-  msg_ack(enum DHT_MSG_TYPE type = INVALID, uint64_t cookie = 0,
-          mr key = {}) noexcept : msg(ACK) {
-    memcpy(_data + sizeof(msg_header), &type, sizeof(type));
-    memcpy(_data + sizeof(msg_header) + sizeof(type), &cookie, sizeof(cookie));
-    memcpy(_data + sizeof(msg_header) + sizeof(type) + sizeof(cookie),
-           &key.addr, sizeof(key.addr));
-    memcpy(_data + sizeof(msg_header) + sizeof(type) + sizeof(cookie) +
-               sizeof(key.addr),
-           &key.size, sizeof(key.size));
+  disconnect_request(uint64_t id)
+      : request(id, subtype::disconnect) {}
+};
+
+class response : public msg {
+  template <typename T> void complete(T result) {
+    std::function<void(T)> *cookie;
+    memcpy(reinterpret_cast<void *>(&cookie), data_ + offsetof(header, cookie),
+           sizeof(uint64_t));
+    (*cookie)(result);
+    delete cookie;
   }
-  enum DHT_MSG_TYPE ack_type() const {
-    enum DHT_MSG_TYPE type;
-    memcpy(&type, _data + sizeof(msg_header), sizeof(type));
-    return type;
+
+  void complete() {
+    std::function<void()> *cookie;
+    memcpy(reinterpret_cast<void *>(&cookie), data_ + offsetof(header, cookie),
+           sizeof(uint64_t));
+    (*cookie)();
+    delete cookie;
   }
-  uint64_t cookie() const {
-    uint64_t tmp;
-    memcpy(&tmp, _data + sizeof(msg_header) + sizeof(enum DHT_MSG_TYPE),
-           sizeof(tmp));
-    return tmp;
+
+public:
+  response(const request &request) : msg(type::response, request.subtype()) {
+    auto id = request.id();
+    auto cookie = request.cookie();
+    memcpy(data_ + offsetof(header, id), &id, sizeof(id));
+    memcpy(data_ + offsetof(header, cookie), &cookie, sizeof(cookie));
   }
-  uint64_t addr() const {
-    uint64_t tmp;
-    memcpy(&tmp, _data + sizeof(msg_header) + sizeof(uint64_t) + sizeof(enum DHT_MSG_TYPE), sizeof(tmp));
-    return tmp;
+
+  uint64_t id() const {
+    uint64_t id;
+    memcpy(&id, data_ + offsetof(header, id), sizeof(id));
+    return id;
   }
-  uint32_t key_size() const {
-    uint32_t tmp;
-    memcpy(&tmp, _data + sizeof(msg_header) + sizeof(uint64_t) + sizeof(enum DHT_MSG_TYPE) + sizeof(uint64_t), sizeof(tmp));
-    return tmp;
+
+  void complete_() const {
+    uintptr_t cookie;
+    memcpy(&cookie, data_ + offsetof(header, cookie), sizeof(uint64_t));
+
+    assert(type() == type::response);
+
+    switch (subtype()) {
+    case subtype::put:
+    case subtype::del: {
+      bool ack;
+      auto f = reinterpret_cast<std::function<void(bool)> *>(cookie);
+      memcpy(&ack, data_ + sizeof(header), sizeof(ack));
+      (*f)(ack);
+      delete f;
+    } break;
+    default:
+      assert(false);
+    }
   }
 };
 
-class msg_init : public msg {
+class bool_response : public response {
 public:
-  msg_init(uint64_t id, mr init) noexcept : msg(INIT, id) {
-    memcpy(_data + sizeof(msg_header), &init, sizeof(init));
+  bool_response(const request &request, bool ack) : response(request) {
+    memcpy(data_ + sizeof(header), &ack, sizeof(ack));
   }
-  msg_init(const msg &m) noexcept : msg(m) {}
+  bool value() const {
+    bool ack;
+    memcpy(&ack, data_ + sizeof(header), sizeof(ack));
+    return ack;
+  }
+};
+
+class put_response : public bool_response {
+public:
+  put_response(const request &request, bool ack)
+      : bool_response(std::move(request), std::move(ack)) {}
+};
+
+class remove_response : public bool_response {
+public:
+  remove_response(const request &request, bool ack)
+      : bool_response(std::move(request), std::move(ack)) {}
+};
+
+class notification_init : public msg {
+public:
+  notification_init(uint64_t id, mr init) noexcept
+      : msg(type::notification, subtype::init) {
+    memcpy(data_ + offsetof(header, id), &id, sizeof(id));
+    memcpy(data_ + sizeof(header), &init, sizeof(init));
+  }
+
+  uint64_t id() const {
+    uint64_t id;
+    memcpy(&id, data_ + offsetof(header, id), sizeof(id));
+    return id;
+  }
+
   mr init() const {
     mr tmp;
-    memcpy(&tmp, _data + sizeof(msg_header), sizeof(mr));
+    memcpy(&tmp, data_ + sizeof(header), sizeof(mr));
     return tmp;
   }
 };
 
-class msg_resize : public msg {
+class notification_resize : public msg {
 public:
-  msg_resize(mr init) noexcept : msg(RESIZE) {
-    memcpy(_data + sizeof(msg_header), &init, sizeof(init));
+  notification_resize(mr init) : msg(type::notification, subtype::resize) {
+    memcpy(data_ + sizeof(header), &init, sizeof(init));
   }
-  msg_resize(const msg &m) : msg(m) {}
+
   mr init() const {
     mr tmp;
-    memcpy(&tmp, _data + sizeof(msg_header), sizeof(mr));
+    memcpy(&tmp, data_ + sizeof(header), sizeof(mr));
     return tmp;
   }
 };
 
-class msg_disconnect : public msg {
-public:
-  msg_disconnect(uint64_t id) noexcept : msg(DISCONNECT, id) {}
-};
-
-std::ostream &operator<<(std::ostream &s, enum DHT_MSG_TYPE& type);
 std::ostream &operator<<(std::ostream &s, const msg &m);
-std::ostream &operator<<(std::ostream &s, const msg_add &m);
-std::ostream &operator<<(std::ostream &s, const msg_init &m);
 std::ostream &operator<<(std::ostream &s, const mr &mr);
-std::ostream &operator<<(std::ostream &s, const msg_ack &m);

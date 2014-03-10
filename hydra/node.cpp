@@ -25,7 +25,7 @@ node::node(const std::string &ip, const std::string &port, uint32_t msg_buffers)
       local_heap(socket),
       table_ptr(heap.malloc<key_entry>(8)),
       dht(table_ptr.first.get(), 12U, 8U),
-      msg_buffer(local_heap.malloc<msg>(msg_buffers)),
+      msg_buffer(local_heap.malloc<request>(msg_buffers)),
       info(heap.malloc<node_info>()) {
   for (size_t i = 0; i < msg_buffers; i++) {
     post_recv(msg_buffer.first.get()[i], msg_buffer.second);
@@ -67,14 +67,17 @@ void node::accept() {
 
   /* send init_msg */
   rdma_cm_id *id_ = id.get();
+  //TODO: test.
+  //id->verbs->context = id.get();
   clients([ =,
             id1 = std::move(
                 id) ](std::vector<RDMAServerSocket::client_t> &
                       clients) mutable { clients.push_back(std::move(id1)); })
       .get();
   log_info() << "ID: " << id_ << " " << (void *)id_->pd;
-  msg_init m(reinterpret_cast<uint64_t>(id_), info.second);
+  notification_init m(reinterpret_cast<uint64_t>(id_), info.second);
   log_hexdump(m);
+  log_info() << m;
   {
     // ugly, but for now, I don't have a better idea.
     /* hold off until resizing done and data consistent */
@@ -95,7 +98,7 @@ std::future<void> node::notify_all(const msg &m) {
   });
 }
 
-void node::post_recv(const msg &m, const ibv_mr *mr) {
+void node::post_recv(const request &m, const ibv_mr *mr) {
   auto future = socket.recv_async(m, mr);
   messageThread.send([=,&m, future=std::move(future)]()mutable{
     future.get();
@@ -104,18 +107,19 @@ void node::post_recv(const msg &m, const ibv_mr *mr) {
 });
 }
 
-void node::recv(const msg &msg) {
-  log_info() << "new handler";
-  log_hexdump(msg);
-  switch (msg.type()) {
-  case ADD:
-    handle_add(msg);
+void node::recv(const request &req) {
+  log_info() << req;
+  assert(req.type() == msg::type::request);
+
+  switch (req.subtype()) {
+  case msg::subtype::put:
+    handle_add(static_cast<const put_request &>(req));
     break;
-  case DEL:
-    handle_del(msg);
+  case msg::subtype::del:
+    handle_del(static_cast<const remove_request &>(req));
     break;
-  case DISCONNECT: {
-    rdma_cm_id *id = reinterpret_cast<rdma_cm_id *>(msg.id());
+  case msg::subtype::disconnect: {
+    rdma_cm_id *id = reinterpret_cast<rdma_cm_id *>(req.id());
     log_debug() << "Disconnecting " << (void *)id;
     rdma_disconnect(id);
     clients([=](std::vector<RDMAServerSocket::client_t> &clients) {
@@ -125,12 +129,7 @@ void node::recv(const msg &msg) {
       });
       clients.erase(last, std::end(clients));
     });
-    break;
-  }
-  default:
-    log_err() << "unknown message type: " << msg.type();
-    log_err() << "size: " << sizeof(enum DHT_MSG_TYPE) << " "
-              << sizeof(msg_header);
+  } break;
   }
 }
 
@@ -138,7 +137,7 @@ void node::send(const uint64_t id) {
   log_trace() << "signalled send with id " << id << " completed.";
 }
 
-void node::handle_add(const msg_add &msg) {
+void node::handle_add(const put_request &msg) {
   log_info() << msg;
   const size_t key_size = msg.key().size;
   const size_t val_size = msg.value().size;
@@ -186,19 +185,19 @@ void node::handle_add(const msg_add &msg) {
                                                      << info.first->key_extents;
                                           std::swap(table_ptr, new_table);
                                         }
-                                        msg_resize m(table_ptr.second);
+                                        notification_resize m(table_ptr.second);
                                         notify_all(m).get();
                                         ret = hs.add(std::move(e));
                                         hs.check_consistency();
                                       }
                                       // TODO: ack/nack according to return
                                       // value
-                                      ack(msg);
+                                      ack(put_response(msg, true));
                                     });
       });
 }
 
-void node::handle_del(const msg_del &msg) {
+void node::handle_del(const remove_request &msg) {
   log_info() << msg;
 
   const size_t size = msg.key().size;
@@ -223,9 +222,15 @@ void node::handle_del(const msg_del &msg) {
                                       // s.dump();
                                       // TODO: ack/nack according to return
                                       // value
-                                      ack(msg);
+                                      ack(remove_response(msg, true));
                                     });
       });
 }
 
+void node::ack(const response &r) const {
+  rdma_cm_id *id = reinterpret_cast<rdma_cm_id *>(r.id());
+//  log_info() << r;
+  sendImmediate(id, r);
 }
+}
+

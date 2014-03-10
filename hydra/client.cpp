@@ -27,61 +27,69 @@ hydra::client::client(const std::string &host, const std::string &port)
       remote_table(nullptr) {
   auto f = post_recv(msg_buffer.first.get()[0], msg_buffer.second);
   post_recv(msg_buffer.first.get()[1], msg_buffer.second);
+
   s.connect();
   f.wait();
 }
 
 hydra::client::~client() {
-  msg_disconnect m(id);
-  s.sendImmediate(m);
+  std::promise<void> promise;
+  disconnect_request request(id);
+  auto future = request.set_completion();
+  s.sendImmediate(request);
+  future.get();
 }
 
-std::future<void> hydra::client::post_recv(const msg &m, const ibv_mr *mr) {
+std::future<void> hydra::client::post_recv(const msg &m,
+                                           const ibv_mr *mr) {
   auto fut = s.recv_async(m, mr);
 #if 0
   return hydra::then(std::move(fut), [=,&m](auto m_) mutable {
     m_.get(); // check for exception
 #else
-  return messageThread.send([this,&m, mr, future=std::move(fut)]()mutable{
+  return messageThread.send([this, &m, mr, future=std::move(fut)]()mutable{
 #endif
-    future.get();
-    recv(m);
-    post_recv(m, mr);
-  });
+  future.get();
+  recv(m);
+  post_recv(m, mr);
+});
 }
 
-void hydra::client::recv(const msg &msg) {
-  log_info() << "FOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO new handler: " << msg.type();
-  log_info() << msg;
-  log_hexdump(msg);
-  switch (msg.type()) {
-  case INIT:
-    id = msg.id();
-    log_info() << "ID for remote " << msg.id();
-    remote = msg_init(msg).init();
-  [[clang::fallthrough]];
-  case RESIZE: {
-    log_info() << "remote mr: " << remote;
-    s.read(info.first.get(), info.second,
-           reinterpret_cast<node_info *>(remote.addr), remote.rkey).get();
-    log_info() << info.first->key_extents;
-    remote_table = reinterpret_cast<key_entry *>(info.first->key_extents.addr);
-    rkey = info.first->key_extents.rkey;
-    table_size = info.first->table_size;
-    log_debug() << "Remote table: " << table_size << " @" << (void*)remote_table
-                << " (" << rkey << ")";
-  } break;
-  case ACK: {
-    msg_ack m(msg);
-    log_info() << "Received ack: " << m;
-    auto functor = reinterpret_cast<std::function<void(bool)> *>(m.cookie());
-    if (functor)
-      (*functor)(true);
-  } break;
-  default:
+void hydra::client::recv(const msg& r ) {
+  log_info() << r;
+
+  switch (r.type()) {
+  case msg::type::response:
+    static_cast<const response &>(r).complete_();
     break;
+  case msg::type::notification:
+    switch (r.subtype()) {
+    case msg::subtype::init: {
+      const notification_init &n = static_cast<const notification_init &>(r);
+      id = n.id();
+      log_info() << "ID for remote " << n.id();
+      remote = n.init();
+    }
+      [[clang::fallthrough]];
+    case msg::subtype::resize: {
+      log_info() << "remote mr: " << remote;
+      s.read(info.first.get(), info.second,
+             reinterpret_cast<node_info *>(remote.addr), remote.rkey).get();
+      log_info() << info.first->key_extents;
+      remote_table =
+          reinterpret_cast<key_entry *>(info.first->key_extents.addr);
+      rkey = info.first->key_extents.rkey;
+      table_size = info.first->table_size;
+      log_debug() << "Remote table: " << table_size << " @"
+                  << (void *)remote_table << " (" << rkey << ")";
+    } break;
+    default:
+      break;
+    }
+    break;
+  default:
+    assert(false);
   }
-  memset(const_cast<uint8_t*>(msg.data()), 'U', msg.size());
 }
 
 std::future<bool> hydra::client::add(const char *key, size_t key_length, const char *value,
@@ -90,46 +98,35 @@ std::future<bool> hydra::client::add(const char *key, size_t key_length, const c
   // into memory, allocated by heap.malloc()
   ibv_mr *key_mr = s.mapMemory(key, key_length);
   ibv_mr *value_mr = s.mapMemory(value, value_length);
-
-  auto promise = std::make_shared<std::promise<bool>>();
-  std::function<void(bool)> *cookie = new std::function<void(bool)>();
-  *cookie = [=](bool ack) {
-    rdma_dereg_mr(key_mr);
-    rdma_dereg_mr(value_mr);
-    promise->set_value(ack);
-    delete cookie;
-  };
-
+  
   log_info() << key_mr;
   //log_info() << value_mr;
 
-  msg_add data = { id,
-                   reinterpret_cast<uint64_t>(cookie),
-                   { key, key_length, key_mr->rkey },
-                   { value, value_length, value_mr->rkey } };
-  log_info() << data;
-  s.sendImmediate(data);
-  return promise->get_future();
+  put_request request = { id, { key, key_length, key_mr->rkey },
+                          { value, value_length, value_mr->rkey } };
+  auto future = request.set_completion<bool>([=](bool) {
+    rdma_dereg_mr(key_mr);
+    rdma_dereg_mr(value_mr);
+  });
+
+  s.sendImmediate(request);
+
+  return future;
 }
 
 std::future<bool> hydra::client::remove(const char * key, size_t key_length) {
   ibv_mr *key_mr = s.mapMemory(key, key_length);
-  
-  auto promise = std::make_shared<std::promise<bool>>();
-  std::function<void(bool)> *cookie = new std::function<void(bool)>();
-  *cookie = [=](bool ack) {
-    rdma_dereg_mr(key_mr);
-    promise->set_value(ack);
-    delete cookie;
-  };
-  
+
   log_info() << key_mr;
 
-  msg_del data(id, reinterpret_cast<uint64_t>(cookie),
-               { key, key_length, key_mr->rkey });
-  log_info() << data;
-  s.sendImmediate(data);
-  return promise->get_future();
+  remove_request request = { id, { key, key_length, key_mr->rkey } };
+  auto future = request.set_completion<bool>([=](bool) {
+    rdma_dereg_mr(key_mr);
+  });
+
+  s.sendImmediate(request);
+  
+  return future;
 }
 
 bool hydra::client::contains(const char *key, size_t key_length) {

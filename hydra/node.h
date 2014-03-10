@@ -37,7 +37,7 @@ class node {
   monitor<std::vector<RDMAServerSocket::client_t>> clients; 
   monitor<std::vector<rnode>> nodes;
 
-  decltype(local_heap.malloc<msg>()) msg_buffer;
+  decltype(local_heap.malloc<request>()) msg_buffer;
   /* occupy threads for blocking work, so libdispatch doesn't choke */
   WorkerThread messageThread;
   WorkerThread acceptThread;
@@ -46,24 +46,16 @@ class node {
 
   decltype(heap.malloc<node_info>()) info;
 
-  void post_recv(msg& m);
+  void post_recv(request& m);
   void accept();
-  void post_recv(const msg& m, const ibv_mr* mr);
-  void recv(const msg& msg);
+  void post_recv(const request& m, const ibv_mr* mr);
+  void recv(const request& msg);
   void send(const uint64_t id);
-  template <typename T, typename = typename std::enable_if<
-                            std::is_same<T, msg_add>::value ||
-                            std::is_same<T, msg_del>::value>::type>
-  void ack(const T &msg) const {
-    msg_ack m(msg);
-    rdma_cm_id *id = reinterpret_cast<rdma_cm_id *>(msg.id());
-    log_info() << m;
-    sendImmediate(id, m);
-  }
+  void ack(const response &msg) const;
 
 
-  void handle_add(const msg_add& msg);
-  void handle_del(const msg_del& msg);
+  void handle_add(const put_request& msg);
+  void handle_del(const remove_request& msg);
   std::future<void> notify_all(const msg& m);
 public:
   node(const std::string& ip, const std::string &port,

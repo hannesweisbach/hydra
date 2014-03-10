@@ -2,36 +2,114 @@
 
 #include "messages.h"
 
-std::ostream &operator<<(std::ostream &s, enum DHT_MSG_TYPE& type) {
-  switch (type) {
-  case INVALID:
-    s << "INVALID";
-    break;
-  case ADD:
-    s << "ADD";
-    break;
-  case DEL:
-    s << "DEL";
-    break;
-  case ACK:
-    s << "ACK";
-    break;
-  case NACK:
-    s << "NACK";
-    break;
-  case INIT:
-    s << "INIT";
-    break;
-  case DISCONNECT:
-    s << "DISCONNECT";
-    break;
-  case RESIZE:
-    s << "RESIZE";
-    break;
+static std::ostream &operator<<(std::ostream &s, const response &r) {
+  // s << "  uint64_t cookie = " << std::showbase << r.cookie() << std::endl;
+  s << "  uint64_t id = " << std::showbase << r.id() << std::endl;
+  switch (r.subtype()) {
+  case msg::subtype::put: {
+    const put_response &r_ = static_cast<const put_response &>(r);
+    s << std::boolalpha << r_.value();
+  } break;
+  case msg::subtype::del: {
+    const remove_response &r_ = static_cast<const remove_response &>(r);
+    s << r_.value();
+  } break;
   default:
-    s << "unkown";
+    assert(false);
     break;
   }
+  return s;
+}
+
+static std::ostream &operator<<(std::ostream &s, const request &req) {
+  s << "  uint64_t cookie = " << std::showbase << req.cookie() << std::endl;
+  s << "  uint64_t id = " << std::showbase << req.id() << std::endl;
+  switch (req.subtype()) {
+  case msg::subtype::put: {
+    const put_request &r = static_cast<const put_request &>(req);
+    s << r.key() << r.value();
+  } break;
+  case msg::subtype::del: {
+    const remove_request &r = static_cast<const remove_request &>(req);
+    s << r.key();
+  } break;
+  case msg::subtype::disconnect:
+    break;
+  default:
+    assert(false);
+    break;
+  }
+  return s;
+}
+
+static std::ostream &operator<<(std::ostream &s, const enum msg::type &type) {
+  switch (type) {
+  case msg::type::invalid:
+    return s << "invalid";
+  case msg::type::request:
+    return s << "request";
+  case msg::type::response:
+    return s << "response";
+  case msg::type::notification:
+    return s << "notification";
+  }
+}
+
+static std::ostream &operator<<(std::ostream &s,
+                                const enum msg::subtype subtype) {
+  switch (subtype) {
+  case msg::subtype::invalid:
+    return s << "invalid";
+  case msg::subtype::put:
+    return s << "put";
+  case msg::subtype::del:
+    return s << "del";
+  case msg::subtype::disconnect:
+    return s << "disconnect";
+  case msg::subtype::init:
+    return s << "init";
+  case msg::subtype::resize:
+    return s << "resize";
+  }
+}
+
+static std::ostream &operator<<(std::ostream &s, const notification_init &init) {
+  s << "  uint64_t id = " << init.id();
+  s << "  mr init = " << init.init();
+  return s;
+}
+
+static std::ostream& operator<<(std::ostream & s, const notification_resize & resize) {
+  s << "  mr init = " << resize.init();
+  return s;
+}
+
+std::ostream &operator<<(std::ostream &s, const msg &m) {
+  s << std::hex;
+  s << "request {" << std::endl;
+  s << "  enum type type = " << m.type() << std::endl;
+  s << "  enum subtype subtype = " << m.subtype() << std::endl;
+  switch (m.type()) {
+  case msg::type::request:
+    s << static_cast<const request &>(m);
+    break;
+  case msg::type::response:
+    s << static_cast<const response &>(m);
+    break;
+  case msg::type::notification:
+    switch (m.subtype()) {
+    case msg::subtype::init:
+      s << static_cast<const notification_init&>(m);
+      break;
+    case msg::subtype::resize:
+      s << static_cast<const notification_resize&>(m);
+      break;
+    }
+    break;
+  case msg::type::invalid:
+    break;
+  }
+  s << "};" << std::dec;
   return s;
 }
 
@@ -41,61 +119,6 @@ std::ostream& operator<<(std::ostream& s, const mr& mr) {
     << std::setw(12) << mr.addr << std::dec << std::endl;
   s << "  uint32_t size = " << mr.size << std::endl;
   s << "  uint32_t rkey = " << mr.rkey << std::endl;
-  s << "};";
-  return s;
-}
-
-std::ostream &operator<<(std::ostream &s, const msg_ack &m) {
-  s << "msg_ack {" << std::endl;
-  s << "  enum DHT_MSG_TYPE acked = " << m.ack_type() << std::endl;
-  s << "  uint64_t cookie = " << reinterpret_cast<void *>(m.cookie())
-    << std::endl;
-  s << "  uint64_t key = " << m.addr() << std::endl;
-  s << "  uint64_t size = " << m.size() << std::endl;
-  s << "};";
-
-  return s;
-}
-
-std::ostream &operator<<(std::ostream &s, const msg_add &m) {
-  s << "msg_add {" << std::endl;
-  s << "  enum DHT_MSG_TYPE type = " << m.type() << std::endl;
-  s << "  uint64_t id = " << m.id() << std::endl;
-  s << "  uint64_t cookie = " << reinterpret_cast<void *>(m.cookie())
-    << std::endl;
-  s << "  struct mr key = " << m.key() << std::endl;
-  s << "  struct mr value = " << m.value() << std::endl;
-  s << "};";
-  return s;
-}
-
-std::ostream &operator<<(std::ostream &s, const msg_del &m) {
-  s << "msg_del {" << std::endl;
-  s << "  enum DHT_MSG_TYPE type = " << m.type() << std::endl;
-  s << "  uint64_t id = " << m.id() << std::endl;
-  s << "  uint64_t cookie = " << reinterpret_cast<void *>(m.cookie())
-    << std::endl;
-  s << "  struct mr key = " << m.key() << std::endl;
-  s << "};";
-  return s;
-}
-
-std::ostream& operator<<(std::ostream& s, const msg_init& m) {
-  return s << m.init();
-}
-
-std::ostream& operator<<(std::ostream& s, const msg& m) {
-  s << "message {" << std::endl;
-  s << "  enum DHT_MSG_TYPE type = " << m.type() << std::endl;
-  s << "  uint64_t client_id = " << std::showbase << std::hex << m.id()
-    << std::dec << std::endl;
-  switch(m.type()) {
-    case ADD: s  << msg_add(m); break;
-    case INIT: s << msg_init(m); break;
-    case ACK: s  << msg_ack(m); break;
-    case DEL: s  << msg_del(m); break;
-    default: break;
-  }
   s << "};";
   return s;
 }
