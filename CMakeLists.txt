@@ -22,8 +22,9 @@ add_definitions(-DLEVEL1_DCACHE_LINESIZE=${LEVEL1_DCACHE_LINESIZE})
 
 if(UNIX)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Weverything -Wno-c++98-compat -Wno-old-style-cast -Wno-shadow -Wno-missing-prototypes")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y -ftemplate-backtrace-limit=0 -O3")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -ftemplate-backtrace-limit=0 -O1")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ggdb3")
+  #-ftrapv -fcatch-undefined-behavior
   #SET(CMAKE_CXX_FALGS "${CMAKE_CXX_FLAGS} -no-integrated-as")
   #set_source_files_properties(hydra/allocators/FreeListHeap.h PROPERTIES COMPILE_FLAGS -g0)
   #  SET(CMAKE_LINK_FLAGS "${CMAKE_LINK_FLAGS} -stdlib=libc++ -nodefaultlibs -lc++ -lc++abi -lm -lc -lgcc_s -lgcc")
@@ -74,13 +75,13 @@ add_custom_command(TARGET serversocket POST_BUILD
     WORKING_DIRECTORY ${EXECUTABLE_OUTPUT_PATH}
 )
 
-add_executable(dht_server ${SERVER_SOURCES})
-target_link_libraries(dht_server ${COMMON_LIBS} logger util)
-add_custom_command(TARGET dht_server POST_BUILD
-    COMMAND sudo setcap cap_sys_resource+ep dht_server
-    COMMENT "Setting capability CAP_SYS_RESOURCE for target dht_server"
-    WORKING_DIRECTORY ${EXECUTABLE_OUTPUT_PATH}
-)
+#add_executable(dht_server ${SERVER_SOURCES})
+#target_link_libraries(dht_server ${COMMON_LIBS} logger util)
+#add_custom_command(TARGET dht_server POST_BUILD
+#    COMMAND sudo setcap cap_sys_resource+ep dht_server
+#    COMMENT "Setting capability CAP_SYS_RESOURCE for target dht_server"
+#    WORKING_DIRECTORY ${EXECUTABLE_OUTPUT_PATH}
+#)
 
 
 add_executable(dht_client ${CLIENT_SOURCES})
