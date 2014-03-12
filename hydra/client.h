@@ -62,7 +62,6 @@ private:
   //TODO: node for hash
   size_t prefetch; 
 
-  rdma_cm_id * id;
   size_t table_size;
   uint32_t rkey;
 

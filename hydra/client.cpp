@@ -23,7 +23,7 @@ auto size2Class = [](size_t size) -> size_t {
 hydra::client::client(const std::string &host, const std::string &port)
     : s(host, port), heap(48U, size2Class, s), local_heap(s),
       msg_buffer(local_heap.malloc<msg>(2)),
-      info(local_heap.malloc<node_info>()), id(nullptr), prefetch(1),
+      info(local_heap.malloc<node_info>()), prefetch(1),
       remote_table(nullptr) {
   auto f = post_recv(msg_buffer.first.get()[0], msg_buffer.second);
   post_recv(msg_buffer.first.get()[1], msg_buffer.second);
@@ -34,7 +34,7 @@ hydra::client::client(const std::string &host, const std::string &port)
 
 hydra::client::~client() {
   std::promise<void> promise;
-  disconnect_request request(id);
+  disconnect_request request;
   auto future = request.set_completion();
   s.sendImmediate(request);
   future.get();
@@ -66,8 +66,6 @@ void hydra::client::recv(const msg& r ) {
     switch (r.subtype()) {
     case msg::subtype::init: {
       const notification_init &n = static_cast<const notification_init &>(r);
-      id = n.id();
-      log_info() << "ID for remote " << n.id();
       remote = n.init();
     }
       [[clang::fallthrough]];
@@ -102,7 +100,7 @@ std::future<bool> hydra::client::add(const char *key, size_t key_length, const c
   log_info() << key_mr;
   //log_info() << value_mr;
 
-  put_request request = { id, { key, key_length, key_mr->rkey },
+  put_request request = { { key, key_length, key_mr->rkey },
                           { value, value_length, value_mr->rkey } };
   auto future = request.set_completion<bool>([=](bool) {
     rdma_dereg_mr(key_mr);
@@ -119,7 +117,7 @@ std::future<bool> hydra::client::remove(const char * key, size_t key_length) {
 
   log_info() << key_mr;
 
-  remove_request request = { id, { key, key_length, key_mr->rkey } };
+  remove_request request = { { key, key_length, key_mr->rkey } };
   auto future = request.set_completion<bool>([=](bool) {
     rdma_dereg_mr(key_mr);
   });

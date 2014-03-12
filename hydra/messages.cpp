@@ -4,7 +4,6 @@
 
 static std::ostream &operator<<(std::ostream &s, const response &r) {
   // s << "  uint64_t cookie = " << std::showbase << r.cookie() << std::endl;
-  s << "  uint64_t id = " << std::showbase << r.id() << std::endl;
   switch (r.subtype()) {
   case msg::subtype::put: {
     const put_response &r_ = static_cast<const put_response &>(r);
@@ -23,7 +22,6 @@ static std::ostream &operator<<(std::ostream &s, const response &r) {
 
 static std::ostream &operator<<(std::ostream &s, const request &req) {
   s << "  uint64_t cookie = " << std::showbase << req.cookie() << std::endl;
-  s << "  uint64_t id = " << std::showbase << req.id() << std::endl;
   switch (req.subtype()) {
   case msg::subtype::put: {
     const put_request &r = static_cast<const put_request &>(req);
@@ -74,7 +72,6 @@ static std::ostream &operator<<(std::ostream &s,
 }
 
 static std::ostream &operator<<(std::ostream &s, const notification_init &init) {
-  s << "  uint64_t id = " << init.id();
   s << "  mr init = " << init.init();
   return s;
 }
@@ -86,7 +83,7 @@ static std::ostream& operator<<(std::ostream & s, const notification_resize & re
 
 std::ostream &operator<<(std::ostream &s, const msg &m) {
   s << std::hex;
-  s << "request {" << std::endl;
+  s << "msg {" << std::endl;
   s << "  enum type type = " << m.type() << std::endl;
   s << "  enum subtype subtype = " << m.subtype() << std::endl;
   switch (m.type()) {

@@ -71,7 +71,7 @@ void node::accept() {
           }).get();
 
   log_info() << "ID: " << id_ << " " << (void *)id_;
-  notification_init m(nullptr, info.second);
+  notification_init m(info.second);
   log_hexdump(m);
   log_info() << m;
   {
