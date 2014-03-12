@@ -43,6 +43,7 @@ typedef std::unique_ptr< ::ibv_comp_channel,
                          decltype(& ::ibv_destroy_comp_channel)>
 comp_channel_ptr;
 typedef std::unique_ptr< ::ibv_cq, decltype(&ibv_destroy_cq)> cq_ptr;
+using qp_t = decltype(ibv_wc::qp_num);
 
 rdma_id_ptr createCmId(const std::string &host, const std::string &port,
                        const bool passive = false,
@@ -89,15 +90,16 @@ auto rdma_continuation(RDMAFunctor &&functor, Continuation &&continuation)
 
 template <typename T, typename RDMAFunctor, typename... Args>
 auto async_rdma_operation(RDMAFunctor &&functor, T value, Args &&... args)
-    -> std::future<T> {
-  auto promise = std::make_shared<std::promise<T> >();
+    -> std::future<qp_t> {
+  auto promise = std::make_shared<std::promise<qp_t> >();
   std::function<void(ibv_wc &)> *f = new std::function<void(ibv_wc &)>();
   *f = [=](ibv_wc &wc) {
     log_info() << (enum ibv_wc_status)wc.status << " "
                << ": " << wc.byte_len << std::endl;
     try {
       if (wc.status == IBV_WC_SUCCESS) {
-        promise->set_value(value);
+        //promise->set_value(value);
+        promise->set_value(wc.qp_num);
       } else {
         std::ostringstream s;
         s << wc.opcode << " resulted in " << wc.status;
@@ -126,7 +128,7 @@ template <typename T>
 }
 
 template <typename T>
-std::future<T *> rdma_recv_async(rdma_cm_id *id, const T *local,
+std::future<qp_t> rdma_recv_async(rdma_cm_id *id, const T *local,
                                  const ibv_mr *mr, size_t size = sizeof(T)) {
   auto func =
       std::bind(rdma_post_recv, id, std::placeholders::_1,
@@ -137,7 +139,7 @@ std::future<T *> rdma_recv_async(rdma_cm_id *id, const T *local,
 }
 
 template <typename T>
-std::future<T *> rdma_read_async__(rdma_cm_id *id, T *local, size_t size,
+std::future<qp_t> rdma_read_async__(rdma_cm_id *id, T *local, size_t size,
                                    ibv_mr *mr, uint64_t remote, uint32_t rkey) {
   auto functor = std::bind(rdma_post_read, id, std::placeholders::_1, local,
                            size, mr, IBV_SEND_SIGNALED, remote, rkey);

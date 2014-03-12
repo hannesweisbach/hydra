@@ -4,6 +4,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <unordered_map>
 
 #include "rdma/RDMAWrapper.hpp"
 #include "rdma/RDMAServerSocket.h"
@@ -34,7 +35,7 @@ class node {
   ThreadSafeHeap<ZoneHeap<RdmaHeap<hydra::rdma::LOCAL_READ>, 256> > local_heap;
   decltype(heap.malloc<key_entry>()) table_ptr;
   monitor<hopscotch_server> dht;
-  monitor<std::vector<RDMAServerSocket::client_t>> clients; 
+  monitor<std::unordered_map<qp_t, RDMAServerSocket::client_t> > clients;
   monitor<std::vector<rnode>> nodes;
 
   decltype(local_heap.malloc<request>()) msg_buffer;
@@ -49,14 +50,15 @@ class node {
   void post_recv(request& m);
   void accept();
   void post_recv(const request& m, const ibv_mr* mr);
-  void recv(const request& msg);
+  void recv(const request &msg, const qp_t &qp);
   void send(const uint64_t id);
-  void ack(const response &msg) const;
+  void ack(const qp_t &qp, const response &msg) const;
 
-
-  void handle_add(const put_request& msg);
-  void handle_del(const remove_request& msg);
+  void handle_add(const put_request &msg, const qp_t &qp);
+  void handle_del(const remove_request &msg, const qp_t &qp);
   std::future<void> notify_all(const msg& m);
+  std::future<rdma_cm_id *> find_id(const qp_t &qp) const;
+
 public:
   node(const std::string& ip, const std::string &port,
        uint32_t msg_buffers = 5);

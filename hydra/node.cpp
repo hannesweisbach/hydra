@@ -64,18 +64,14 @@ void node::accept() {
   acceptThread.send([=,future=std::move(f)]()mutable {
 #endif
   RDMAServerSocket::client_t id = future.get();
+  rdma_cm_id * id_ = id.get();
 
-  /* send init_msg */
-  rdma_cm_id *id_ = id.get();
-  //TODO: test.
-  //id->verbs->context = id.get();
-  clients([ =,
-            id1 = std::move(
-                id) ](std::vector<RDMAServerSocket::client_t> &
-                      clients) mutable { clients.push_back(std::move(id1)); })
-      .get();
-  log_info() << "ID: " << id_ << " " << (void *)id_->pd;
-  notification_init m(id.get(), info.second);
+  clients([id1 = std::move(id)](auto & clients) mutable {
+            clients.emplace(id1->qp->qp_num, std::move(id1));
+          }).get();
+
+  log_info() << "ID: " << id_ << " " << (void *)id_;
+  notification_init m(nullptr, info.second);
   log_hexdump(m);
   log_info() << m;
   {
@@ -90,10 +86,10 @@ void node::accept() {
 }
 
 std::future<void> node::notify_all(const msg &m) {
-  return clients([=](std::vector<RDMAServerSocket::client_t> &clients) {
+  return clients([=](auto &clients) {
     for (auto &client : clients) {
-      log_debug() << "Sending " << (void *)client.get() << " " << m;
-      sendImmediate(client.get(), m);
+      log_debug() << "Sending " << (void *)client.second.get() << " " << m;
+      sendImmediate(client.second.get(), m);
     }
   });
 }
@@ -101,34 +97,28 @@ std::future<void> node::notify_all(const msg &m) {
 void node::post_recv(const request &m, const ibv_mr *mr) {
   auto future = socket.recv_async(m, mr);
   messageThread.send([=,&m, future=std::move(future)]()mutable{
-    future.get();
-  recv(m);
+  auto qp = future.get();
+  recv(m, qp);
   post_recv(m, mr);
 });
 }
 
-void node::recv(const request &req) {
+void node::recv(const request &req, const qp_t &qp) {
   log_info() << req;
   assert(req.type() == msg::type::request);
 
   switch (req.subtype()) {
   case msg::subtype::put:
-    handle_add(static_cast<const put_request &>(req));
+    handle_add(static_cast<const put_request &>(req), qp);
     break;
   case msg::subtype::del:
-    handle_del(static_cast<const remove_request &>(req));
+    handle_del(static_cast<const remove_request &>(req), qp);
     break;
   case msg::subtype::disconnect: {
-    rdma_cm_id *id = req.id();
+    rdma_cm_id *id = find_id(qp).get();
     log_debug() << "Disconnecting " << (void *)id;
     rdma_disconnect(id);
-    clients([=](std::vector<RDMAServerSocket::client_t> &clients) {
-      auto last = std::remove_if(std::begin(clients), std::end(clients),
-                                 [=](RDMAServerSocket::client_t &client) {
-        return id == client.get();
-      });
-      clients.erase(last, std::end(clients));
-    });
+    clients([=](auto &clients) { clients.erase(qp); });
   } break;
   }
 }
@@ -137,7 +127,7 @@ void node::send(const uint64_t id) {
   log_trace() << "signalled send with id " << id << " completed.";
 }
 
-void node::handle_add(const put_request &msg) {
+void node::handle_add(const put_request &msg, const qp_t &qp) {
   log_info() << msg;
   const size_t key_size = msg.key().size;
   const size_t val_size = msg.value().size;
@@ -148,13 +138,15 @@ void node::handle_add(const put_request &msg) {
   auto value = key + key_size;
   log_info() << mem.second;
 
-  rdma_read_async__(msg.id(), value, val_size, mem.second, msg.value().addr,
+  rdma_cm_id * id = find_id(qp).get();
+
+  rdma_read_async__(id, value, val_size, mem.second, msg.value().addr,
                     msg.value().rkey).get();
-  auto fut = rdma_read_async__(msg.id(), key, key_size, mem.second,
-                               msg.key().addr, msg.key().rkey);
+  auto fut = rdma_read_async__(id, key, key_size, mem.second, msg.key().addr,
+                               msg.key().rkey);
   hydra::then(
       std::move(fut),
-      [ =, r = std::move(mem) ](std::future<decltype(key)> s__) mutable {
+      [ =, r = std::move(mem) ](auto s__) mutable {
         s__.get();
         dht([ =, r1 = std::move(r) ](hopscotch_server & hs) mutable {
                                       server_dht::resource_entry e(
@@ -190,12 +182,12 @@ void node::handle_add(const put_request &msg) {
                                       }
                                       // TODO: ack/nack according to return
                                       // value
-                                      ack(put_response(msg, true));
+                                      ack(qp, put_response(msg, true));
                                     });
       });
 }
 
-void node::handle_del(const remove_request &msg) {
+void node::handle_del(const remove_request &msg, const qp_t &qp) {
   log_info() << msg;
 
   const size_t size = msg.key().size;
@@ -204,28 +196,41 @@ void node::handle_del(const remove_request &msg) {
   auto key = mem.first.get();
   log_info() << mem.second;
 
-  auto fut = rdma_read_async__(msg.id(), key, size, mem.second, msg.key().addr,
+  rdma_cm_id *id = find_id(qp).get();
+
+  auto fut = rdma_read_async__(id, key, size, mem.second, msg.key().addr,
                                msg.key().rkey);
-  hydra::then(
-      std::move(fut),
-      [ =, r = std::move(mem) ](std::future<unsigned char *> s) mutable {
-        (void)(s);
-        dht([ =, r1 = std::move(r) ](hopscotch_server & s) mutable {
-                                      server_dht::key_type key =
-                                          std::make_pair(r1.first.get(), size);
-                                      s.check_consistency();
-                                      s.remove(key);
-                                      s.check_consistency();
-                                      // s.dump();
-                                      // TODO: ack/nack according to return
-                                      // value
-                                      ack(remove_response(msg, true));
-                                    });
-      });
+  hydra::then(std::move(fut), [ =, r = std::move(mem) ](auto s) mutable {
+    s.get();
+    dht([ =, r1 = std::move(r) ](hopscotch_server & s) mutable {
+                                  server_dht::key_type key =
+                                      std::make_pair(r1.first.get(), size);
+                                  s.check_consistency();
+                                  s.remove(key);
+                                  s.check_consistency();
+                                  // s.dump();
+                                  // TODO: ack/nack according to return
+                                  // value
+                                  ack(qp, remove_response(msg, true));
+                                });
+  });
 }
 
-void node::ack(const response &r) const {
-  sendImmediate(r.id(), r);
+std::future<rdma_cm_id *> node::find_id(const qp_t &qp) const {
+  return clients([=](auto & clients)->rdma_cm_id * {
+    auto client = clients.find(qp);
+    if (client != std::end(clients))
+      return client->second.get();
+    else
+      return nullptr;
+  });
+}
+
+void node::ack(const qp_t &qp, const response &r) const {
+  // TODO: .then()
+  rdma_cm_id *id = find_id(qp).get();
+  assert(id != nullptr);
+  sendImmediate(id, r);
 }
 }
 
