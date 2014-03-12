@@ -42,7 +42,7 @@ public:
 
   template <typename T, typename = typename std::enable_if<
                             !std::is_pointer<T>::value>::type>
-  std::future<T *> recv_async(const T &local, const ibv_mr *mr,
+  auto recv_async(const T &local, const ibv_mr *mr,
                               size_t size = sizeof(T)) {
     return rdma_recv_async(id.get(), &local, mr, size);
   }

@@ -42,7 +42,7 @@ public:
 
   template <typename T, typename = typename std::enable_if<
                             !std::is_pointer<T>::value>::type>
-  std::future<T *> recv_async(const T &local, const ibv_mr *mr,
+  auto recv_async(const T &local, const ibv_mr *mr,
                               size_t size = sizeof(T)) {
     return rdma_recv_async(id.get(), &local, mr, size);
   }
@@ -83,7 +83,7 @@ public:
   }
 
   template <typename T, typename U>
-  std::future<T *> read(T *local, ibv_mr *mr, U *remote, uint32_t rkey,
+  auto read(T *local, ibv_mr *mr, U *remote, uint32_t rkey,
                         size_t n_elems = 1) {
     static_assert(std::is_same<typename std::remove_cv<T>::type,
                                typename std::remove_cv<U>::type>::value,
