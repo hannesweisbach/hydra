@@ -78,8 +78,7 @@ void node::accept() {
     // ugly, but for now, I don't have a better idea.
     /* hold off until resizing done and data consistent */
     std::lock_guard<std::mutex> l(resize_mutex);
-    if (rdma_post_send(id_, nullptr, &m, sizeof(m), nullptr, IBV_SEND_INLINE))
-      log_err() << "rdma_post_send(): " << strerror(errno);
+    sendImmediate(id_, m);
   }
   accept();
 });
