@@ -25,11 +25,20 @@ hydra::client::client(const std::string &host, const std::string &port)
       msg_buffer(local_heap.malloc<msg>(2)),
       info(local_heap.malloc<node_info>()), prefetch(1),
       remote_table(nullptr) {
-  auto f = post_recv(msg_buffer.first.get()[0], msg_buffer.second);
+  post_recv(msg_buffer.first.get()[0], msg_buffer.second);
   post_recv(msg_buffer.first.get()[1], msg_buffer.second);
 
   s.connect();
-  f.wait();
+
+
+  init_request request;
+  auto future = request.set_completion<const mr &>([&](auto &&mr) {
+    remote = mr;
+    update_info();
+  });
+
+  s.sendImmediate(request);
+  future.wait();
 }
 
 hydra::client::~client() {
@@ -55,7 +64,19 @@ std::future<void> hydra::client::post_recv(const msg &m,
 });
 }
 
-void hydra::client::recv(const msg& r ) {
+void hydra::client::update_info() {
+  log_info() << "remote mr: " << remote;
+  s.read(info.first.get(), info.second,
+         reinterpret_cast<node_info *>(remote.addr), remote.rkey).get();
+  log_info() << info.first->key_extents;
+  remote_table = reinterpret_cast<key_entry *>(info.first->key_extents.addr);
+  rkey = info.first->key_extents.rkey;
+  table_size = info.first->table_size;
+  log_debug() << "Remote table: " << table_size << " @" << (void *)remote_table
+              << " (" << rkey << ")";
+}
+
+void hydra::client::recv(const msg &r) {
   log_info() << r;
 
   switch (r.type()) {
@@ -64,22 +85,8 @@ void hydra::client::recv(const msg& r ) {
     break;
   case msg::type::notification:
     switch (r.subtype()) {
-    case msg::subtype::init: {
-      const notification_init &n = static_cast<const notification_init &>(r);
-      remote = n.init();
-    }
-      [[clang::fallthrough]];
     case msg::subtype::resize: {
-      log_info() << "remote mr: " << remote;
-      s.read(info.first.get(), info.second,
-             reinterpret_cast<node_info *>(remote.addr), remote.rkey).get();
-      log_info() << info.first->key_extents;
-      remote_table =
-          reinterpret_cast<key_entry *>(info.first->key_extents.addr);
-      rkey = info.first->key_extents.rkey;
-      table_size = info.first->table_size;
-      log_debug() << "Remote table: " << table_size << " @"
-                  << (void *)remote_table << " (" << rkey << ")";
+      update_info();
     } break;
     default:
       break;

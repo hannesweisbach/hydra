@@ -71,15 +71,6 @@ void node::accept() {
           }).get();
 
   log_info() << "ID: " << id_ << " " << (void *)id_;
-  notification_init m(info.second);
-  log_hexdump(m);
-  log_info() << m;
-  {
-    // ugly, but for now, I don't have a better idea.
-    /* hold off until resizing done and data consistent */
-    std::lock_guard<std::mutex> l(resize_mutex);
-    sendImmediate(id_, m);
-  }
   accept();
 });
 }
@@ -113,6 +104,14 @@ void node::recv(const request &req, const qp_t &qp) {
   case msg::subtype::del:
     handle_del(static_cast<const remove_request &>(req), qp);
     break;
+  case msg::subtype::init: {
+    auto request = static_cast<const init_request &>(req);
+    info([&](const auto &info) {
+           init_response m(request, info.second);
+           log_info() << m;
+           sendImmediate(find_id(qp).get(), m);
+         }).get();
+  } break;
   case msg::subtype::disconnect: {
     rdma_cm_id *id = find_id(qp).get();
     log_debug() << "Disconnecting " << (void *)id;
@@ -231,5 +230,6 @@ void node::ack(const qp_t &qp, const response &r) const {
   assert(id != nullptr);
   sendImmediate(id, r);
 }
+
 }
 

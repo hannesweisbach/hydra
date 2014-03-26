@@ -46,6 +46,9 @@ public:
   value_ptr get(const char * key, size_t key_length);
   size_t size() const { return table_size; } 
 private:
+
+  void update_info();
+
   RDMAClientSocket s;
   ThreadSafeHeap<SegregatedFitsHeap<
       FreeListHeap<ZoneHeap<RdmaHeap<hydra::rdma::REMOTE_READ>, 256> >,

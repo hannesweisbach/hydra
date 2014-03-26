@@ -200,6 +200,10 @@ public:
     memcpy(data_ + offsetof(header, cookie), &cookie, sizeof(cookie));
   }
 
+  /* compiler doesn't always figure out the correct overload, if a lambda with
+   * parameter is passed - have to learn adl/overload resultion and so forth.
+   * if necessary, call with .set_completion<type>(…)
+   */
   template <typename T, typename F> std::future<T> set_completion(F &&f) {
     auto promise = std::make_shared<std::promise<T> >();
     uint64_t cookie = reinterpret_cast<uintptr_t>(new std::function<void(T)>(
@@ -278,6 +282,11 @@ public:
   disconnect_request() : request(subtype::disconnect) {}
 };
 
+class init_request : public request {
+public:
+  init_request() : request(subtype::init) {}
+};
+
 class response : public msg {
   template <typename T> void complete(T result) {
     std::function<void(T)> *cookie;
@@ -301,25 +310,13 @@ public:
     memcpy(data_ + offsetof(header, cookie), &cookie, sizeof(cookie));
   }
 
-  void complete_() const {
-    uintptr_t cookie;
-    memcpy(&cookie, data_ + offsetof(header, cookie), sizeof(uint64_t));
-
-    assert(type() == type::response);
-
-    switch (subtype()) {
-    case subtype::put:
-    case subtype::del: {
-      bool ack;
-      auto f = reinterpret_cast<std::function<void(bool)> *>(cookie);
-      memcpy(&ack, data_ + sizeof(header), sizeof(ack));
-      (*f)(ack);
-      delete f;
-    } break;
-    default:
-      assert(false);
-    }
+  uint64_t cookie() const {
+    uint64_t cookie;
+    memcpy(&cookie, data_ + offsetof(header, cookie), sizeof(cookie));
+    return cookie;
   }
+
+  void complete_() const;
 };
 
 class bool_response : public response {
@@ -327,10 +324,24 @@ public:
   bool_response(const request &request, const bool ack) : response(request) {
     memcpy(data_ + sizeof(header), &ack, sizeof(ack));
   }
+
   bool value() const {
     bool ack;
     memcpy(&ack, data_ + sizeof(header), sizeof(ack));
     return ack;
+  }
+};
+
+class mr_response : public response {
+public:
+  mr_response(const request &request, const mr &mr) : response(request) {
+    memcpy(data_ + sizeof(header), &mr, sizeof(mr));
+  }
+
+  mr value() const {
+    mr data;
+    memcpy(&data, data_ + sizeof(header), sizeof(data));
+    return data;
   }
 };
 
@@ -346,23 +357,17 @@ public:
       : bool_response(std::move(request), std::move(ack)) {}
 };
 
-class notification_init : public msg {
+class init_response : public mr_response {
 public:
-  notification_init(const mr init) noexcept
-      : msg(type::notification, subtype::init) {
+  init_response(const request &request, const mr &init) noexcept
+      : mr_response(request, init) {
     memcpy(data_ + sizeof(header), &init, sizeof(init));
-  }
-
-  mr init() const {
-    mr tmp;
-    memcpy(&tmp, data_ + sizeof(header), sizeof(mr));
-    return tmp;
   }
 };
 
 class notification_resize : public msg {
 public:
-  notification_resize(const mr init)
+  notification_resize(const mr& init)
       : msg(type::notification, subtype::resize) {
     memcpy(data_ + sizeof(header), &init, sizeof(init));
   }

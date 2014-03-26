@@ -3,7 +3,9 @@
 #include "messages.h"
 
 static std::ostream &operator<<(std::ostream &s, const response &r) {
-  // s << "  uint64_t cookie = " << std::showbase << r.cookie() << std::endl;
+  s << indent << "uint64_t cookie = " << std::showbase << r.cookie()
+    << std::endl;
+  s << indent;
   switch (r.subtype()) {
   case msg::subtype::put: {
     const put_response &r_ = static_cast<const put_response &>(r);
@@ -12,6 +14,10 @@ static std::ostream &operator<<(std::ostream &s, const response &r) {
   case msg::subtype::del: {
     const remove_response &r_ = static_cast<const remove_response &>(r);
     s << r_.value();
+  } break;
+  case msg::subtype::init: {
+    auto response = static_cast<const init_response &>(r);
+    s << response.value();
   } break;
   default:
     assert(false);
@@ -34,6 +40,7 @@ static std::ostream &operator<<(std::ostream &s, const request &req) {
     s << r.key();
   } break;
   case msg::subtype::disconnect:
+  case msg::subtype::init:
     break;
   default:
     assert(false);
@@ -71,10 +78,6 @@ static std::ostream &operator<<(std::ostream &s,
   case msg::subtype::resize:
     return s << "resize";
   }
-}
-
-static std::ostream &operator<<(std::ostream &s, const notification_init &init) {
-  s << "  mr init = " << init.init();
   return s;
 }
 
@@ -86,29 +89,29 @@ static std::ostream& operator<<(std::ostream & s, const notification_resize & re
 std::ostream &operator<<(std::ostream &s, const msg &m) {
   s << std::hex;
   s << "msg {" << std::endl;
-  s << "  enum type type = " << m.type() << std::endl;
-  s << "  enum subtype subtype = " << m.subtype() << std::endl;
-  switch (m.type()) {
-  case msg::type::request:
-    s << static_cast<const request &>(m);
-    break;
-  case msg::type::response:
-    s << static_cast<const response &>(m);
-    break;
-  case msg::type::notification:
-    switch (m.subtype()) {
-    case msg::subtype::init:
-      s << static_cast<const notification_init&>(m);
+  {
+    indent_guard guard(s);
+    s << indent << "enum type type = " << m.type() << std::endl;
+    s << indent << "enum subtype subtype = " << m.subtype() << std::endl;
+    switch (m.type()) {
+    case msg::type::request:
+      s << static_cast<const request &>(m);
       break;
-    case msg::subtype::resize:
-      s << static_cast<const notification_resize&>(m);
+    case msg::type::response:
+      s << static_cast<const response &>(m);
+      break;
+    case msg::type::notification:
+      switch (m.subtype()) {
+      case msg::subtype::resize:
+        s << static_cast<const notification_resize &>(m);
+        break;
+      }
+      break;
+    case msg::type::invalid:
       break;
     }
-    break;
-  case msg::type::invalid:
-    break;
   }
-  s << "};" << std::dec;
+  s << std::endl << indent << "};" << std::dec;
   return s;
 }
 
@@ -125,3 +128,28 @@ std::ostream &operator<<(std::ostream &s, const mr &mr) {
   return s;
 }
 
+void response::complete_() const {
+  uintptr_t cookie;
+  memcpy(&cookie, data_ + offsetof(header, cookie), sizeof(uint64_t));
+
+  assert(type() == type::response);
+
+  switch (subtype()) {
+  case subtype::put:
+  case subtype::del: {
+    bool ack;
+    auto f = reinterpret_cast<std::function<void(bool)> *>(cookie);
+    memcpy(&ack, data_ + sizeof(header), sizeof(ack));
+    (*f)(ack);
+    delete f;
+  } break;
+  case subtype::init: {
+    auto f = reinterpret_cast<std::function<void(const mr&)> *>(cookie);
+    auto response = static_cast<const mr_response &>(*this);
+    (*f)(response.value());
+    delete f;
+  } break;
+  default:
+    assert(false);
+  }
+}
