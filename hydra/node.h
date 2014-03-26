@@ -20,6 +20,7 @@
 #include "allocators/FreeListHeap.h"
 #include "allocators/SegregatedFitsHeap.h"
 #include "RDMAAllocator.h"
+#include "RDMAObj.h"
 
 namespace hydra {
 class node {
@@ -44,9 +45,7 @@ class node {
   WorkerThread messageThread;
   WorkerThread acceptThread;
 
-  std::mutex resize_mutex;
-
-  decltype(heap.malloc<node_info>()) info;
+  monitor<decltype(heap.malloc<LocalRDMAObj<node_info>>())> info;
 
   void post_recv(request& m);
   void accept();

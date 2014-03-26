@@ -26,17 +26,21 @@ node::node(const std::string &ip, const std::string &port, uint32_t msg_buffers)
       table_ptr(heap.malloc<key_entry>(8)),
       dht(table_ptr.first.get(), 12U, 8U),
       msg_buffer(local_heap.malloc<request>(msg_buffers)),
-      info(heap.malloc<node_info>()) {
+      info(heap.malloc<LocalRDMAObj<node_info> >()),
   for (size_t i = 0; i < msg_buffers; i++) {
     post_recv(msg_buffer.first.get()[i], msg_buffer.second);
   }
 
-  info.first->table_size = 8;
-  info.first->key_extents = *table_ptr.second;
-  info.first->id = hash((ip + port).c_str(), ip.size() + port.size());
-  log_info() << "key extents mr " << info.first->key_extents;
+  info([&](auto &rdma_obj) {
+         (*rdma_obj.first)([&](auto &info) {
+           info.table_size = 8;
+           info.key_extents = *table_ptr.second;
+           info.id = hash((ip + port).c_str(), ip.size() + port.size());
 
-  log_trace() << "node_info mr = " << info.second;
+           log_info() << "key extents mr " << info.key_extents;
+         });
+         log_trace() << "node_info mr = " << rdma_obj.second;
+       }).get();
 
   socket.listen();
   accept();
@@ -44,7 +48,7 @@ node::node(const std::string &ip, const std::string &port, uint32_t msg_buffers)
 
 void node::connect(const std::string &host, const std::string &ip) {
   RDMAClientSocket s(host, ip);
-  
+
   msg m;
   auto mr = s.mapMemory(&m);
 
@@ -154,25 +158,28 @@ void node::handle_add(const put_request &msg, const qp_t &qp) {
                                       auto ret = hs.add(std::move(e));
                                       hs.check_consistency();
                                       if (ret == hydra::NEED_RESIZE) {
-                                        {
-                                          std::lock_guard<std::mutex> l(
-                                              resize_mutex);
-                                          size_t new_size = hs.next_size();
-                                          auto new_table =
-                                              heap.malloc<key_entry>(new_size);
-                                          hs.resize(new_table.first.get(),
-                                                    new_size);
-                                          hs.check_consistency();
-                                          log_info() << info.first->table_size
-                                                     << " "
-                                                     << info.first->key_extents;
-                                          info.first->table_size = new_size;
-                                          info.first->key_extents =
-                                              *new_table.second;
-                                          log_info() << info.first->table_size << " "
-                                                     << info.first->key_extents;
-                                          std::swap(table_ptr, new_table);
-                                        }
+                                        info([&](auto &rdma_obj) {
+                                               size_t new_size = hs.next_size();
+                                               auto new_table =
+                                                   heap.malloc<key_entry>(
+                                                       new_size);
+                                               hs.resize(new_table.first.get(),
+                                                         new_size);
+                                               hs.check_consistency();
+                                               (*rdma_obj.first)([&](
+                                                   auto &info) {
+                                                 log_info() << info.table_size
+                                                            << " "
+                                                            << info.key_extents;
+                                                 info.table_size = new_size;
+                                                 info.key_extents =
+                                                     *new_table.second;
+                                                 log_info() << info.table_size
+                                                            << " "
+                                                            << info.key_extents;
+                                               });
+                                               std::swap(table_ptr, new_table);
+                                             }).get();
                                         notification_resize m(table_ptr.second);
                                         notify_all(m).get();
                                         ret = hs.add(std::move(e));
