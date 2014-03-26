@@ -133,3 +133,16 @@ template <typename T> void hexdump__(T &buffer, const char *func, int line) {
 std::ostream &operator<<(std::ostream &ostream,
                          const Logger::severity_level &severity);
 
+std::ios_base &dec_indent(std::ios_base &os);
+std::ios_base &inc_indent(std::ios_base &os);
+std::ostream &indent(std::ostream &);
+
+class indent_guard {
+public:
+  indent_guard(std::ostream &stream) : stream(stream) { stream << inc_indent; }
+  ~indent_guard() { stream << dec_indent; }
+
+private:
+  std::ostream &stream;
+};
+

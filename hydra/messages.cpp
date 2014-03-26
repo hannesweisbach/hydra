@@ -21,7 +21,9 @@ static std::ostream &operator<<(std::ostream &s, const response &r) {
 }
 
 static std::ostream &operator<<(std::ostream &s, const request &req) {
-  s << "  uint64_t cookie = " << std::showbase << req.cookie() << std::endl;
+  s << indent << "uint64_t cookie = " << std::showbase << req.cookie()
+    << std::endl;
+  s << indent;
   switch (req.subtype()) {
   case msg::subtype::put: {
     const put_request &r = static_cast<const put_request &>(req);
@@ -77,7 +79,7 @@ static std::ostream &operator<<(std::ostream &s, const notification_init &init) 
 }
 
 static std::ostream& operator<<(std::ostream & s, const notification_resize & resize) {
-  s << "  mr init = " << resize.init();
+  s << indent << "mr init = " << resize.init();
   return s;
 }
 
@@ -110,13 +112,16 @@ std::ostream &operator<<(std::ostream &s, const msg &m) {
   return s;
 }
 
-std::ostream& operator<<(std::ostream& s, const mr& mr) {
+std::ostream &operator<<(std::ostream &s, const mr &mr) {
   s << "mr {" << std::endl;
-  s << "  uint64_t addr = " << std::hex << std::showbase << std::setfill('0')
-    << std::setw(12) << mr.addr << std::dec << std::endl;
-  s << "  uint32_t size = " << mr.size << std::endl;
-  s << "  uint32_t rkey = " << mr.rkey << std::endl;
-  s << "};";
+  {
+    indent_guard guard(s);
+    s << indent << "uint64_t addr = " << std::hex << std::showbase
+      << std::setfill('0') << std::setw(12) << mr.addr << std::dec << std::endl;
+    s << indent << "uint32_t size = " << mr.size << std::endl;
+    s << indent << "uint32_t rkey = " << mr.rkey << std::endl;
+  }
+  s << indent << "};";
   return s;
 }
 

@@ -72,3 +72,27 @@ void Logger::set_severity(int severity) {
 
 Logger::severity_level Logger::severity = Logger::severity_level::trace;
 
+static int index = std::ios_base::xalloc();
+
+std::ios_base &inc_indent(std::ios_base &os) {
+  os.iword(index)++;
+  return os;
+}
+
+std::ios_base &dec_indent(std::ios_base &os) {
+  os.iword(index)--;
+  return os;
+}
+
+std::ostream &indent(std::ostream &os) {
+  auto indent = os.iword(index);
+  if (indent) {
+    std::streamsize old_width = os.width(indent * 2);
+    char fill = os.fill(' ');
+    os << " ";
+    os.width(old_width);
+    os.fill(fill);
+  }
+  return os;
+}
+

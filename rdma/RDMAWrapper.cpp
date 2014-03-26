@@ -45,15 +45,18 @@ std::ostream &operator<<(std::ostream &ostream,
 
 std::ostream &operator<<(std::ostream &ostream, const ibv_mr &mr) {
   ostream << "ibv_mr {" << std::endl;
-  ostream << "  struct ibv_context *context = " << (void *)mr.context
-          << std::endl;
-  ostream << "  struct ibv_pd *pd = " << (void *)mr.pd << std::endl;
-  ostream << "  void *addr = " << mr.addr << std::endl;
-  ostream << "  size_t length = " << mr.length << std::endl;
-  ostream << "  uint32_t handle = " << mr.handle << std::endl;
-  ostream << "  uint32_t lkey = " << mr.lkey << std::endl;
-  ostream << "  uint32_t rkey = " << mr.rkey << std::endl;
-  ostream << "}; @" << (void *)&mr << std::endl;
+  {
+    indent_guard guard(ostream);
+    ostream << indent << "struct ibv_context *context = " << (void *)mr.context
+            << std::endl;
+    ostream << indent << "struct ibv_pd *pd = " << (void *)mr.pd << std::endl;
+    ostream << indent << "void *addr = " << mr.addr << std::endl;
+    ostream << indent << "size_t length = " << mr.length << std::endl;
+    ostream << indent << "uint32_t handle = " << mr.handle << std::endl;
+    ostream << indent << "uint32_t lkey = " << mr.lkey << std::endl;
+    ostream << indent << "uint32_t rkey = " << mr.rkey << std::endl;
+  }
+  ostream << indent << "}; @" << (void *)&mr << std::endl;
   return ostream;
 }
 
@@ -68,71 +71,99 @@ std::ostream &operator<<(std::ostream &ostream, const enum ibv_atomic_cap& cap) 
 
 std::ostream &operator<<(std::ostream &ostream, const ibv_device_attr &attr) {
   ostream << "struct ibv_device_attr {" << std::endl;
-#if 0
-  ostream << "  char fw_ver[64] = " << std::endl;
-#endif
-  ostream << "  uint64_t node_guid = " << attr.node_guid << std::endl;
-  ostream << "  uint64_t sys_image_guid = " << attr.sys_image_guid << std::endl;
-  ostream << "  uint64_t max_mr_size = " << attr.max_mr_size << std::endl;
-  ostream << "  uint64_t page_size_cap = " << attr.page_size_cap << std::endl;
-  ostream << "  uint32_t vendor_id = " << attr.vendor_id << std::endl;
-  ostream << "  uint32_t vendor_part_id = " << attr.vendor_part_id << std::endl;
-  ostream << "  uint32_t hw_ver = " << attr.hw_ver << std::endl;
-  ostream << "  int max_qp = " << attr.max_qp << std::endl;
-  ostream << "  int max_qp_wr = " << attr.max_qp_wr << std::endl;
-  ostream << "  int device_cap_flags = " << std::hex << attr.device_cap_flags
-          << std::dec << std::endl;
-  ostream << "  int max_sge = " << attr.max_sge << std::endl;
-  ostream << "  int max_sge_rd = " << attr.max_sge_rd << std::endl;
-  ostream << "  int max_cq = " << attr.max_cq << std::endl;
-  ostream << "  int max_cqe = " << attr.max_cqe << std::endl;
-  ostream << "  int max_mr = " << attr.max_mr << std::endl;
-  ostream << "  int max_pd = " << attr.max_pd << std::endl;
-  ostream << "  int max_qp_rd_atom = " << attr.max_qp_rd_atom << std::endl;
-  ostream << "  int max_ee_rd_atom = " << attr.max_ee_rd_atom << std::endl;
-  ostream << "  int max_res_rd_atom = " << attr.max_res_rd_atom << std::endl;
-  ostream << "  int max_qp_init_rd_atom = " << attr.max_qp_init_rd_atom
-          << std::endl;
-  ostream << "  int max_ee_init_rd_atom = " << attr.max_ee_init_rd_atom
-          << std::endl;
-  ostream << "  enum ibv_atomic_cap atomic_cap = " << attr.atomic_cap
-          << std::endl;
-  ostream << "  int max_ee = " << attr.max_ee << std::endl;
-  ostream << "  int max_rdd = " << attr.max_rdd << std::endl;
-  ostream << "  int max_mw = " << attr.max_mw << std::endl;
-  ostream << "  int max_raw_ipv6_qp = " << attr.max_raw_ipv6_qp << std::endl;
-  ostream << "  int max_raw_ethy_qp = " << attr.max_raw_ethy_qp << std::endl;
-  ostream << "  int max_mcast_grp = " << attr.max_mcast_grp << std::endl;
-  ostream << "  int max_mcast_qp_attach = " << attr.max_mcast_qp_attach
-          << std::endl;
-  ostream << "  int max_total_mcast_qp_attach = "
-          << attr.max_total_mcast_qp_attach << std::endl;
-  ostream << "  int max_ah = " << attr.max_ah << std::endl;
-  ostream << "  int max_fmr = " << attr.max_fmr << std::endl;
-  ostream << "  int max_map_per_fmr = " << attr.max_map_per_fmr << std::endl;
-  ostream << "  int max_srq = " << attr.max_srq << std::endl;
-  ostream << "  int max_srq_wr = " << attr.max_srq_wr << std::endl;
-  ostream << "  int max_srq_sge = " << attr.max_srq_sge << std::endl;
-  ostream << "  uint16_t max_pkeys = " << attr.max_pkeys << std::endl;
-  ostream << "  uint8_t local_ca_ack_delay = "
-          << (unsigned int)attr.local_ca_ack_delay << std::endl;
-  ostream << "  uint8_t phys_port_cnt = " << (unsigned int)attr.phys_port_cnt
-          << std::endl;
-  ostream << "}; @" << (void *)&attr << std::endl;
+  {
+    indent_guard guard(ostream);
+    ostream << indent << "char fw_ver[64] = " << std::hex;
+    for (size_t i = 0; i < 32; i++)
+      ostream << static_cast<unsigned>(attr.fw_ver[i]) << " ";
+    ostream << std::endl;
+
+    ostream << indent << "                  ";
+    for (size_t i = 32; i < 64; i++)
+      ostream << static_cast<unsigned>(attr.fw_ver[i]) << " ";
+    ostream << std::endl << std::dec;
+
+    ostream << indent << "uint64_t node_guid = " << attr.node_guid << std::endl;
+    ostream << indent << "uint64_t sys_image_guid = " << attr.sys_image_guid
+            << std::endl;
+    ostream << indent << "uint64_t max_mr_size = " << attr.max_mr_size
+            << std::endl;
+    ostream << indent << "uint64_t page_size_cap = " << attr.page_size_cap
+            << std::endl;
+    ostream << indent << "uint32_t vendor_id = " << attr.vendor_id << std::endl;
+    ostream << indent << "uint32_t vendor_part_id = " << attr.vendor_part_id
+            << std::endl;
+    ostream << indent << "uint32_t hw_ver = " << attr.hw_ver << std::endl;
+    ostream << indent << "int max_qp = " << attr.max_qp << std::endl;
+    ostream << indent << "int max_qp_wr = " << attr.max_qp_wr << std::endl;
+    ostream << indent << "int device_cap_flags = " << std::hex
+            << attr.device_cap_flags << std::dec << std::endl;
+    ostream << indent << "int max_sge = " << attr.max_sge << std::endl;
+    ostream << indent << "int max_sge_rd = " << attr.max_sge_rd << std::endl;
+    ostream << indent << "int max_cq = " << attr.max_cq << std::endl;
+    ostream << indent << "int max_cqe = " << attr.max_cqe << std::endl;
+    ostream << indent << "int max_mr = " << attr.max_mr << std::endl;
+    ostream << indent << "int max_pd = " << attr.max_pd << std::endl;
+    ostream << indent << "int max_qp_rd_atom = " << attr.max_qp_rd_atom
+            << std::endl;
+    ostream << indent << "int max_ee_rd_atom = " << attr.max_ee_rd_atom
+            << std::endl;
+    ostream << indent << "int max_res_rd_atom = " << attr.max_res_rd_atom
+            << std::endl;
+    ostream << indent
+            << "int max_qp_init_rd_atom = " << attr.max_qp_init_rd_atom
+            << std::endl;
+    ostream << indent
+            << "int max_ee_init_rd_atom = " << attr.max_ee_init_rd_atom
+            << std::endl;
+    ostream << indent << "enum ibv_atomic_cap atomic_cap = " << attr.atomic_cap
+            << std::endl;
+    ostream << indent << "int max_ee = " << attr.max_ee << std::endl;
+    ostream << indent << "int max_rdd = " << attr.max_rdd << std::endl;
+    ostream << indent << "int max_mw = " << attr.max_mw << std::endl;
+    ostream << indent << "int max_raw_ipv6_qp = " << attr.max_raw_ipv6_qp
+            << std::endl;
+    ostream << indent << "int max_raw_ethy_qp = " << attr.max_raw_ethy_qp
+            << std::endl;
+    ostream << indent << "int max_mcast_grp = " << attr.max_mcast_grp
+            << std::endl;
+    ostream << indent
+            << "int max_mcast_qp_attach = " << attr.max_mcast_qp_attach
+            << std::endl;
+    ostream << indent << "int max_total_mcast_qp_attach = "
+            << attr.max_total_mcast_qp_attach << std::endl;
+    ostream << indent << "int max_ah = " << attr.max_ah << std::endl;
+    ostream << indent << "int max_fmr = " << attr.max_fmr << std::endl;
+    ostream << indent << "int max_map_per_fmr = " << attr.max_map_per_fmr
+            << std::endl;
+    ostream << indent << "int max_srq = " << attr.max_srq << std::endl;
+    ostream << indent << "int max_srq_wr = " << attr.max_srq_wr << std::endl;
+    ostream << indent << "int max_srq_sge = " << attr.max_srq_sge << std::endl;
+    ostream << indent << "uint16_t max_pkeys = " << attr.max_pkeys << std::endl;
+    ostream << indent << "uint8_t local_ca_ack_delay = "
+            << (unsigned int)attr.local_ca_ack_delay << std::endl;
+    ostream << indent
+            << "uint8_t phys_port_cnt = " << (unsigned int)attr.phys_port_cnt
+            << std::endl;
+  }
+  ostream << indent << "}; @" << (void *)&attr;
   return ostream;
 }
 
 std::ostream &operator<<(std::ostream &ostream, const ibv_device &dev) {
   ostream << "struct ibv_device {" << std::endl;
-  ostream << "  struct ibv_device_ops ops = " << (void *)&dev.ops << std::endl;
-  ostream << "enum ibv_node_type node_type = " << dev.node_type << std::endl;
-  ostream << "enum ibv_transport_type transport_type = " << dev.transport_type
-          << std::endl;
-  ostream << "char name = " << dev.name << std::endl;
-  ostream << "char dev_name = " << dev.dev_name << std::endl;
-  ostream << "char dev_path = " << dev.dev_path << std::endl;
-  ostream << "char ibdev_path = " << dev.ibdev_path << std::endl;
-  ostream << "}; @" << (void *)&dev << std::endl;
+  {
+    indent_guard guard(ostream);
+    ostream << indent << "struct ibv_device_ops ops = " << (void *)&dev.ops << std::endl;
+    ostream << indent << "enum ibv_node_type node_type = " << dev.node_type << std::endl;
+    ostream << indent << "enum ibv_transport_type transport_type = " << dev.transport_type
+            << std::endl;
+    ostream << indent << "char name = " << dev.name << std::endl;
+    ostream << indent << "char dev_name = " << dev.dev_name << std::endl;
+    ostream << indent << "char dev_path = " << dev.dev_path << std::endl;
+    ostream << indent << "char ibdev_path = " << dev.ibdev_path << std::endl;
+  }
+  ostream << indent <<  "}; @" << (void *)&dev;
   return ostream;
 }
 
