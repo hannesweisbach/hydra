@@ -26,7 +26,7 @@ std::ostream &operator<<(std::ostream &s, const hydra::routing_table &t) {
     indent_guard guard(s);
     size_t i = 0;
     for (auto &&e : t.table) {
-      s << indent << " " << e << " " << std::setw(3) << i++ << std::endl;
+      s << indent << e << " " << std::setw(3) << i++ << std::endl;
     }
   }
   return s;
