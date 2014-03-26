@@ -94,17 +94,16 @@ auto rdma_continuation(RDMAFunctor &&functor, Continuation &&continuation)
 }
 
 template <typename T, typename RDMAFunctor, typename... Args>
-auto async_rdma_operation(RDMAFunctor &&functor, T value, Args &&... args)
-    -> std::future<qp_t> {
-  auto promise = std::make_shared<std::promise<qp_t> >();
+auto async_rdma_operation2(RDMAFunctor &&functor, T value)
+    -> std::future<T> {
+  auto promise = std::make_shared<std::promise<T> >();
   std::function<void(ibv_wc &)> *f = new std::function<void(ibv_wc &)>();
-  *f = [=](ibv_wc &wc) {
+  *f = [=, value = std::move(value)](ibv_wc &wc) {
     log_info() << (enum ibv_wc_status)wc.status << " "
                << ": " << wc.byte_len << std::endl;
     try {
       if (wc.status == IBV_WC_SUCCESS) {
-        //promise->set_value(value);
-        promise->set_value(wc.qp_num);
+        promise->set_value(std::move(value));
       } else {
         std::ostringstream s;
         s << wc.opcode << " resulted in " << wc.status;
@@ -118,18 +117,40 @@ auto async_rdma_operation(RDMAFunctor &&functor, T value, Args &&... args)
   };
 
   log_info() << "wr_id: " << (void *)f;
-  check_zero(functor(f, std::forward<Args>(args)...), __func__);
+  check_zero(functor(f), __func__);
 
   return promise->get_future();
 }
 
-template <typename T>
-[[deprecated]] std::future<std::shared_ptr<T> > rdma_recv_async(rdma_cm_id *id,
-                                                 std::shared_ptr<T> local,
-                                                 std::shared_ptr<ibv_mr> &mr) {
-  auto func = std::bind(rdma_post_recv, id, std::placeholders::_1, local.get(),
-                        sizeof(T), mr.get());
-  return async_rdma_operation(func, local);
+template <typename RDMAFunctor, typename... Args>
+auto async_rdma_operation(RDMAFunctor &&functor, Args &&... args)
+    -> std::future<qp_t> {
+  auto promise = std::make_shared<std::promise<qp_t> >();
+  std::function<void(ibv_wc &)> *f = new std::function<void(ibv_wc &)>();
+  *f = [=](ibv_wc &wc) {
+    try {
+      if (wc.status == IBV_WC_SUCCESS) {
+        promise->set_value(wc.qp_num);
+      } else {
+        log_info() << (enum ibv_wc_status)wc.status << " : " << wc.byte_len
+                   << " wr_id: " << reinterpret_cast<void *>(f)
+                   << " promise: " << reinterpret_cast<void *>(promise.get());
+        std::ostringstream s;
+        s << wc.opcode << " resulted in " << wc.status;
+        throw std::runtime_error(s.str());
+      }
+    }
+    catch (std::exception &) {
+      promise->set_exception(std::current_exception());
+    }
+    delete f;
+  };
+
+  //log_info() << "wr_id: " << reinterpret_cast<void *>(f)
+  //           << " promise: " << reinterpret_cast<void *>(promise.get());
+  check_zero(functor(f, std::forward<Args>(args)...), __func__);
+
+  return promise->get_future();
 }
 
 template <typename T>
@@ -144,8 +165,26 @@ std::future<qp_t> rdma_recv_async(rdma_cm_id *id, const T *local,
 }
 
 template <typename T>
+auto rdma_recv_async(const rdma_id_ptr &id, const rdma_ptr<T> &ptr,
+                     const size_t size = sizeof(T)) {
+  auto func = std::bind(rdma_post_recv, id.get(), std::placeholders::_1,
+                        static_cast<void *>(ptr.first.get()), size, ptr.second);
+  return async_rdma_operation(func);
+}
+
+template <typename T>
+auto rdma_read_async(const rdma_id_ptr &id, const T &buffer, const size_t size,
+                     const uint64_t remote, const uint32_t rkey) {
+  auto functor = std::bind(rdma_post_read, id.get(), std::placeholders::_1,
+                           buffer.first.get(), size, buffer.second,
+                           IBV_SEND_SIGNALED, remote, rkey);
+  return async_rdma_operation(functor);
+}
+
+template <typename T>
 std::future<qp_t> rdma_read_async__(rdma_cm_id *id, T *local, size_t size,
-                                   ibv_mr *mr, uint64_t remote, uint32_t rkey) {
+                                    ibv_mr *mr, uint64_t remote,
+                                    uint32_t rkey) {
   auto functor = std::bind(rdma_post_read, id, std::placeholders::_1, local,
                            size, mr, IBV_SEND_SIGNALED, remote, rkey);
   return async_rdma_operation(functor, local);
