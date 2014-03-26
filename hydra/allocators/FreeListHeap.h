@@ -54,8 +54,8 @@ public:
                                   !std::is_same<FreeListHeap, Args...>::value> >
   FreeListHeap(Args &&... args)
       : SuperHeap(std::forward<Args>(args)...) {}
-  FreeListHeap(const FreeListHeap &) = delete;
-  FreeListHeap(FreeListHeap &&) = default;
+//  FreeListHeap(const FreeListHeap &) = delete;
+//  FreeListHeap(FreeListHeap &&) = default;
 
 #if 1
   template <typename T> inline rdma_ptr<T> malloc(const size_t n_elems = 1) {

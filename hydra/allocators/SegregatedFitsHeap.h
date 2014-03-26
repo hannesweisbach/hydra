@@ -96,7 +96,7 @@ class SegregatedFitsHeap : public SuperHeap {
 
   const size_t _maxObjectSize;
 #endif
-  const size_t entries;
+  size_t entries;
   std::vector<size_t> binmap;
   std::function<size_t(size_t)> size2Class;
   size_t maxSize;
@@ -133,6 +133,22 @@ public:
       binHeap.emplace_back(std::forward<Args>(args)...);
     }
     log_info() << numBins << " " << maxSize;
+  }
+
+  SegregatedFitsHeap(SegregatedFitsHeap &&other)
+      : SuperHeap(std::forward<SuperHeap>(other)), entries(other.entries),
+        binmap(std::move(other.binmap)),
+        size2Class(std::move(other.size2Class)), maxSize(other.maxSize),
+        binHeap(std::move(other.binHeap)) {}
+
+  SegregatedFitsHeap &operator=(SegregatedFitsHeap &&other) {
+    std::swap(entries, other.entries);
+    std::swap(binmap, other.binmap);
+    std::swap(size2Class, other.size2Class);
+    std::swap(maxSize, other.maxSize);
+    std::swap(binHeap, other.binHeap);
+
+    return *this;
   }
 
   template <typename T>

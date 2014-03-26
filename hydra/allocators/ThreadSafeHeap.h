@@ -16,6 +16,14 @@ public:
   ThreadSafeHeap(Args &&... args)
       : superHeap(std::forward<Args>(args)...) {}
 
+  ThreadSafeHeap(ThreadSafeHeap &&other)
+      : superHeap(std::move(other.superHeap)) {}
+
+  ThreadSafeHeap &operator=(ThreadSafeHeap &&other) {
+    std::swap(superHeap, other.superHeap);
+    return *this;
+  }
+
   template <typename T> inline rdma_ptr<T> malloc(const size_t n_elems = 1) {
     return superHeap([=](SuperHeap &s) {
                        return s.template malloc<T>(n_elems);
