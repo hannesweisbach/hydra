@@ -283,6 +283,17 @@ cq_ptr createCQ(rdma_id_ptr &id, int entries, void *context,
   return cq_ptr(cq, ::ibv_destroy_cq);
 }
 
+static void call_completion_handler(ibv_wc &wc) {
+  /* wc.wr_id is a pointer to the continuation handler */
+  auto f = reinterpret_cast<std::function<void(ibv_wc &)> *>(wc.wr_id);
+  if (f) {
+    // TODO dispatch-async: ?
+    (*f)(wc);
+  } else {
+    log_info() << wc.opcode << ": No completion handler registered";
+  }
+}
+
 static bool recv_helper__(ibv_comp_channel *cc) {
   int err;
   unsigned int n_events = 0;
@@ -311,26 +322,17 @@ static bool recv_helper__(ibv_comp_channel *cc) {
     if (wc.status != IBV_WC_SUCCESS) {
       /* wc.opcode is invalid - but we need to set the an exception in the
        * std::future */
-      goto call_completion_handler;
+      call_completion_handler(wc);
     }
 
     switch (wc.opcode) {
     case IBV_WC_SEND:
+      [[clang::fallthrough]];
     case IBV_WC_RECV:
+      [[clang::fallthrough]];
     case IBV_WC_RDMA_READ:
-    call_completion_handler : {
-
-      /* wc.wr_id is a pointer to the continuation handler */
-      log_info() << std::hex << wc.wr_id << std::dec;
-      auto f = reinterpret_cast<std::function<void(ibv_wc &)> *>(wc.wr_id);
-      if (f) {
-        // TODO dispatch-async: ?
-        (*f)(wc);
-      } else {
-        log_info() << wc.opcode << ": No completion handler registered";
-      }
+      call_completion_handler(wc);
       break;
-    }
     default:
       log_info() << "Received " << wc.opcode << " on id " << std::hex
                  << std::showbase << wc.wr_id << std::dec;
