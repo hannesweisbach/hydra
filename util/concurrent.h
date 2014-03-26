@@ -163,6 +163,19 @@ public:
         data_(std::forward<Args>(args)...) {
     assert(queue);
   }
+
+  monitor(monitor<T> &&other)
+      : name(std::move(other.name)), queue(std::move(other.queue)),
+        data_(std::move(other.data_)) {}
+
+  monitor<T>& operator=(monitor<T>&& other) {
+    std::swap(name, other.name);
+    std::swap(queue, other.queue);
+    std::swap(data_, other.data_);
+
+    return *this;
+  }
+
   template <typename F>
   auto operator()(F &&f)
       const -> std::future<typename std::result_of<F(T &)>::type> {
@@ -184,6 +197,14 @@ public:
   template <typename... Args>
   monitor(Args &&... args)
       : data_(std::forward<Args>(args)...) {}
+
+  monitor<T>& operator=(monitor<T>&& other) {
+    std::swap(data_, other.data_);
+    std::swap(mutex_, other.mutex_);
+
+    return *this;
+  }
+
   template <typename F>
   auto operator()(F &&f)
       const -> std::future<typename std::result_of<F(T &)>::type> {
