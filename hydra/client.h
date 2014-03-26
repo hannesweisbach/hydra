@@ -22,6 +22,8 @@ namespace hydra {
 class client {
 public:
   client(const std::string &host, const std::string &port);
+  client(client &&);
+  client &operator=(client &&);
   ~client();
   std::future<void>
   post_recv(const msg& msg, const ibv_mr* mr);

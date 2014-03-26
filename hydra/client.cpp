@@ -41,6 +41,24 @@ hydra::client::client(const std::string &host, const std::string &port)
   future.wait();
 }
 
+hydra::client::client(hydra::client &&other)
+    : s(std::move(other.s)), heap(std::move(other.heap)),
+      local_heap(std::move(other.local_heap)),
+      msg_buffer(std::move(other.msg_buffer)), info(std::move(other.info)),
+      remote_table(std::move(other.remote_table)), prefetch(other.prefetch) {}
+
+hydra::client &hydra::client::operator=(hydra::client &&other) {
+  std::swap(s, other.s);
+  std::swap(heap, other.heap);
+  std::swap(local_heap, other.local_heap);
+  std::swap(msg_buffer, other.msg_buffer);
+  std::swap(info, other.info);
+  std::swap(prefetch, other.prefetch);
+  std::swap(remote_table, other.remote_table);
+
+  return *this;
+}
+
 hydra::client::~client() {
   std::promise<void> promise;
   disconnect_request request;
