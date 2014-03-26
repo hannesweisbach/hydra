@@ -13,7 +13,7 @@
 #include "util/WorkerThread.h"
 #endif
 
-std::ostream &operator<<(std::ostream &s, const __uint128_t &h);
+#include "util/uint128.h"
 
 class Logger {
 public:

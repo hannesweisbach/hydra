@@ -4,6 +4,8 @@
 
 #include "verifying_ptr.h"
 
+#include "util/uint128.h"
+#include "util/Logger.h"
 
 namespace hydra {
 

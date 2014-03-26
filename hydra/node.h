@@ -6,6 +6,7 @@
 #include <mutex>
 #include <unordered_map>
 
+#include "util/uint128.h"
 #include "rdma/RDMAWrapper.hpp"
 #include "rdma/RDMAServerSocket.h"
 #include "rdma/RDMAClientSocket.h"

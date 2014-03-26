@@ -4,11 +4,6 @@
 
 Logger::Logger_data Logger::priv;
 
-std::ostream &operator<<(std::ostream &s, const __uint128_t &h) {
-  return s << std::hex << "0x" << (uint64_t)(h >> 64)
-           << (uint64_t)(h & 0xffffffffffffffff) << std::dec;
-}
-
 std::ostream &operator<<(std::ostream &ostream,
                          const Logger::severity_level& severity) {
   switch (severity) {
