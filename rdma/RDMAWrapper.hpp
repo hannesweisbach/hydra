@@ -5,6 +5,7 @@
 #include <future>
 #include <sstream>
 #include <atomic>
+#include <utility>
 
 #include <sys/mman.h>
 
@@ -44,6 +45,10 @@ typedef std::unique_ptr< ::ibv_comp_channel,
 comp_channel_ptr;
 typedef std::unique_ptr< ::ibv_cq, decltype(&ibv_destroy_cq)> cq_ptr;
 using qp_t = decltype(ibv_wc::qp_num);
+
+template <typename T>
+using pointer_t = std::unique_ptr<T, std::function<void(T *)> >;
+template <typename T> using rdma_ptr = std::pair<pointer_t<T>, ibv_mr *>;
 
 rdma_id_ptr createCmId(const std::string &host, const std::string &port,
                        const bool passive = false,

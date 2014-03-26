@@ -67,6 +67,8 @@ SysAllocator *tc_get_sysalloc_override(SysAllocator *def);
 
 #include "allocators/config.h"
 
+#include "rdma/RDMAWrapper.hpp"
+
 namespace hydra {
 class node;
 }
@@ -87,9 +89,9 @@ public:
     Alignment = 4096,
     Shift = hydra::util::static_log2<Alignment>::value
   };
-  template <typename T>
-  using pointer_t = std::unique_ptr<T, std::function<void(T *)> >;
-  template <typename T> using rdma_ptr = std::pair<pointer_t<T>, ibv_mr *>;
+
+  template <typename T> using pointer_t = pointer_t<T>;
+  template <typename T> using rdma_ptr = rdma_ptr<T>;
 
   template <typename T>
   RdmaHeap(T &rdma_instance)
