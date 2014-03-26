@@ -35,7 +35,6 @@ inline __uint128_t hash(const T& s, size_t size = sizeof(T)) {
   return hash(&s, size);
 }
 
-//TODO: still needed?
 template<>
 inline __uint128_t hash<std::string>(const std::string& s, size_t) {
   return hash((char*)s.c_str(), s.size());
