@@ -19,7 +19,7 @@ RDMAClientSocket::RDMAClientSocket(const std::string &host,
         attr.sq_sig_all = 1;
         return createCmId(host, port, false, &attr);
       }()),
-      running(true) {
+      running(true), local_heap(*this) {
   ibv_req_notify_cq(id->recv_cq, 0);
   ibv_req_notify_cq(id->send_cq, 0);
 // TODO: srq?

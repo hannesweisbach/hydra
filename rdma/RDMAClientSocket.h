@@ -16,9 +16,26 @@
 #include "RDMAWrapper.hpp"
 #include "util/exception.h"
 #include "util/Logger.h"
+#include "hydra/types.h"
+
+class RDMAClientSocket;
+
+namespace hydra {
+inline mr_ptr register_remote_read(RDMAClientSocket &socket, void *ptr,
+                                   size_t size);
+inline mr_ptr register_local_read(RDMAClientSocket &socket, void *ptr,
+                                  size_t size);
+}
+
+#include "allocators/ZoneHeap.h"
+#include "allocators/ThreadSafeHeap.h"
+#include "allocators/FreeListHeap.h"
+#include "allocators/SegregatedFitsHeap.h"
+#include "RDMAAllocator.h"
+#include "hydra/RDMAObj.h"
   
 class RDMAClientSocket {
-  std::shared_ptr< ::rdma_cm_id> id;
+  rdma_id_ptr id;
   std::future<void> fut_recv;
   std::future<void> fut_send;
 #ifdef HAVE_LIBDISPATCH
@@ -26,8 +43,21 @@ class RDMAClientSocket {
   dispatch_queue_t recv_queue;
 #endif
   std::atomic_bool running;
+
+#if 0
+  mutable hydra::ThreadSafeHeap<hydra::ZoneHeap<RdmaHeap<hydra::rdma::LOCAL_READ>, 256>> local_heap;
+#else
+  mutable hydra::ThreadSafeHeap<hydra::FreeListHeap<
+      hydra::ZoneHeap<RdmaHeap<hydra::rdma::LOCAL_READ>, 1024> > > local_heap;
+#endif
+
 public:
   RDMAClientSocket(const std::string &host, const std::string &port);
+  /* TODO: optimize. maybe it is better to make uint32_t/uint16_t from strings,
+   * or to have two independent ctors
+   */
+  //RDMAClientSocket(const uint32_t host, const uint32_t port)
+  //    : RDMAClientSocket(std::to_string(port)) {}
   ~RDMAClientSocket();
   void connect();
   mr_ptr register_remote_read(void *ptr, size_t size) const;
@@ -94,6 +124,41 @@ public:
     return rdma_read_async__(id.get(), local, n_elems * sizeof(T), mr,
                              reinterpret_cast<uint64_t>(remote), rkey);
   }
+
+  template <typename T, typename = typename std::enable_if<
+                            !std::is_pointer<T>::value>::type>
+  auto recv_async() {
+    auto buffer = local_heap.malloc<T>();
+    auto future = rdma_recv_async(id, buffer);
+    return std::make_pair(std::move(future), std::move(buffer));
+  }
+
+  template <typename T>
+  auto read(uint64_t remote, uint32_t rkey, size_t size = sizeof(T)) const {
+    assert(size == sizeof(T));
+    auto buffer = local_heap.malloc<T>(size);
+    auto future = rdma_read_async(id, buffer, size, remote, rkey);
+    return std::make_pair(std::move(future), std::move(buffer));
+  }
+
+  template <typename T>
+  auto from(const uint64_t addr, const uint32_t rkey, size_t retries = 0)
+      -> decltype(local_heap.malloc<RDMAObj<T> >()) {
+    auto o = local_heap.malloc<RDMAObj<T> >();
+    reload(o, addr, rkey, retries);
+    return o;
+  }
+
+  template <typename T>
+  void reload(decltype(local_heap.malloc<RDMAObj<T> >()) & o,
+              const uint64_t addr, const uint32_t rkey, size_t retries = 0) {
+    do {
+      read(o.first.get(), o.second, reinterpret_cast<T *>(addr), rkey).get();
+    } while (retries-- > 0 && o.first->valid());
+
+    if (!o.first->valid())
+      throw std::runtime_error("Invalid remote object");
+  }
 };
 
 std::shared_ptr<ibv_mr>
@@ -108,3 +173,4 @@ namespace hydra {
     return socket.register_local_read(ptr, size);
   }
 }
+
