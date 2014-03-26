@@ -42,6 +42,27 @@ RDMAClientSocket::RDMAClientSocket(const std::string &host,
 #endif
 }
 
+RDMAClientSocket::RDMAClientSocket(RDMAClientSocket &&other)
+    : id(std::move(other.id)), fut_recv(std::move(other.fut_recv)),
+      fut_send(std::move(other.fut_send)),
+      send_queue(std::move(other.send_queue)),
+      recv_queue(std::move(other.send_queue)),
+      running(other.running.load()),
+      local_heap(std::move(other.local_heap)) {
+}
+
+RDMAClientSocket &RDMAClientSocket::operator=(RDMAClientSocket &&other) {
+  std::swap(id, other.id);
+  std::swap(fut_recv, other.fut_recv);
+  std::swap(fut_send, other.fut_send);
+  std::swap(send_queue, other.send_queue);
+  std::swap(recv_queue, other.send_queue);
+  running = other.running.exchange(running);
+  std::swap(local_heap, other.local_heap);
+
+  return *this;
+}
+
 RDMAClientSocket::~RDMAClientSocket() {
   assert(false);
   rdma_disconnect(id.get());

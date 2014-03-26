@@ -53,6 +53,8 @@ class RDMAClientSocket {
 
 public:
   RDMAClientSocket(const std::string &host, const std::string &port);
+  RDMAClientSocket(RDMAClientSocket &&);
+  RDMAClientSocket &operator=(RDMAClientSocket &&);
   /* TODO: optimize. maybe it is better to make uint32_t/uint16_t from strings,
    * or to have two independent ctors
    */
