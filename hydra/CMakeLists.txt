@@ -1,4 +1,7 @@
 #set_source_files_properties(client.cpp PROPERTIES COMPILE_FLAGS "-g0")
-add_library(hydra server_dht.cpp messages.cpp hopscotch-server.cpp node.cpp client.cpp RDMAAllocator.cpp)
+#set_source_files_properties(node.cpp PROPERTIES COMPILE_FLAGS "-cc1 -fdump-record-layouts")
+#set_source_files_properties(node.cpp PROPERTIES COMPILE_FLAGS "-E")
+
+add_library(hydra types.cc server_dht.cpp messages.cpp hopscotch-server.cpp node.cpp client.cpp RDMAAllocator.cpp)
 target_link_libraries(hydra logger)
 

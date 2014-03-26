@@ -1,9 +1,13 @@
 #pragma once
 
+#include <algorithm>
+#include <ostream>
+#include <initializer_list>
+#include <cstring>
+
 #include <rdma/rdma_cma.h>
 
 #include "verifying_ptr.h"
-
 #include "util/uint128.h"
 #include "util/Logger.h"
 
@@ -13,6 +17,7 @@ struct node_info {
   __uint128_t id;
   uint64_t table_size;
   ibv_mr key_extents;
+  ibv_mr routing_table;
 // routing/other nodes
 #if 0
   struct value_extents_info {
@@ -21,6 +26,71 @@ struct node_info {
     uint64_t crc;
   };
 #endif
+};
+
+struct node_id {
+  __uint128_t id;
+  // uint32_t ip;
+  char ip[16];
+  // uint16_t port;
+  char port[6];
+  node_id() = default;
+  node_id(const __uint128_t &id, const char (&ip_)[16], const char (&port_)[6])
+      : id(id) {
+    memcpy(ip, ip_, sizeof(ip));
+    memcpy(port, port_, sizeof(port));
+  }
+  node_id(const __uint128_t &id, const std::string &ip_,
+          const std::string &port_)
+      : id(id), ip(), port() {
+    ip_.copy(ip, sizeof(ip));
+    port_.copy(port, sizeof(port));
+  }
+};
+
+struct interval {
+  __uint128_t start;
+  __uint128_t end;
+
+  bool contains(const __uint128_t &v) const {
+    return (v - start) < (end - start);
+  }
+};
+
+struct routing_entry {
+  node_id node;
+  interval interval;
+  node_id successor;
+  routing_entry(const node_id &node, const struct interval &interval)
+      : node(node), interval(interval) {}
+  routing_entry(const std::string &ip, const std::string &port,
+                const __uint128_t &n = 0, const size_t k = 0)
+      : node(n, ip, port), interval({n + (1 << (k - 1)), n + (1 << k)}),
+        successor({ 0, { 0 }, { 0 } }) {}
+};
+
+constexpr size_t routingtable_size = std::numeric_limits<__uint128_t>::digits;
+
+struct routing_table {
+  // todo own array, with unique_ptr  as parameter -> RDMA
+  std::array<routing_entry, routingtable_size> table;
+
+  const routing_entry preceding_node(const __uint128_t &id) const {
+    auto it =
+        std::find_if(table.rbegin(), table.rend(),
+                     [=](auto &node) { return node.interval.contains(id); });
+    assert(it != table.rend());
+
+    return *it;
+  }
+  routing_entry &operator[](const size_t i) { return table[i]; }
+  const routing_entry &operator[](const size_t i) const { return table[i]; }
+  const routing_entry &predecessor() const { return table[0]; }
+  routing_entry &predecessor() { return table[0]; }
+  const routing_entry &successor() const { return table[1]; }
+  routing_entry &successor() { return table[1]; }
+  auto end() const { return table.end(); }
+  auto end() { return table.end(); }
 };
 
 enum Return_t {
@@ -80,5 +150,12 @@ struct key_entry {
     return ::hydra::hash64(this, sizeof(*this) - sizeof(crc)) == crc;
   }
 };
+
 std::ostream &operator<<(std::ostream &s, const hydra::key_entry &e);
+std::ostream &operator<<(std::ostream &s, const hydra::node_id &id);
+std::ostream &operator<<(std::ostream &s, const hydra::interval &i);
+std::ostream &operator<<(std::ostream &s, const hydra::routing_entry &e);
+std::ostream &operator<<(std::ostream &s, const hydra::routing_table &t);
 }
+
+
