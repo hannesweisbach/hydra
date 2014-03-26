@@ -82,10 +82,12 @@ template <typename Future, typename Functor, typename Result> struct helper {
 
 namespace hydra {
 class spinlock {
-  std::atomic_flag lock_;
+  std::atomic_bool lock_;
 
 public:
   spinlock() noexcept;
+  spinlock(spinlock &&) noexcept;
+  spinlock &operator=(spinlock &&) noexcept;
   void lock();
   void unlock();
 };
