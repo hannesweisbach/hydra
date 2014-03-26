@@ -148,100 +148,10 @@ std::future<qp_t> rdma_read_async__(rdma_cm_id *id, T *local, size_t size,
 
 /*keep*/
 template <typename T>
-[[deprecated]] std::future<T *> rdma_read_async(std::shared_ptr<rdma_cm_id>& id, T *local,
-                                 uint64_t remote, uint32_t rkey,
-                                 size_t size = sizeof(T)) {
+[[deprecated]] std::future<T *> rdma_read_async(std::shared_ptr<rdma_cm_id> &id,
+                                                T *local, uint64_t remote,
+                                                uint32_t rkey,
+                                                size_t size = sizeof(T)) {
   return rdma_read_async__(id.get(), local, remote, rkey, size);
 }
-
-template <typename T>
-[[deprecated]] std::shared_ptr< ::ibv_mr> registerMemory(const rdma_id_ptr &id, T *item,
-                                          size_t size = sizeof(T)) {
-  return std::shared_ptr< ::ibv_mr>(
-      check_nonnull(::rdma_reg_msgs(id.get(), static_cast<void *>(item), size)),
-      ::rdma_dereg_mr);
-}
-
-void dereg_debug(ibv_mr *mr);
-
-class RDMAReadMem {
-  std::shared_ptr<void> ptr;
-  std::shared_ptr<ibv_mr /*, decltype(& ::rdma_dereg_mr)*/> mr_;
-
-public:
-  RDMAReadMem(rdma_id_ptr &id, size_t size, size_t alignment = 4096) {
-    (void)(id);
-    (void)(size);
-    (void)(alignment);
-  }
-  RDMAReadMem(std::shared_ptr< ::rdma_cm_id> &id, size_t size,
-              size_t alignment = 4096)
-      : ptr([=]() {
-          (void)(alignment);
-#if 0
-              void *p = check_nonnull(malloc(alignment + size));
-              uintptr_t p_ = (uintptr_t)p + (alignment - ((uintptr_t)p & (alignment - 1)));
-              log_info() << p << " " << size << " " << alignment << " " << (void*)p_;
-              p = (void*)p_;
-#elif 0
-              void *p = nullptr;
-              int err = posix_memalign(&p, alignment, size);
-              check_zero(err);
-              check_nonnull(p);
-#else
-              void *p =
-                  check_nonnull(mmap(nullptr, size, PROT_READ | PROT_WRITE,
-                                     MAP_SHARED | MAP_ANONYMOUS, -1, 0));
-#endif
-              memset(p, 'k', size);
-              return p;
-            }(),
-#if 0
-            ::free
-#else
-            [=](void *p_) { ::munmap(p_, size); }
-#endif
-            ),
-#if 1
-        mr_(check_nonnull(rdma_reg_read(id.get(), ptr.get(), size)),
-            /*::rdma_dereg_mr*/ dereg_debug)
-#else
-        mr_(check_nonnull(
-                ibv_reg_mr(id->pd, ptr.get(), size, IBV_ACCESS_REMOTE_READ)),
-            ::ibv_dereg_mr)
-#endif
-  {
-    memset(ptr.get(), 'b', size);
-  }
-  void *get() const { return ptr.get(); }
-  uint32_t rkey() const { return mr_->rkey; }
-  size_t size() const { return mr_->length; }
-  std::shared_ptr<void> copy_ptr() const { return ptr; }
-  std::shared_ptr<ibv_mr> mr() { return mr_; }
-  //  const ibv_mr * mr() { return mr_.get(); }
-};
-
-class RDMABuf {
-  std::shared_ptr<void> ptr;
-  std::shared_ptr<ibv_mr /*, decltype(& ::rdma_dereg_mr)*/> mr_;
-
-public:
-  RDMABuf(std::shared_ptr< ::rdma_cm_id> &id, size_t size,
-          size_t alignment = 4096)
-      : ptr([=]() {
-              void *p = nullptr;
-              int err = posix_memalign(&p, alignment, size);
-              check_zero(err);
-              check_nonnull(p);
-              return p;
-            }(),
-            ::free),
-        mr_(check_nonnull(rdma_reg_msgs(id.get(), ptr.get(), size)),
-            ::rdma_dereg_mr) {}
-  void *get() const { return ptr.get(); }
-  uint32_t rkey() const { return mr_->rkey; }
-  size_t size() const { return mr_->length; }
-  std::shared_ptr<void> copy_ptr() const { return ptr; }
-  std::shared_ptr<ibv_mr> mr() { return mr_; }
-};
 

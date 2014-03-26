@@ -388,28 +388,6 @@ std::future<void> rdma_handle_cq_event_async(std::atomic_bool &running,
   });
 }
 
-class RDMAOnlyMem {
-  std::unique_ptr<ibv_mr, void (*)(ibv_mr *)> mr;
-
-public:
-  RDMAOnlyMem(rdma_cm_id &id, size_t size, size_t alignment = 4906)
-      : mr(rdma_reg_read(&id, [=]() {
-                                void *p = nullptr;
-                                int err = posix_memalign(&p, alignment, size);
-                                check_zero(err);
-                                check_nonnull(p);
-                                return p;
-                              }(),
-                         size),
-           [](ibv_mr *mr) {
-          void *p = static_cast<void *>(mr->addr);
-          rdma_dereg_mr(mr);
-          free(p);
-        }) {
-    std::cerr << "Alloc'd " << size << " bytes" << std::endl;
-  }
-};
-
 void dereg_debug(ibv_mr *mr) { log_err() << "deregging " << mr; }
 
 class rdma_initializer {
