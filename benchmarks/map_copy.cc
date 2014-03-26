@@ -1,0 +1,86 @@
+#include <iostream>
+#include <limits>
+#include <chrono>
+
+#include "rdma/RDMAServerSocket.h"
+
+#define ALLOC_ONLY 1
+
+void bench_map(RDMAServerSocket &socket, size_t measurements, size_t max_size, size_t step = 8) {
+  for (size_t size = step; size < max_size; size += step) {
+    size_t min = std::numeric_limits<size_t>::max();
+    size_t max = std::numeric_limits<size_t>::min();
+    for (size_t measurement = 0; measurement < measurements; measurement++) {
+
+      char ptr[size];
+
+      auto start = std::chrono::high_resolution_clock::now();
+
+#if ALLOC_ONLY
+      ibv_mr *mr = socket.regMemory(ptr, size);
+#else
+      {
+        ibv_mr *mr = socket.regMemory(ptr, size);
+        rdma_dereg_mr(mr);
+      }
+#endif
+
+      auto end = std::chrono::high_resolution_clock::now();
+      size_t current = std::chrono::duration_cast<std::chrono::nanoseconds>(
+          end - start).count();
+
+#if ALLOC_ONLY
+      rdma_dereg_mr(mr);
+#endif
+
+      if (current < min)
+        min = current;
+      if(current > max)
+        max = current;
+    }
+    std::cout << "Size: " << std::setw(10) << size << ", Min: " << std::setw(6)
+              << min << "ns, Max: " << std::setw(6) << max << "ns" << std::endl;
+  }
+}
+
+void bench_small_alloc(RDMAServerSocket &socket, size_t measurements, size_t max_size, size_t step = 8) {
+  for (size_t size = step; size < max_size; size += step) {
+    size_t min = std::numeric_limits<size_t>::max();
+    size_t max = std::numeric_limits<size_t>::min();
+    for (size_t measurement = 0; measurement < measurements; measurement++) {
+
+      char ptr[size];
+
+      auto start = std::chrono::high_resolution_clock::now();
+
+#if ALLOC_ONLY
+      auto mem = socket.malloc<char>(size);
+      memcpy(mem.first.get(), ptr, size);
+#else
+      {
+        auto mem = socket.malloc<char>(size);
+        memcpy(mem.first.get(), ptr, size);
+      }
+#endif
+      auto end = std::chrono::high_resolution_clock::now();
+      size_t current = std::chrono::duration_cast<std::chrono::nanoseconds>(
+          end - start).count();
+
+      if (current < min)
+        min = current;
+      if(current > max)
+        max = current;
+    }
+    std::cout << "Size: " << std::setw(10) << size << ", Min: " << std::setw(6)
+              << min << "ns, Max: " << std::setw(6) << max << "ns" << std::endl;
+  }
+}
+
+int main() {
+  RDMAServerSocket socket("10.1", "8042");
+  //bench_map(socket, 1000, 16 * 1024 * 1024, 1024);
+  //
+  //bench_map(socket, 10000, 64 * 1024, 1024);
+  bench_small_alloc(socket, 10000, 64 * 1024, 1024);
+}
+

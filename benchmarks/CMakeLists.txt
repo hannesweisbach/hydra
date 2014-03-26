@@ -9,4 +9,6 @@ add_executable(hashbench hash_bench.cpp)
 target_link_libraries(hashbench logger cityhash ${CMAKE_THREAD_LIBS_INIT})
 add_custom_command(TARGET hashbench POST_BUILD COMMAND objdump hashbench -hS > ${CMAKE_CURRENT_BINARY_DIR}/hashbench.lss)
 
+add_executable(map_copy map_copy.cc)
+target_link_libraries(map_copy  ${COMMON_LIBS} hydra util)
 
