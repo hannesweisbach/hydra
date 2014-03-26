@@ -68,6 +68,8 @@ LIST(APPEND CLIENT_SOURCES RDMAClient.cpp ${COMMON_SOURCES})
 
 LIST(APPEND COMMON_LIBS rdma ${LIBCITYHASH} ${LIBDISPATCH} ${CMAKE_THREAD_LIBS_INIT})
 
+add_subdirectory(benchmarks)
+
 add_executable(serversocket RDMATest.cpp)
 target_link_libraries(serversocket logger hydra util ${COMMON_LIBS})
 add_test(RDMAServerSocket serversocket)
@@ -99,17 +101,6 @@ if(${HAVE_LIBDISPATCH})
 add_executable(recursive_async recursive_async.cpp)
 target_link_libraries(recursive_async util ${LIBDISPATCH} logger)
 endif()
-
-add_executable(test_ test.cc)
-target_link_libraries(test_ logger hydra util ${COMMON_LIBS})
-add_custom_command(TARGET test_ POST_BUILD COMMAND objdump test_ -hS > ${CMAKE_CURRENT_BINARY_DIR}/test.lss)
-
-add_executable(alloc_test AllocatorTest.cpp)
-target_link_libraries(alloc_test logger hydra util ${COMMON_LIBS})
-
-add_executable(hashbench hash_bench.cpp)
-target_link_libraries(hashbench logger cityhash ${CMAKE_THREAD_LIBS_INIT})
-add_custom_command(TARGET hashbench POST_BUILD COMMAND objdump hashbench -hS > ${CMAKE_CURRENT_BINARY_DIR}/hashbench.lss)
 
 execute_process(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/check-modprobe-capability.sh RESULT_VARIABLE NO_MODPROBE_CAP)
 if(${NO_MODPROBE_CAP})
