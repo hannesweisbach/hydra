@@ -19,6 +19,8 @@ static std::ostream &operator<<(std::ostream &s, const response &r) {
     auto response = static_cast<const init_response &>(r);
     s << response.value();
   } break;
+  case msg::subtype::disconnect:
+    break;
   default:
     assert(false);
     break;
@@ -147,6 +149,11 @@ void response::complete_() const {
     auto f = reinterpret_cast<std::function<void(const mr&)> *>(cookie);
     auto response = static_cast<const mr_response &>(*this);
     (*f)(response.value());
+    delete f;
+  } break;
+  case subtype::disconnect: {
+    auto f = reinterpret_cast<std::function<void()> *>(cookie);
+    (*f)();
     delete f;
   } break;
   default:

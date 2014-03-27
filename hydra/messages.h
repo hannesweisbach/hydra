@@ -365,6 +365,12 @@ public:
   }
 };
 
+class disconnect_response : public response {
+public:
+  disconnect_response(const request &request)
+      : response(request) {}
+};
+
 class notification_resize : public msg {
 public:
   notification_resize(const mr& init)
