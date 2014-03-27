@@ -329,6 +329,7 @@ static bool recv_helper__(ibv_comp_channel *cc) {
       /* wc.opcode is invalid - but we need to set the an exception in the
        * std::future */
       call_completion_handler(wc);
+      continue;
     }
 
     switch (wc.opcode) {
