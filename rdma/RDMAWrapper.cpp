@@ -253,7 +253,13 @@ rdma_id_ptr createCmId(const std::string &host, const std::string &port,
     try {
       ::rdma_cm_id *id;
       check_zero(::rdma_create_ep(&id, ai, nullptr, attr), __func__);
-      return rdma_id_ptr(id, /*::rdma_destroy_ep*/ debug_deleter);
+      return rdma_id_ptr(id,
+#if 1
+                         ::rdma_destroy_ep
+#else
+                         debug_deleter
+#endif
+                         );
     }
     catch (std::runtime_error &e) {
       log_err() << e.what();
