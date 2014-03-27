@@ -285,7 +285,7 @@ cq_ptr createCQ(rdma_id_ptr &id, int entries, void *context,
 
 static void call_completion_handler(ibv_wc &wc) {
   /* wc.wr_id is a pointer to the continuation handler */
-  auto f = reinterpret_cast<std::function<void(ibv_wc &)> *>(wc.wr_id);
+  auto f = reinterpret_cast<std::function<void(const ibv_wc &)> *>(wc.wr_id);
   if (f) {
     // TODO dispatch-async: ?
     (*f)(wc);

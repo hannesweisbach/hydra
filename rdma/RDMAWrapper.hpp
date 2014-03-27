@@ -126,8 +126,9 @@ template <typename RDMAFunctor, typename... Args>
 auto async_rdma_operation(RDMAFunctor &&functor, Args &&... args)
     -> std::future<qp_t> {
   auto promise = std::make_shared<std::promise<qp_t> >();
-  std::function<void(ibv_wc &)> *f = new std::function<void(ibv_wc &)>();
-  *f = [=](ibv_wc &wc) {
+  std::function<void(const ibv_wc &)> *f =
+      new std::function<void(const ibv_wc &)>();
+  *f = [=](const ibv_wc &wc) {
     try {
       if (wc.status == IBV_WC_SUCCESS) {
         promise->set_value(wc.qp_num);
