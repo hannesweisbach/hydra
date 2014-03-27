@@ -117,7 +117,7 @@ auto async_rdma_operation2(RDMAFunctor &&functor, T value)
   };
 
   log_info() << "wr_id: " << (void *)f;
-  check_zero(functor(f), __func__);
+  check_zero(functor(reinterpret_cast<void*>(f)), __func__);
 
   return promise->get_future();
 }
@@ -134,7 +134,8 @@ auto async_rdma_operation(RDMAFunctor &&functor)
         promise->set_value(wc.qp_num);
       } else {
         log_info() << (enum ibv_wc_status)wc.status << " : " << wc.byte_len
-                   << " wr_id: " << reinterpret_cast<void *>(f)
+                   << " wr_id: " << reinterpret_cast<void *>(f) << " ("
+                   << reinterpret_cast<void *>(wc.wr_id) << ") "
                    << " promise: " << reinterpret_cast<void *>(promise.get());
         std::ostringstream s;
         s << wc.opcode << " resulted in " << wc.status;
