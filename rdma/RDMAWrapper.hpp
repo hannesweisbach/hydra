@@ -122,8 +122,8 @@ auto async_rdma_operation2(RDMAFunctor &&functor, T value)
   return promise->get_future();
 }
 
-template <typename RDMAFunctor, typename... Args>
-auto async_rdma_operation(RDMAFunctor &&functor, Args &&... args)
+template <typename RDMAFunctor>
+auto async_rdma_operation(RDMAFunctor &&functor)
     -> std::future<qp_t> {
   auto promise = std::make_shared<std::promise<qp_t> >();
   std::function<void(const ibv_wc &)> *f =
@@ -149,7 +149,7 @@ auto async_rdma_operation(RDMAFunctor &&functor, Args &&... args)
 
   //log_info() << "wr_id: " << reinterpret_cast<void *>(f)
   //           << " promise: " << reinterpret_cast<void *>(promise.get());
-  check_zero(functor(f, std::forward<Args>(args)...), __func__);
+  check_zero(functor(reinterpret_cast<void*>(f)), __func__);
 
   return promise->get_future();
 }
@@ -161,8 +161,7 @@ std::future<qp_t> rdma_recv_async(rdma_cm_id *id, const T *local,
       std::bind(rdma_post_recv, id, std::placeholders::_1,
                 const_cast<void *>(static_cast<const void *>(local)), size,
                 const_cast<ibv_mr *>(mr));
-  return async_rdma_operation(
-      func, const_cast<typename std::remove_const<T>::type*>(local));
+  return async_rdma_operation(func);
 }
 
 template <typename T>
@@ -188,7 +187,7 @@ std::future<qp_t> rdma_read_async__(rdma_cm_id *id, T *local, size_t size,
                                     uint32_t rkey) {
   auto functor = std::bind(rdma_post_read, id, std::placeholders::_1, local,
                            size, mr, IBV_SEND_SIGNALED, remote, rkey);
-  return async_rdma_operation(functor, local);
+  return async_rdma_operation(functor);
 }
 
 /*keep*/
