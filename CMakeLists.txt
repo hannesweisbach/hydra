@@ -53,15 +53,14 @@ endif()
 
 
 include_directories(.)
-include_directories(util rdma hydra HashTable)
+include_directories(util rdma hydra)
 include_directories("/usr/local/include")
 
 add_subdirectory(util)
 add_subdirectory(rdma)
 add_subdirectory(hydra)
-add_subdirectory(HashTable)
+add_subdirectory(prototype)
 
-LIST(APPEND COMMON_SOURCES HashTable/Hopscotch.cpp)
 LIST(APPEND SERVER_SOURCES RDMAServer.cpp ${COMMON_SOURCES})
 LIST(APPEND CLIENT_SOURCES RDMAClient.cpp ${COMMON_SOURCES})
 
