@@ -11,22 +11,19 @@ std::ostream &operator<<(std::ostream &s, const hydra::interval &i) {
 }
 
 std::ostream &operator<<(std::ostream &s, const hydra::routing_entry &e) {
-  s << "routing_entry {" << std::endl;
-  {
-    indent_guard guard(s);
-    s << indent << "node_id node = " << e.node << std::endl;
-    s << indent << "interval interval = " << e.interval << std::endl;
-  }
-  return s << indent << "};";
+  return s << e.node << " " << e.interval;
 }
 
 std::ostream &operator<<(std::ostream &s, const hydra::routing_table &t) {
   s << "routing_table " << t.table.size() << std::endl;
   {
     indent_guard guard(s);
-    size_t i = 0;
-    for (auto &&e : t.table) {
-      s << indent << e << " " << std::setw(3) << i++ << std::endl;
+    s << indent << "pred: " << t.predecessor() << std::endl;
+    s << indent << "self: " << t.self() << std::endl;
+    size_t i = 1;
+    for (auto &&e : t) {
+      s << indent << "[" << std::setw(3) << i++ << "] " << e
+        << " " << std::endl;
     }
   }
   return s;
