@@ -1,3 +1,5 @@
+#include <iomanip>
+
 #include "util/uint128.h"
 
 std::ostream &std::operator<<(std::ostream &s, const __uint128_t &h) {
