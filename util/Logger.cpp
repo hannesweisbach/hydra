@@ -30,7 +30,9 @@ Logger::Logger(const severity_level &level) : entry_severity(level) {
 Logger::Logger(const severity_level &level, const std::string &func,
                const int line)
     : entry_severity(level) {
-  *this << level << " " << func << "(" << line << "): ";
+  std::ostringstream s;
+  s << func << "(" << line << "): ";
+  *this << level << " " << std::setw(22) << s.str();
 }
 
 Logger::~Logger() {
