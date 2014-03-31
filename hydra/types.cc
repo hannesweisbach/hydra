@@ -3,11 +3,11 @@
 namespace hydra {
 
 std::ostream &operator<<(std::ostream &s, const hydra::node_id &id) {
-  return ::operator<<(s << id.ip << ":" << id.port << " ", id.id);
+  return s << id.ip << ":" << id.port << " " << id.id;
 }
 
 std::ostream &operator<<(std::ostream &s, const hydra::interval &i) {
-  return ::operator<<(::operator<<(s, i.start) << " - ", i.end);
+  return s << "[" << i.start << " - " << i.end << ")";
 }
 
 std::ostream &operator<<(std::ostream &s, const hydra::routing_entry &e) {
