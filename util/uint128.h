@@ -85,8 +85,7 @@ template <> struct numeric_limits<__int128_t> {
   static const bool tinyness_before = false;
   static const float_round_style round_style = round_toward_zero;
 };
-}
-
 
 std::ostream &operator<<(std::ostream &s, const __uint128_t &h);
+}
 
