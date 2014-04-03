@@ -22,15 +22,12 @@ std::ostream &operator<<(std::ostream &s, const hydra::node_id &id) {
   return s << id.ip << ":" << id.port << " " << hex(id.id);
 }
 
-std::ostream &operator<<(std::ostream &s, const hydra::interval &i) {
-  return s << "[" << i.start << " - " << i.end << ")";
-}
 std::ostream &operator<<(std::ostream &s, const keyspace_t &rhs) {
   return s << hydra::hex(rhs.value__);
 }
 
 std::ostream &operator<<(std::ostream &s, const hydra::routing_entry &e) {
-  return s << e.node << " " << e.interval;
+  return s << e.node << " " << e.start;
 }
 
 std::ostream &operator<<(std::ostream &s, const hydra::routing_table &t) {

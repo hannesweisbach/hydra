@@ -115,25 +115,16 @@ struct node_id {
   }
 };
 
-struct interval {
-  __uint128_t start;
-  __uint128_t end;
-
-  bool contains(const __uint128_t &v) const {
-    return (v - start) < (end - start);
-  }
-};
-
 struct routing_entry {
+
   node_id node;
-  interval interval;
-  node_id successor;
-  routing_entry(const node_id &node, const struct interval &interval)
-      : node(node), interval(interval) {}
+  keyspace_t start;
+  routing_entry() {}
+  routing_entry(const node_id &node, const struct keyspace_t &start)
+      : node(node), start(start) {}
   routing_entry(const std::string &ip, const std::string &port,
-                const __uint128_t &n = 0, const size_t k = 0)
-      : node(n, ip, port), interval({n + (1 << (k - 1)), n + (1 << k)}),
-        successor({ 0, { 0 }, { 0 } }) {}
+                const keyspace_t &n = 0, const keyspace_t &k = 0)
+      : node(n, ip, port), start(n + (keyspace_t(1) << k)) {}
 };
 
 /* we have an identifier space of 2**128.
@@ -155,11 +146,7 @@ struct routing_table {
 
   std::array<routing_entry, routingtable_size> table;
 
-  const routing_entry preceding_node(const __uint128_t &id) const {
-    auto it =
-        std::find_if(table.rbegin(), table.rend(),
-                     [=](auto &node) { return node.interval.contains(id); });
-    assert(it != table.rend());
+  static_assert(routingtable_size > successor_index, "Table is not large enough");
 
   auto begin() const { return &successor(); }
   auto begin() { return &successor(); }

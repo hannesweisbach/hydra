@@ -9,7 +9,39 @@
 #include "hydra/types.h"
 #include "util/Logger.h"
 
-static std::unordered_map<std::string, hydra::routing_table> network;
+static std::map<hydra::keyspace_t, hydra::routing_table> network;
+
+bool node_exists(const hydra::keyspace_t &id) {
+  return network.find(id) != std::end(network);
+}
+
+hydra::keyspace_t successor(const hydra::keyspace_t &id) {
+  assert(!network.empty());
+  auto succ = std::find_if(std::begin(network), std::end(network),
+                           [&](const auto &elem) {
+    assert(elem.first == elem.second.self().node.id);
+    return elem.second.self().node.id >= id;
+  });
+  if (succ == std::end(network))
+    succ = std::begin(network);
+
+  return succ->first;
+}
+
+hydra::keyspace_t predecessor(const hydra::keyspace_t &id) {
+  assert(!network.empty());
+
+  auto succ =
+      std::find_if(network.crbegin(), network.crend(), [&](const auto &elem) {
+        assert(elem.first == elem.second.self().node.id);
+        return elem.second.self().node.id < id;
+      });
+
+  if (succ == network.crend())
+    succ = network.crbegin();
+
+  return succ->first;
+}
 
 hydra::routing_entry predecessor(const hydra::routing_table &table,
                                  const hydra::keyspace_t &id) {
@@ -37,7 +69,8 @@ hydra::routing_entry successor(const hydra::routing_table &table,
 }
 
 void init_table(hydra::routing_table &n, const hydra::routing_table &n_) {
-  const hydra::keyspace_t start = n[0].interval.start;
+  const hydra::keyspace_t start = n[0].start;
+#if 1
   log_info() << "I am " << n.self().node;
 #endif
 
@@ -78,21 +111,25 @@ void init_table(hydra::routing_table &n, const hydra::routing_table &n_) {
   std::transform(std::begin(t) + 1, std::end(t), std::begin(t),
                  std::begin(t) + 1,
                  [&](auto && elem, auto && prev)->hydra::routing_entry {
-    if (hydra::interval({ n.self().node.id,
-                          static_cast<hydra::keyspace_t>(prev.node.id - 1) })
-            .contains(elem.interval.start)) {
-      log_info() << std::hex << (unsigned)elem.interval.start << " in ["
-                 << (unsigned)n.self().node.id << ", " << (unsigned)prev.node.id
-                 << ")";
+    if (elem.start.in(id, prev.node.id - 1)) {
+#if 1
+      log_info() << elem.start << "  in [" << id << ", "
+                 << prev.node.id << ")";
+#endif
       elem.node = prev.node;
     } else {
-      log_info() << std::hex << (unsigned)elem.interval.start << " !in ["
-                 << (unsigned)n.self().node.id << ", " << (unsigned)prev.node.id
-                 << ")";
-      // n'.find_successor(elem.interval.start);
-      elem.node = successor(n_, elem.interval.start).node;
-      log_info() << std::hex << (unsigned)elem.interval.start << " "
-                 << elem.node;
+#if 1
+      log_info() << elem.start << " !in ["
+                 << id << ", " << prev.node.id << ")";
+#endif
+      /* chord may fail at this point, when the ith finger of n is n - n_
+       * doesn't know about n, because update_others didn't run yet.
+       * update_others can't fix this problem either.
+       */
+      elem.node = successor(n_, elem.start).node;
+#if 1
+      log_info() << elem.start << " " << elem.node;
+#endif
     }
     return elem;
   });
