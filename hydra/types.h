@@ -10,11 +10,78 @@
 #include "verifying_ptr.h"
 #include "util/uint128.h"
 #include "util/Logger.h"
+#include "util/utils.h"
 
 namespace hydra {
 
+struct keyspace_t {
+  using value_type = uint8_t;
+
+  static_assert(std::numeric_limits<value_type>::digits,
+                "You have to implement std::numeric_limits<keyspace_t>.");
+
+  static_assert(
+      is_power_of_two<std::numeric_limits<value_type>::digits>::value,
+      "std::numeric_limits<keyspace_t>::digits must be a power of two.");
+
+  value_type value__;
+
+  keyspace_t() = default;
+  keyspace_t(const keyspace_t &) = default;
+  keyspace_t(keyspace_t &&) = default;
+  keyspace_t &operator=(const keyspace_t &) = default;
+  keyspace_t &operator=(keyspace_t &&) = default;
+  constexpr keyspace_t(value_type v) noexcept : value__(v) {}
+
+  keyspace_t operator+(keyspace_t const &rhs) const noexcept {
+    return keyspace_t(value__ + rhs.value__);
+  }
+
+  keyspace_t operator-(keyspace_t const &rhs) const noexcept {
+    return keyspace_t(value__ - rhs.value__);
+  }
+
+  keyspace_t operator<<(keyspace_t const &rhs) const noexcept {
+    return keyspace_t(static_cast<value_type>(value__ << rhs.value__));
+  }
+
+  bool operator==(keyspace_t const &rhs) const noexcept {
+    return value__ == rhs.value__;
+  }
+  bool operator!=(keyspace_t const &rhs) const noexcept {
+    return value__ != rhs.value__;
+  }
+  bool operator<=(keyspace_t const &rhs) const noexcept {
+    return value__ <= rhs.value__;
+  }
+  bool operator>=(keyspace_t const &rhs) const noexcept {
+    return value__ >= rhs.value__;
+  }
+  bool operator<(keyspace_t const &rhs) const noexcept {
+    return value__ < rhs.value__;
+  }
+  bool operator>(keyspace_t const &rhs) const noexcept {
+    return value__ > rhs.value__;
+  }
+
+  bool in(keyspace_t const &start, keyspace_t const &end) const noexcept{
+    if (end == start)
+      return start == *this;
+    else
+      return (*this - start) <= (end - start);
+  }
+};
+
+std::ostream &operator<<(std::ostream &, const keyspace_t &rhs);
+
+namespace literals {
+constexpr keyspace_t operator"" _ID(unsigned long long id) {
+  return keyspace_t(static_cast<keyspace_t::value_type>(id));
+}
+}
+
 struct node_info {
-  __uint128_t id;
+  keyspace_t id;
   uint64_t table_size;
   ibv_mr key_extents;
   ibv_mr routing_table;
@@ -29,18 +96,18 @@ struct node_info {
 };
 
 struct node_id {
-  __uint128_t id;
+  keyspace_t id;
   // uint32_t ip;
   char ip[16];
   // uint16_t port;
   char port[6];
   node_id() = default;
-  node_id(const __uint128_t &id, const char (&ip_)[16], const char (&port_)[6])
+  node_id(const keyspace_t &id, const char (&ip_)[16], const char (&port_)[6])
       : id(id) {
     memcpy(ip, ip_, sizeof(ip));
     memcpy(port, port_, sizeof(port));
   }
-  node_id(const __uint128_t &id, const std::string &ip_,
+  node_id(const keyspace_t &id, const std::string &ip_,
           const std::string &port_)
       : id(id), ip(), port() {
     ip_.copy(ip, sizeof(ip));
