@@ -136,10 +136,23 @@ struct routing_entry {
         successor({ 0, { 0 }, { 0 } }) {}
 };
 
-constexpr size_t routingtable_size = std::numeric_limits<__uint128_t>::digits;
+/* we have an identifier space of 2**128.
+ * chord says we need a routing table of size 128.
+ * I additionally store my predecessor and myself in the table.
+ * [0] is my predecessor
+ * [1] is myself
+ * [2] is my successor
+ * and so forth
+ * TODO: put predecessor in slot 128., so the layout of the array corresponds to
+ * chord.
+ */
+constexpr size_t routingtable_size = std::numeric_limits<id_t>::digits + 2;
 
 struct routing_table {
-  // todo own array, with unique_ptr  as parameter -> RDMA
+  static const size_t predecessor_index = 0;
+  static const size_t self_index = 1;
+  static const size_t successor_index = 2;
+
   std::array<routing_entry, routingtable_size> table;
 
   const routing_entry preceding_node(const __uint128_t &id) const {
@@ -148,16 +161,58 @@ struct routing_table {
                      [=](auto &node) { return node.interval.contains(id); });
     assert(it != table.rend());
 
-    return *it;
-  }
-  routing_entry &operator[](const size_t i) { return table[i]; }
-  const routing_entry &operator[](const size_t i) const { return table[i]; }
-  const routing_entry &predecessor() const { return table[0]; }
-  routing_entry &predecessor() { return table[0]; }
-  const routing_entry &successor() const { return table[1]; }
-  routing_entry &successor() { return table[1]; }
+  auto begin() const { return &successor(); }
+  auto begin() { return &successor(); }
   auto end() const { return table.end(); }
   auto end() { return table.end(); }
+
+  routing_table() {}
+  routing_table(const std::string &ip, const std::string &port) {
+    keyspace_t id = static_cast<keyspace_t::value_type>(hash(ip));
+    table[predecessor_index] = routing_entry(ip, port, id, keyspace_t(0));
+    table[self_index] = routing_entry(ip, port, id, keyspace_t(0));
+    keyspace_t::value_type k = 0;
+    for (auto &&entry : *this) {
+      entry = routing_entry(ip, port, id, k++);
+    }
+  }
+
+  const routing_entry preceding_node(const keyspace_t &id) const {
+#if 0
+    log_info() << std::hex << "Checking (" << (unsigned)self().node.id << " "
+               << (unsigned)id << ") contains ";
+#endif
+    auto it = std::find_if(table.rbegin(), table.rend() + 2, [=](auto &node) {
+// return node.interval.contains(id);
+#if 0
+      log_info() << std::hex <<  "  " << (unsigned)node.node.id;
+#endif
+#if 1
+      return node.node.id.in(self().node.id + 1, id - 1);
+#else
+      return interval({ static_cast<keyspace_t>(),
+                        static_cast<keyspace_t>(id - 1) })
+          .contains(node.node.id);
+#endif
+    });
+    assert(it != table.rend() + 2);
+
+    return *it;
+  }
+  routing_entry &operator[](const size_t i) {
+    return table[i + successor_index];
+  }
+  const routing_entry &operator[](const size_t i) const {
+    return table[i + successor_index];
+  }
+
+  const routing_entry &predecessor() const { return table[predecessor_index]; }
+  routing_entry &predecessor() { return table[predecessor_index]; }
+  const routing_entry &self() const { return table[self_index]; }
+  routing_entry &self() { return table[self_index]; }
+  const routing_entry &successor() const { return table[successor_index]; }
+  routing_entry &successor() { return table[successor_index]; }
+
 };
 
 enum Return_t {
