@@ -153,9 +153,27 @@ struct key_entry {
 
 std::ostream &operator<<(std::ostream &s, const hydra::key_entry &e);
 std::ostream &operator<<(std::ostream &s, const hydra::node_id &id);
-std::ostream &operator<<(std::ostream &s, const hydra::interval &i);
 std::ostream &operator<<(std::ostream &s, const hydra::routing_entry &e);
 std::ostream &operator<<(std::ostream &s, const hydra::routing_table &t);
+
+template <typename T> struct hex_wrapper {
+  T v;
+  hex_wrapper(const T &v) : v(v) {}
+};
+
+template <typename T> hex_wrapper<T> hex(const T &t) {
+  return hex_wrapper<T>({ t });
 }
 
+template <typename T>
+std::ostream &operator<<(std::ostream &s, const hex_wrapper<T> hex) {
+  auto fmtflags = s.flags();
+  s << hex.v;
+  s.flags(fmtflags);
+  return s;
+}
+
+template <>
+std::ostream &operator<<(std::ostream &s, const hex_wrapper<uint8_t> hex);
+}
 
