@@ -1,7 +1,10 @@
 #include <iostream>
-#include <unordered_map>
+#include <map>
 #include <string>
 #include <ostream>
+#include <vector>
+#include <algorithm>
+#include <iterator>
 
 #include "hydra/types.h"
 #include "util/Logger.h"
@@ -12,56 +15,68 @@ hydra::routing_entry predecessor(const hydra::routing_table &table,
                                  const hydra::keyspace_t &id) {
   hydra::routing_entry node = table.self();
   hydra::routing_table t = table;
-  while (
-      !hydra::interval({ static_cast<hydra::keyspace_t>(t.self().node.id + 1),
-                         t.successor().node.id }).contains(id)) {
-    log_info() << std::hex << (unsigned)id << " !in ("
-               << (unsigned)t.self().node.id << ", "
-               << (unsigned)t.successor().node.id << "] node: " << t.self();
+  while (!id.in(t.self().node.id + 1, t.successor().node.id)) {
     auto preceding_node = t.preceding_node(id);
-    log_info() << "Preceding node of " << std::hex << (unsigned)id << " is "
-               << preceding_node << " " << t;
-    t = network[preceding_node.node.ip];
-    //hydra::routing_entry pred = predecessor(t, id);
-    //node = network[pred.node.ip].self();
+    t = network[preceding_node.node.id];
     node = t.self();
-    log_info() << node << " " << t;
   }
-  log_info() << std::hex << (unsigned)id << "  in ("
-             << (unsigned)t.self().node.id << ", "
-             << (unsigned)t.successor().node.id << ") node: " << t.self();
+
+  //assert(node.node.id == predecessor(id));
+
   return node;
 }
 
 hydra::routing_entry successor(const hydra::routing_table &table,
                                const hydra::keyspace_t &id) {
   auto pred = predecessor(table, id);
+  auto succ = network[pred.node.id].successor();
 
-  log_trace() << std::hex << "Successor of " << (unsigned)id << " is "
-              << network[pred.node.ip].successor();
-  return network[pred.node.ip].successor();
+  //assert(succ.node.id == successor(id));
+
+  return succ;
 }
 
 void init_table(hydra::routing_table &n, const hydra::routing_table &n_) {
   const hydra::keyspace_t start = n[0].interval.start;
   log_info() << "I am " << n.self().node;
+#endif
 
   n.successor().node = successor(n_, start).node;
+#if 1
   log_info() << "My successor is " << n.successor().node;
+#endif
 
   /* read predecessor-pointer from successor */
-  n.predecessor().node = network[n.successor().node.ip].predecessor().node;
+  n.predecessor().node = network[n.successor().node.id].predecessor().node;
+#if 1
   log_info() << "My predecessor is " << n.predecessor().node;
+#endif
 
-  /* write predecessor-pointer to successor */
+/* write predecessor-pointer to successor */
+#if 1
   log_info() << "My successors predecessor was "
-             << network[n.successor().node.ip].predecessor().node;
-  network[n.successor().node.ip].predecessor().node = n.self().node;
+             << network[n.successor().node.id].predecessor().node;
+#endif
+  network[n.successor().node.id].predecessor().node = n.self().node;
+#if 1
   log_info() << "My successors predecessor is "
-             << network[n.successor().node.ip].predecessor().node;
+             << network[n.successor().node.id].predecessor().node;
+#endif
 
-  std::transform(std::begin(n) + 1, std::end(n), std::begin(n),
-                 std::begin(n) + 1,
+#if 0
+  auto pred = predecessor(n_, n.self().node.id);
+  log_info() << "My pred's successor was " << network[pred.node.id].successor();
+
+  network[pred.node.id].successor() = n.self();
+  log_info() << "My pred's successor is " << network[pred.node.id].successor();
+#endif
+
+  hydra::keyspace_t id = n.self().node.id;
+  network.emplace(n.self().node.id, n);
+  hydra::routing_table& t = network[id];
+
+  std::transform(std::begin(t) + 1, std::end(t), std::begin(t),
+                 std::begin(t) + 1,
                  [&](auto && elem, auto && prev)->hydra::routing_entry {
     if (hydra::interval({ n.self().node.id,
                           static_cast<hydra::keyspace_t>(prev.node.id - 1) })
@@ -81,100 +96,152 @@ void init_table(hydra::routing_table &n, const hydra::routing_table &n_) {
     }
     return elem;
   });
+
+#if 1
+  log_info() << "New routing table of  " << network[id].self() << " " << network[id];
+#endif
 }
 
 void update_table(hydra::routing_table &table, const hydra::routing_entry &s,
                   size_t &i) {
   indent_guard guard(Logger::underlying_stream);
+
+  if (s.node.id.in(table.self().node.id, table[i].node.id - 1)) {
 #if 1
-  if (hydra::interval({ table.self().node.id,
-                        static_cast<hydra::keyspace_t>(table[i].node.id - 1) })
-          .contains(s.node.id)) {
-    log_info() << indent << std::hex << (unsigned)s.node.id << "  in ["
-               << (unsigned)table.self().node.id << ", "
-               << (unsigned)table[i].node.id << ") ";
-#else
-#if 0
-  if (table[i].interval.contains(s.node.id)) {
-#else
-  if (hydra::interval(
-          { static_cast<hydra::keyspace_t>(table.self().node.id + 1),
-            static_cast<hydra::keyspace_t>(table[i].node.id) })
-          .contains(s.node.id)) {
+    log_info() << indent << s.node.id << "  in [" << table.self().node.id
+               << ", " << table[i].node.id << ") " << i;
 #endif
-#endif
+#if 1
     log_info() << indent << "Updating entry " << i << " of " << table.self()
                << " from " << table[i].node << " to " << s.node;
+#endif
     table[i].node = s.node;
     auto pred = table.predecessor();
-    if (pred.node.id != s.node.id) {
+    if (pred.node.id != s.node.id)
+    {
+#if 1
       log_info() << indent << "Notifying " << pred << " to update " << s << " "
                  << i;
-      update_table(network[pred.node.ip], s, i);
+#endif
+      update_table(network[pred.node.id], s, i);
     }
+  } else {
+#if 1
+    log_info() << indent << s.node.id << " !in [" << table.self().node.id
+               << ", " << table[i].node.id << ") " << i;
+#endif
   }
 }
 
 void update_others(const hydra::routing_table &table) {
   for (size_t k = 0; k < std::numeric_limits<hydra::keyspace_t>::digits; k++) {
     hydra::keyspace_t key =
-        table.self().node.id - static_cast<hydra::keyspace_t>(1 << k);
-    log_info() << "Looking for predecessor of " << std::hex << (unsigned)key
-               << " in " << table;
+        table.self().node.id - static_cast<hydra::keyspace_t>((1 << k) - 1);
+
     auto pred = predecessor(table, key);
-    log_info() << "Pred of " << std::hex << (unsigned)key << " is " << pred;
-    if(pred.node.id != table.self().node.id)
-      update_table(network[pred.node.ip], table.self(), k);
+#if 1
+    log_info() << "Update pred(" << key << ") " << pred.node;
+#endif
+    if (pred.node.id != table.self().node.id)
+      update_table(network[pred.node.id], table.self(), k);
   }
 }
 
-void join(const std::string &node, const std::string &new_node) {
-  init_table(network[new_node], network[node]);
+void dump() {
+  size_t i = 0;
+  for (auto it = std::begin(network); it != std::end(network); ++it, i++) {
+    auto next = it;
+    if (++next == std::end(network))
+      next = std::begin(network);
+    log_info() << std::setw(3) << i << " " << it->second.self() << " "
+               << it->second.successor() << " next: " << next->second.self();
+    log_info() << it->second.self() << " " << it->second;
+  }
+}
 
-  log_info() << network[new_node];
+void check() {
+  dump();
 
-  update_others(network[new_node]);
+  for (auto it = std::begin(network); it != std::end(network); ++it) {
+    assert(it->first == it->second.self().node.id);
+
+    auto next = it;
+    if (++next == std::end(network)) {
+      next = std::begin(network);
+      assert(it->second.self().node.id > next->second.self().node.id);
+    } else {
+      assert(it->second.self().node.id < next->second.self().node.id);
+    }
+    assert(it->second.self().node.id != next->second.self().node.id);
+    assert(it->second.successor().node.id == next->second.self().node.id);
+  }
+
+  size_t i = 0;
+
+  for (auto it = std::begin(network); it != std::end(network); ++it, i++) {
+    const auto next = (++it == std::end(network)) ? std::begin(network) : it;
+    auto prev = (--it == std::begin(network)) ? std::end(network) : it;
+    prev--;
+
+#if 0
+    log_info() << prev->second.self() << " " << i << " " << next->second.self();
+#endif
+
+    assert(it->second.successor().node.id == next->second.self().node.id);
+    assert(it->second.predecessor().node.id == prev->second.self().node.id);
+
+    for (const auto &finger : it->second) {
+      auto start = finger.start;
+      auto id = finger.node.id;
+
+      /* id ist nächste node nach start */
+      assert(successor(start) == id);
+
+      /* kein andere node zwischen start und id */
+      assert(start.in(predecessor(id), id));
+    }
+    i++;
+  }
 }
 
 int main() {
-  std::string port("8042");
-  std::vector<std::string> nodes = { "10.1" };
+  const std::string port("8042");
+  const std::string seed_node = "10.1";
 
-  for (auto &&node : nodes) {
-    network.emplace(node, hydra::routing_table(node, port));
-  }
+  network.emplace(hydra::hash(seed_node),
+                  hydra::routing_table(seed_node, port));
 
   for (auto &&node : network)
-    std::cout << node.first << " " << node.second << std::endl;
+    std::cout << hydra::hex(node.first) << " " << node.second << std::endl;
 
-  for(size_t i = 2; i < 100; i++) {
+  for (size_t i = 2; i < 0xffffff; i++) {
     std::ostringstream s;
+#if 0
     s << "10." << i;
-    bool skip = false;
-    for (auto &&node : network) {
-      if (node.second.self().node.id ==
-          static_cast<hydra::keyspace_t>(hydra::hash(s.str()))) {
-        log_info() << "colliding ID with " << s.str() << " and "
-                   << node.second.self().node;
-        skip = true;
-      }
-    }
-    if (skip)
+#else
+    s << i;
+#endif
+    if (node_exists(hydra::hash(s.str()))) {
+      log_info() << "colliding ID with " << s.str() << " and "
+                 << hydra::hex(hydra::hash(s.str()));
       continue;
+    }
+
+    log_info() << "Adding node " << s.str();
 
     hydra::routing_table new_table(s.str(), port);
-    log_info() << s.str() << " " << new_table;
-    network.emplace(s.str(), new_table);
+    auto key = new_table.self().node.id;
 
-    join(nodes[0], s.str());
-    
-    for (auto &&node : network)
-      std::cout << node.first << " " << node.second << std::endl;
+    init_table(new_table, network[hydra::hash(seed_node)]);
+
+    update_others(new_table);
+
+    check();
+
+    if(network.size() == 255)
+      break;
   }
-#if 0
-  join(nodes[0], nodes[2]);
-  
-  for (auto &&node : network)
-    std::cout << node.first << " " << node.second << std::endl;
-#endif
+
+  log_info() << "Checked with " << network.size() << " nodes";
 }
+
