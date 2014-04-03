@@ -137,7 +137,8 @@ struct routing_entry {
  * TODO: put predecessor in slot 128., so the layout of the array corresponds to
  * chord.
  */
-constexpr size_t routingtable_size = std::numeric_limits<id_t>::digits + 2;
+constexpr size_t routingtable_size =
+    std::numeric_limits<keyspace_t::value_type>::digits + 2;
 
 struct routing_table {
   static const size_t predecessor_index = 0;
