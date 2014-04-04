@@ -22,13 +22,10 @@
 #include "RDMAAllocator.h"
 #include "RDMAObj.h"
 
+#include "client.h"
+
 namespace hydra {
 class node {
-  struct rnode {
-    __uint128_t start;
-    __uint128_t end;
-    RDMAClientSocket node;
-  };
   RDMAServerSocket socket;
 
   ThreadSafeHeap<SegregatedFitsHeap<
@@ -38,7 +35,6 @@ class node {
   decltype(heap.malloc<key_entry>()) table_ptr;
   monitor<hopscotch_server> dht;
   monitor<std::unordered_map<qp_t, RDMAServerSocket::client_t> > clients;
-  monitor<std::vector<rnode>> nodes;
 
   decltype(local_heap.malloc<request>()) msg_buffer;
   /* occupy threads for blocking work, so libdispatch doesn't choke */
@@ -47,7 +43,6 @@ class node {
 
   monitor<decltype(heap.malloc<LocalRDMAObj<node_info>>())> info;
 
-  void post_recv(request& m);
   void accept();
   void post_recv(const request& m, const ibv_mr* mr);
   void recv(const request &msg, const qp_t &qp);
