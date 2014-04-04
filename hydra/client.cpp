@@ -65,6 +65,7 @@ hydra::client::~client() {
   auto future = request.set_completion();
   s.sendImmediate(request);
   future.get();
+  s.disconnect();
 }
 
 std::future<void> hydra::client::post_recv(const msg &m,
