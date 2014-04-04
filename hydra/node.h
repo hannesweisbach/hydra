@@ -24,7 +24,7 @@
 #include "RDMAAllocator.h"
 #include "RDMAObj.h"
 
-#include "client.h"
+#include "passive.h"
 
 namespace hydra {
 class node {
@@ -58,10 +58,10 @@ class node {
   std::future<rdma_cm_id *> find_id(const qp_t &qp) const;
 
   /* call when joining the network - already running node ip */
-  void init_routing_table(const hydra::client& remote);
+  void init_routing_table(const hydra::passive& remote);
   void update_others() const;
   void update_routing_table(const hydra::node_id &e, const size_t i);
-  struct routing_table find_table(const hydra::client &,
+  struct routing_table find_table(const hydra::passive &,
                                   const keyspace_t &id) const;
   struct routing_table find_table(const hydra::routing_table &,
                                   const keyspace_t &id) const;
@@ -76,9 +76,9 @@ public:
        uint32_t msg_buffers = 5);
   void connect(const std::string& host, const std::string& ip);
   void join(const std::string& ip, const std::string& port);
-  hydra::routing_entry predecessor(const hydra::client &,
+  hydra::routing_entry predecessor(const hydra::passive &,
                                    const keyspace_t &id) const;
-  hydra::routing_entry successor(const hydra::client &,
+  hydra::routing_entry successor(const hydra::passive &,
                                  const keyspace_t &id) const;
 };
 

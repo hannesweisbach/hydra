@@ -178,7 +178,7 @@ void node::recv(const msg &req, const qp_t &qp) {
 }
 
 void node::join(const std::string& ip, const std::string& port) {
-  hydra::client remote(ip, port);
+  hydra::passive remote(ip, port);
   init_routing_table(remote);
   update_others();
 #if 0
@@ -186,12 +186,12 @@ void node::join(const std::string& ip, const std::string& port) {
 #endif
 }
 
-void node::init_routing_table(const hydra::client& remote) {
+void node::init_routing_table(const hydra::passive& remote) {
   (*routing_table.first)([&](auto &table) {
     table.successor().node = successor(remote, table.successor().start).node;
 
     auto pred1 = predecessor(remote, table.successor().start);
-    hydra::client tmp(pred1.node.ip, pred1.node.port);
+    hydra::passive tmp(pred1.node.ip, pred1.node.port);
     auto pred2 = tmp.table().predecessor();
 
     log_info() << pred1 << " " << pred2;
@@ -200,7 +200,7 @@ void node::init_routing_table(const hydra::client& remote) {
 
     //table.successor().predecessor = me;
     auto succ = table.successor().node;
-    hydra::client pred(succ.ip, succ.port);
+    hydra::passive pred(succ.ip, succ.port);
     pred.send(notification_predecessor(table.self().node));
 
     std::transform(std::begin(table) + 1, std::end(table), std::begin(table),
@@ -226,7 +226,7 @@ hydra::routing_table node::find_table(const hydra::routing_table &start,
   hydra::routing_table table = start;
   while (!id.in(table.self().node.id + 1, table.successor().node.id)) {
     auto re = table.preceding_node(id).node;
-    hydra::client node(re.ip, re.port);
+    hydra::passive node(re.ip, re.port);
     table = node.table();
   }
   return table;
@@ -242,7 +242,7 @@ hydra::routing_entry node::successor(const hydra::routing_table &start,
   return find_table(start, id).successor();
 }
 
-hydra::routing_table node::find_table(const hydra::client &remote,
+hydra::routing_table node::find_table(const hydra::passive &remote,
                                       const keyspace_t &id) const {
   auto table = remote.table();
   log_debug() << "Looking for ID " << id;
@@ -253,7 +253,7 @@ hydra::routing_table node::find_table(const hydra::client &remote,
     log_debug() << "ID " << id << " is not in " << table.self().node.id << " "
                 << table.successor().node.id;
     log_debug() << "Checking node " << re;
-    hydra::client node(re.ip, re.port);
+    hydra::passive node(re.ip, re.port);
     table = node.table();
   }
 
@@ -262,12 +262,12 @@ hydra::routing_table node::find_table(const hydra::client &remote,
   return table;
 }
 
-hydra::routing_entry node::predecessor(const hydra::client &remote,
+hydra::routing_entry node::predecessor(const hydra::passive &remote,
                                        const keyspace_t &id) const {
   return find_table(remote, id).self();
 }
 
-hydra::routing_entry node::successor(const hydra::client &remote,
+hydra::routing_entry node::successor(const hydra::passive &remote,
                                      const keyspace_t &id) const {
   return find_table(remote, id).successor();
 }
@@ -282,7 +282,7 @@ void node::update_others() const {
     // send message to p
     // send self().node and i+1
     if (p.id != routing_table.first->get().self().node.id) {
-      hydra::client node(p.ip, p.port);
+      hydra::passive node(p.ip, p.port);
       node.send(notification_update(routing_table.first->get().self().node, i));
     }
     // p.update_finger_table(id, i + 1);
@@ -296,7 +296,7 @@ void node::update_routing_table(const hydra::node_id &s, const size_t i) {
       table[i].node = s;
       auto pred = table.predecessor().node;
       if (pred.id != s.id) {
-        hydra::client node(pred.ip, pred.port);
+        hydra::passive node(pred.ip, pred.port);
         node.send(notification_update(s, i));
         // send message to p
         // p.update_finger_table(id, i + 1);

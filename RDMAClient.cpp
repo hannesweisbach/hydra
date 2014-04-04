@@ -11,7 +11,7 @@
 
 #include "Logger.h"
 #include "utils.h"
-#include "hydra/client.h"
+#include "hydra/passive.h"
 
 std::unique_ptr<char[]> get_random_string(size_t length) {
   static std::mt19937_64 generator;
@@ -24,7 +24,7 @@ std::unique_ptr<char[]> get_random_string(size_t length) {
   return random;
 }
 
-bool test_add(hydra::client& c) {
+bool test_add(hydra::passive& c) {
   const size_t key_size = 16;
   const size_t val_size = 243;
   std::unique_ptr<char[]> key(get_random_string(key_size));
@@ -35,7 +35,7 @@ bool test_add(hydra::client& c) {
   return c.add(key.get(), key_size, value.get(), val_size).get();
 }
 
-bool test_add_contains(hydra::client& c) {
+bool test_add_contains(hydra::passive& c) {
   const size_t key_size = 16;
   const size_t val_size = 243;
   std::unique_ptr<char[]> key(get_random_string(key_size));
@@ -47,19 +47,19 @@ bool test_add_contains(hydra::client& c) {
   return c.contains(key.get(), key_size);
 }
 
-bool test_add_get(hydra::client& c) {
+bool test_add_get(hydra::passive& c) {
   const size_t key_size = 16;
   const size_t val_size = 243;
   std::unique_ptr<char[]> key(get_random_string(key_size));
   std::unique_ptr<char[]> value(get_random_string(val_size));
 
   assert(c.add(key.get(), key_size, value.get(), val_size).get());
-  hydra::client::value_ptr p = c.get(key.get(), key_size);
+  hydra::passive::value_ptr p = c.get(key.get(), key_size);
   assert(p.get() != nullptr);
   return memcmp(p.get(), value.get(), val_size) == 0;
 }
 
-bool test_double_add(hydra::client& c) {
+bool test_double_add(hydra::passive& c) {
   const size_t key_size = 16;
   const size_t val_size = 16;
   std::unique_ptr<char[]> key(get_random_string(key_size));
@@ -69,7 +69,7 @@ bool test_double_add(hydra::client& c) {
   /* add key/value pair, check contains and get */
   c.add(key.get(), key_size, value.get(), val_size).get();
   assert(c.contains(key.get(), key_size));
-  hydra::client::value_ptr p = c.get(key.get(), key_size);
+  hydra::passive::value_ptr p = c.get(key.get(), key_size);
   assert(p.get() != nullptr);
   assert(memcmp(p.get(), value.get(), val_size) == 0);
    
@@ -84,7 +84,7 @@ bool test_double_add(hydra::client& c) {
   return memcmp(p.get(), value.get(), val_size) == 0;
 }
 
-bool test_add_remove(hydra::client& c) {
+bool test_add_remove(hydra::passive& c) {
   const size_t key_size = 16;
   const size_t val_size = 243;
   std::unique_ptr<char[]> key(get_random_string(key_size));
@@ -92,7 +92,7 @@ bool test_add_remove(hydra::client& c) {
 
   assert(c.add(key.get(), key_size, value.get(), val_size).get());
   assert(c.contains(key.get(), key_size));
-  hydra::client::value_ptr p = c.get(key.get(), key_size);
+  hydra::passive::value_ptr p = c.get(key.get(), key_size);
   assert(p.get() != nullptr);
   assert(memcmp(p.get(), value.get(), val_size) == 0);
 
@@ -102,7 +102,7 @@ bool test_add_remove(hydra::client& c) {
 }
 
 
-bool test_grow(hydra::client& c) {
+bool test_grow(hydra::passive& c) {
   const size_t key_size = 16;
   const size_t val_size = 16;
   std::unique_ptr<char[]> key(get_random_string(key_size));
@@ -157,8 +157,10 @@ int main(int argc, char * const argv[]) {
   Logger::set_severity(verbosity);
   
   log_info() << "Starting on interface " << host << ":" << port;
-  hydra::client c(host, port);
+  hydra::passive c(host, port);
   
+  //std::this_thread::sleep_for(std::chrono::minutes(60));
+
   log_info() << "Starting test test_add";
   assert(test_add(c));
   log_info() << "Test test_add done";

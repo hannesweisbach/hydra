@@ -19,12 +19,12 @@
 #include "RDMAAllocator.h"
 
 namespace hydra {
-class client {
+class passive {
 public:
-  client(const std::string &host, const std::string &port);
-  client(client &&);
-  client &operator=(client &&);
-  ~client();
+  passive(const std::string &host, const std::string &port);
+  passive(passive &&);
+  passive &operator=(passive &&);
+  ~passive();
   std::future<void>
   post_recv(const msg& msg, const ibv_mr* mr);
   void recv(const msg& msg);
@@ -34,14 +34,23 @@ public:
   bool contains(const char * key, size_t key_length);
   typedef std::unique_ptr<char, std::function<void(char*)>> value_ptr;
   value_ptr get(const char * key, size_t key_length);
-  size_t size() const { return table_size; } 
+  size_t size() const { return table_size; }
+
+#if 0
+  routing_entry predecessor(const __uint128_t &id) const;
+  node_id successor(const __uint128_t &id) const;
+#endif
+  routing_table table() const;
+  void update_predecessor(const hydra::node_id &pred) const;
+  void update_table_entry(const hydra::node_id &pred, size_t entry) const;
+  bool has_id(const keyspace_t &id) const;
   void send(const msg&) const;
 
 private:
 
   void update_info();
-
   RDMAClientSocket s;
+
   ThreadSafeHeap<SegregatedFitsHeap<
       FreeListHeap<ZoneHeap<RdmaHeap<hydra::rdma::REMOTE_READ>, 256> >,
       ZoneHeap<RdmaHeap<hydra::rdma::REMOTE_READ>, 256> > > heap;
@@ -50,6 +59,7 @@ private:
   decltype(local_heap.malloc<node_info>()) info;
 
   WorkerThread messageThread;
+
   
   mr remote;
 
