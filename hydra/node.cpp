@@ -228,8 +228,11 @@ std::future<rdma_cm_id *> node::find_id(const qp_t &qp) const {
     auto client = clients.find(qp);
     if (client != std::end(clients))
       return client->second.get();
-    else
-      return nullptr;
+    else {
+      std::ostringstream s;
+      s << "rdma_cm_id* for qp " << qp << " not found." << std::endl;
+      throw std::runtime_error(s.str());
+    }
   });
 }
 
