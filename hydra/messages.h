@@ -4,8 +4,11 @@
 #include <memory>
 #include <rdma/rdma_verbs.h>
 
+#include "hydra/types.h"
+
 #include "utils.h"
 #include "util/Logger.h"
+
 /*
  * message types:
  * add(key, key_len, key_rkey, value, value_len, value_rkey):
@@ -144,7 +147,9 @@ public:
     del,
     disconnect,
     init,
-    resize
+    resize,
+    predecessor,
+    routing
   };
 
   struct header {
@@ -385,5 +390,41 @@ public:
   }
 };
 
+class notification_predecessor : public msg {
+  public:
+  notification_predecessor(const hydra::node_id& init)
+      : msg(type::notification, subtype::predecessor) {
+    memcpy(data_ + sizeof(header), &init, sizeof(init));
+  }
+
+  hydra::node_id predecessor() const {
+    hydra::node_id tmp;
+    memcpy(&tmp, data_ + sizeof(header), sizeof(tmp));
+    return tmp;
+  }
+};
+
+class notification_update : public msg {
+  public:
+  notification_update(const hydra::node_id& init, const size_t i)
+      : msg(type::notification, subtype::routing) {
+    memcpy(data_ + sizeof(header), &init, sizeof(init));
+    memcpy(data_ + sizeof(header) + sizeof(init), &i, sizeof(i));
+  }
+
+  hydra::node_id node() const {
+    hydra::node_id tmp;
+    memcpy(&tmp, data_ + sizeof(header), sizeof(tmp));
+    return tmp;
+  }
+
+  size_t index() const {
+    size_t tmp;
+    memcpy(&tmp, data_ + sizeof(header) + sizeof(hydra::node_id), sizeof(tmp));
+    return tmp;
+  }
+};
+
 std::ostream &operator<<(std::ostream &s, const msg &m);
 std::ostream &operator<<(std::ostream &s, const mr &mr);
+

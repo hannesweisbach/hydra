@@ -79,13 +79,28 @@ static std::ostream &operator<<(std::ostream &s,
     return s << "init";
   case msg::subtype::resize:
     return s << "resize";
+  case msg::subtype::predecessor:
+    return s << "predecessor";
+  case msg::subtype::routing:
+    return s << "routing";
   }
   return s;
 }
 
-static std::ostream& operator<<(std::ostream & s, const notification_resize & resize) {
+static std::ostream &operator<<(std::ostream &s,
+                                const notification_resize &resize) {
   s << indent << "mr init = " << resize.init();
   return s;
+}
+
+static std::ostream &operator<<(std::ostream &s, const notification_update &n) {
+  s << indent << "node_id = " << n.node() << std::endl;
+  return s << indent << "index = " << n.index();
+}
+
+static std::ostream &operator<<(std::ostream &s,
+                                const notification_predecessor &p) {
+  return s << indent << "node_id = " << p.predecessor();
 }
 
 std::ostream &operator<<(std::ostream &s, const msg &m) {
@@ -106,6 +121,12 @@ std::ostream &operator<<(std::ostream &s, const msg &m) {
       switch (m.subtype()) {
       case msg::subtype::resize:
         s << static_cast<const notification_resize &>(m);
+        break;
+      case msg::subtype::predecessor:
+        s << static_cast<const notification_predecessor &>(m);
+        break;
+      case msg::subtype::routing:
+        s << static_cast<const notification_update &>(m);
         break;
       }
       break;
