@@ -119,6 +119,7 @@ void node::recv(const msg &req, const qp_t &qp) {
   } break;
   case msg::subtype::disconnect: {
     rdma_cm_id *id = find_id(qp).get();
+    ack(qp, disconnect_response(static_cast<const disconnect_request &>(req)));
     log_debug() << "Disconnecting " << (void *)id;
     rdma_disconnect(id);
     clients([=](auto &clients) { clients.erase(qp); });
