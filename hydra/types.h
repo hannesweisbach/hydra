@@ -154,9 +154,9 @@ struct routing_table {
   auto end() const { return table.end(); }
   auto end() { return table.end(); }
 
-  routing_table() {}
-  routing_table(const std::string &ip, const std::string &port) {
-    keyspace_t id = static_cast<keyspace_t::value_type>(hash(ip));
+  routing_table() = default;
+  routing_table(const std::string &ip, const std::string &port,
+                const keyspace_t &id) {
     table[predecessor_index] = routing_entry(ip, port, id, keyspace_t(0));
     table[self_index] = routing_entry(ip, port, id, keyspace_t(0));
     keyspace_t::value_type k = 0;
@@ -164,6 +164,9 @@ struct routing_table {
       entry = routing_entry(ip, port, id, k++);
     }
   }
+  routing_table(const std::string &ip, const std::string &port)
+      : routing_table(ip, port, keyspace_t(static_cast<keyspace_t::value_type>(
+                                    hash(ip)))) {}
 
   const routing_entry preceding_node(const keyspace_t &id) const {
 #if 0
