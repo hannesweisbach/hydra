@@ -123,8 +123,11 @@ struct routing_entry {
   routing_entry(const node_id &node, const struct keyspace_t &start)
       : node(node), start(start) {}
   routing_entry(const std::string &ip, const std::string &port,
-                const keyspace_t &n = 0, const keyspace_t &k = 0)
+                const keyspace_t &n, const keyspace_t &k)
       : node(n, ip, port), start(n + (keyspace_t(1) << k)) {}
+  routing_entry(const std::string &ip, const std::string &port,
+                const keyspace_t &n)
+      : node(n, ip, port), start(n) {}
 };
 
 /* we have an identifier space of 2**128.
@@ -157,8 +160,8 @@ struct routing_table {
   routing_table() = default;
   routing_table(const std::string &ip, const std::string &port,
                 const keyspace_t &id) {
-    table[predecessor_index] = routing_entry(ip, port, id, keyspace_t(0));
-    table[self_index] = routing_entry(ip, port, id, keyspace_t(0));
+    table[predecessor_index] = routing_entry(ip, port, id);
+    table[self_index] = routing_entry(ip, port, id);
     keyspace_t::value_type k = 0;
     for (auto &&entry : *this) {
       entry = routing_entry(ip, port, id, k++);
