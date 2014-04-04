@@ -66,13 +66,6 @@ public:
   mr_ptr register_remote_read(void *ptr, size_t size) const;
   mr_ptr register_local_read(void *ptr, size_t size) const;
   
-  template <typename T>
-  [[deprecated]] std::future<T> recv_async(T &local,
-                               std::shared_ptr<ibv_mr> &mr) {
-    log_info() << "aync recv";
-    return rdma_recv_async(id.get(), local, mr);
-  }
-
   template <typename T, typename = typename std::enable_if<
                             !std::is_pointer<T>::value>::type>
   auto recv_async(const T &local, const ibv_mr *mr,
@@ -89,8 +82,6 @@ public:
   }
 
   template <typename T> void sendImmediate(const T &o) const {
-    log_info() << "size: " << sizeof(T);
-    log_hexdump(o);
     if (rdma_post_send(id.get(), nullptr,
                        static_cast<void *>(const_cast<T *>(&o)), sizeof(T),
                        nullptr, IBV_SEND_INLINE))
