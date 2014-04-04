@@ -115,6 +115,10 @@ void hydra::client::recv(const msg &r) {
   }
 }
 
+void hydra::client::send(const msg& m) const {
+  s.sendImmediate(m);
+}
+
 std::future<bool> hydra::client::add(const char *key, size_t key_length, const char *value,
                         size_t value_length) {
   // TODO maybe expose allocation functions, so that key and value are placed

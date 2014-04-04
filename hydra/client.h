@@ -35,6 +35,8 @@ public:
   typedef std::unique_ptr<char, std::function<void(char*)>> value_ptr;
   value_ptr get(const char * key, size_t key_length);
   size_t size() const { return table_size; } 
+  void send(const msg&) const;
+
 private:
 
   void update_info();
