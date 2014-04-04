@@ -61,7 +61,8 @@ public:
   //RDMAClientSocket(const uint32_t host, const uint32_t port)
   //    : RDMAClientSocket(std::to_string(port)) {}
   ~RDMAClientSocket();
-  void connect();
+  void connect() const;
+  void disconnect() const;
   mr_ptr register_remote_read(void *ptr, size_t size) const;
   mr_ptr register_local_read(void *ptr, size_t size) const;
   

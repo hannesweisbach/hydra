@@ -64,17 +64,18 @@ RDMAClientSocket &RDMAClientSocket::operator=(RDMAClientSocket &&other) {
 }
 
 RDMAClientSocket::~RDMAClientSocket() {
-  assert(false);
-  rdma_disconnect(id.get());
   running = false;
   fut_recv.get();
   fut_send.get();
   dispatch_release(send_queue);
   dispatch_release(recv_queue);
 }
-void RDMAClientSocket::connect() {
+
+void RDMAClientSocket::connect() const {
   check_zero(rdma_connect(id.get(), nullptr), "rdma_connect");
 }
+
+void RDMAClientSocket::disconnect() const { rdma_disconnect(id.get()); }
 
 mr_ptr RDMAClientSocket::register_remote_read(void *ptr, size_t size) const {
   return mr_ptr(check_nonnull(rdma_reg_read(id.get(), ptr, size),
