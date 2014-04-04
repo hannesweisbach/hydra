@@ -36,7 +36,7 @@ class node {
   monitor<hopscotch_server> dht;
   monitor<std::unordered_map<qp_t, RDMAServerSocket::client_t> > clients;
 
-  decltype(local_heap.malloc<request>()) msg_buffer;
+  decltype(local_heap.malloc<msg>()) msg_buffer;
   /* occupy threads for blocking work, so libdispatch doesn't choke */
   WorkerThread messageThread;
   WorkerThread acceptThread;
@@ -44,8 +44,8 @@ class node {
   monitor<decltype(heap.malloc<LocalRDMAObj<node_info>>())> info;
 
   void accept();
-  void post_recv(const request& m, const ibv_mr* mr);
-  void recv(const request &msg, const qp_t &qp);
+  void post_recv(const msg& m, const ibv_mr* mr);
+  void recv(const msg &msg, const qp_t &qp);
   void send(const uint64_t id);
   void ack(const qp_t &qp, const response &msg) const;
 

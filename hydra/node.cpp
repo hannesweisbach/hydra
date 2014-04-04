@@ -25,7 +25,7 @@ node::node(const std::string &ip, const std::string &port, uint32_t msg_buffers)
       local_heap(socket),
       table_ptr(heap.malloc<key_entry>(8)),
       dht(table_ptr.first.get(), 12U, 8U),
-      msg_buffer(local_heap.malloc<request>(msg_buffers)),
+      msg_buffer(local_heap.malloc<msg>(msg_buffers)),
       info(heap.malloc<LocalRDMAObj<node_info> >()),
   for (size_t i = 0; i < msg_buffers; i++) {
     post_recv(msg_buffer.first.get()[i], msg_buffer.second);
@@ -88,7 +88,7 @@ std::future<void> node::notify_all(const msg &m) {
   });
 }
 
-void node::post_recv(const request &m, const ibv_mr *mr) {
+void node::post_recv(const msg &m, const ibv_mr *mr) {
   auto future = socket.recv_async(m, mr);
   messageThread.send([=,&m, future=std::move(future)]()mutable{
   auto qp = future.get();
@@ -97,9 +97,10 @@ void node::post_recv(const request &m, const ibv_mr *mr) {
 });
 }
 
-void node::recv(const request &req, const qp_t &qp) {
+void node::recv(const msg &req, const qp_t &qp) {
   log_info() << req;
-  assert(req.type() == msg::type::request);
+
+  assert(req.type() == msg::type::request || req.type() == msg::type::notification);
 
   switch (req.subtype()) {
   case msg::subtype::put:
