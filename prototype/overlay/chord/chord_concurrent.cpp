@@ -92,28 +92,39 @@ void fix_fingers(hydra::routing_table &node) {
   }
 }
 
+void fix_finger(hydra::routing_table &node, size_t i) {
+  node[i].node = successor(node, node[i].start).node;
+}
+
+void
+fix_fingers_r(const hydra::keyspace_t &key, const hydra::keyspace_t &s,
+              size_t i) {
+  auto & n = network[key];
+
+  //log_info() << s << " " << " " << key << " " << n[i].node.id;
+
+  if (s.in(key, n[i].node.id - 1)) {
+    fix_finger(n, i);
+    if(n.predecessor().node.id != s)
+      fix_fingers_r(n.predecessor().node.id, s, i);
+  }
+}
+
 void stabilize_all(const hydra::keyspace_t &key) {
   stabilize(network[key]);
   stabilize(network[predecessor(key)]);
 
-#if 1
+#if 0
   for (auto &&node : network) {
     fix_fingers(node.second);
   }
 #else
   fix_fingers(network[key]);
-  log_info() << network[key];
-  for (size_t i = 0; i < std::numeric_limits<hydra::keyspace_t>::digits; i++) {
-    /* TODO: need to recursively update others. */
-    fix_fingers(network[predecessor(static_cast<hydra::keyspace_t>(
-        key + std::numeric_limits<hydra::keyspace_t>::max() - (1 << i) - 1))]);
-    log_info() << hydra::hex(key +
-                             std::numeric_limits<hydra::keyspace_t>::max() -
-                             (1 << i) - 1) << " "
-               << hydra::hex(predecessor(
-                      static_cast<hydra::keyspace_t>(key - (1 << i) - 1)));
-    //    log_info() << network[predecessor(static_cast<hydra::keyspace_t>(key -
-    // (1 << i) - 1))];
+  for (size_t i = 0;
+       i < std::numeric_limits<hydra::keyspace_t::value_type>::digits; i++) {
+    auto pred_key = key - static_cast<hydra::keyspace_t>(1 << i) + 1;
+    //log_info() << "Fixing " << pred_key << " " << predecessor(pred_key);
+    fix_fingers_r(predecessor(pred_key), key, i);
   }
 #endif
 }
@@ -180,14 +191,24 @@ void check_successors() {
     assert(it->second.predecessor().node.id == prev->second.self().node.id);
 
     for (const auto &finger : it->second) {
+#if 1
       assert(finger.node.id == successor(finger.start));
+#else
+      if(finger.node.id != successor(finger.start)) {
+        dump();
+        log_info() << finger.node.id << " " << finger.start << " "
+                   << successor(finger.start);
+        log_info() << it->second;
+        assert(false);
+      }
+#endif
     }
   }
 }
 
 int main() {
   const std::string port("8042");
-  const std::string seed_node = "1";
+  const std::string seed_node = "10.1";
 
   network.emplace(hydra::hash(seed_node),
                   hydra::routing_table(seed_node, port));
