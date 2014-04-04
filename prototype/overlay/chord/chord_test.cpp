@@ -126,7 +126,9 @@ void init_table(hydra::routing_table &n, const hydra::routing_table &n_) {
        * doesn't know about n, because update_others didn't run yet.
        * update_others can't fix this problem either.
        */
-      elem.node = successor(n_, elem.start).node;
+      auto succ = successor(n_, elem.start).node;
+      if(!id.in(elem.start, succ.id))
+        elem.node = succ;
 #if 1
       log_info() << elem.start << " " << elem.node;
 #endif
@@ -171,7 +173,8 @@ void update_table(hydra::routing_table &table, const hydra::routing_entry &s,
 }
 
 void update_others(const hydra::routing_table &table) {
-  for (size_t k = 0; k < std::numeric_limits<hydra::keyspace_t>::digits; k++) {
+  for (size_t k = 0;
+       k < std::numeric_limits<hydra::keyspace_t::value_type>::digits; k++) {
     hydra::keyspace_t key =
         table.self().node.id - static_cast<hydra::keyspace_t>((1 << k) - 1);
 
