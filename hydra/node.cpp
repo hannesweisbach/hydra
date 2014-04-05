@@ -4,6 +4,7 @@
 #include <iterator>
 
 #include "node.h"
+#include "hydra/chord.h"
 
 #include "util/concurrent.h"
 #include "util/Logger.h"
@@ -188,20 +189,16 @@ void node::join(const std::string& ip, const std::string& port) {
 
 void node::init_routing_table(const hydra::passive& remote) {
   (*routing_table.first)([&](auto &table) {
-    table.successor().node = successor(remote, table.successor().start).node;
+    table.successor().node = chord::successor(remote.table(), table.successor().start);
 
-    auto pred1 = predecessor(remote, table.successor().start);
-    hydra::passive tmp(pred1.node.ip, pred1.node.port);
-    auto pred2 = tmp.table().predecessor();
+    auto pred = chord::predecessor(remote.table(), table.successor().start);
 
-    log_info() << pred1 << " " << pred2;
-
-    table.predecessor() = pred1;
+    table.predecessor().node = pred;
 
     //table.successor().predecessor = me;
     auto succ = table.successor().node;
-    hydra::passive pred(succ.ip, succ.port);
-    pred.send(notification_predecessor(table.self().node));
+    hydra::passive successor_node(succ.ip, succ.port);
+    successor_node.send(notification_predecessor(table.self().node));
 
     std::transform(std::begin(table) + 1, std::end(table), std::begin(table),
                    std::begin(table) + 1,
@@ -211,7 +208,7 @@ void node::init_routing_table(const hydra::passive& remote) {
       } else {
         // n'.find_successor(elem.interval.start);
         //elem.node = successor(remote, elem.start).node;
-        auto succ = successor(remote, elem.start).node;
+        auto succ = chord::successor(remote.table(), elem.start);
         if (!table.self().node.id.in(elem.start, succ.id))
           elem.node = succ;
       }
@@ -221,64 +218,13 @@ void node::init_routing_table(const hydra::passive& remote) {
   });
 }
 
-hydra::routing_table node::find_table(const hydra::routing_table &start,
-                                      const keyspace_t &id) const {
-  hydra::routing_table table = start;
-  while (!id.in(table.self().node.id + 1, table.successor().node.id)) {
-    auto re = table.preceding_node(id).node;
-    hydra::passive node(re.ip, re.port);
-    table = node.table();
-  }
-  return table;
-}
-
-hydra::routing_entry node::predecessor(const hydra::routing_table &start,
-                                       const keyspace_t &id) const {
-  return find_table(start, id).self();
-}
-
-hydra::routing_entry node::successor(const hydra::routing_table &start,
-                                     const keyspace_t &id) const {
-  return find_table(start, id).successor();
-}
-
-hydra::routing_table node::find_table(const hydra::passive &remote,
-                                      const keyspace_t &id) const {
-  auto table = remote.table();
-  log_debug() << "Looking for ID " << id;
-  // TODO cache table
-  while (!id.in(table.self().node.id + 1, table.successor().node.id)) {
-    // call preceding node on rdma-read table;
-    auto re = table.preceding_node(id).node;
-    log_debug() << "ID " << id << " is not in " << table.self().node.id << " "
-                << table.successor().node.id;
-    log_debug() << "Checking node " << re;
-    hydra::passive node(re.ip, re.port);
-    table = node.table();
-  }
-
-  log_debug() << "Found ID " << id << " on node " << table.self();
-
-  return table;
-}
-
-hydra::routing_entry node::predecessor(const hydra::passive &remote,
-                                       const keyspace_t &id) const {
-  return find_table(remote, id).self();
-}
-
-hydra::routing_entry node::successor(const hydra::passive &remote,
-                                     const keyspace_t &id) const {
-  return find_table(remote, id).successor();
-}
-
 /* here my own routing table is up and running */
 void node::update_others() const {
   const size_t max = std::numeric_limits<hydra::keyspace_t::value_type>::digits;
   for (size_t i = 0; i < max; i++) {
     keyspace_t id_ = routing_table.first->get().self().node.id -
                      static_cast<hydra::keyspace_t::value_type>(1 << i) + 1;
-    auto p = predecessor(routing_table.first->get(), id_).node;
+    auto p = chord::predecessor(routing_table.first->get(), id_);
     // send message to p
     // send self().node and i+1
     if (p.id != routing_table.first->get().self().node.id) {
