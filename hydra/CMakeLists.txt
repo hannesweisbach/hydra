@@ -2,6 +2,6 @@
 #set_source_files_properties(node.cpp PROPERTIES COMPILE_FLAGS "-cc1 -fdump-record-layouts")
 #set_source_files_properties(node.cpp PROPERTIES COMPILE_FLAGS "-E")
 
-add_library(hydra types.cc server_dht.cpp messages.cpp hopscotch-server.cpp node.cpp passive.cpp RDMAAllocator.cpp)
+add_library(hydra chord.cc types.cc server_dht.cpp messages.cpp hopscotch-server.cpp node.cpp passive.cpp RDMAAllocator.cpp)
 target_link_libraries(hydra logger util)
 
