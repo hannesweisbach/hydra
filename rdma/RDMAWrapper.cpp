@@ -4,6 +4,7 @@
 #include <vector>
 #include <algorithm>
 #include <iterator>
+#include <exception>
 
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -235,13 +236,14 @@ template <> AddrIterator std::end<AddrList>(AddrList &addr_list) {
   return addr_list.end();
 }
 
-static void debug_deleter (rdma_cm_id * id) {
+static void debug_deleter (rdma_cm_id *) {
   assert(false);
 }
 rdma_id_ptr createCmId(const std::string &host, const std::string &port,
                        const bool passive, ibv_qp_init_attr *attr) {
-  for (auto ai : AddrList(host, port, passive)) {
+  std::exception_ptr exception;
 
+  for (auto ai : AddrList(host, port, passive)) {
     log_info() << ai->ai_src_canonname << " " << ai->ai_dst_canonname;
 
     char iface[NI_MAXHOST];
@@ -261,12 +263,22 @@ rdma_id_ptr createCmId(const std::string &host, const std::string &port,
 #endif
                          );
     }
-    catch (std::runtime_error &e) {
+    catch (const std::exception &e) {
       log_err() << e.what();
+      exception = std::current_exception();
     }
   }
+
   std::ostringstream s;
-  s << "Address " << host << ":" << port << " not found.";
+  s << "Error connecting to  " << host << ":" << port;
+  try {
+    if (exception != std::exception_ptr())
+      std::rethrow_exception(exception);
+  }
+  catch (const std::exception &e) {
+    s << ": " << e.what();
+  }
+
   throw std::runtime_error(s.str());
 }
 
