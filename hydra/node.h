@@ -34,7 +34,7 @@ class node {
       FreeListHeap<ZoneHeap<RdmaHeap<hydra::rdma::REMOTE_READ>, 256> >,
       ZoneHeap<RdmaHeap<hydra::rdma::REMOTE_READ>, 256> > > heap;
   ThreadSafeHeap<ZoneHeap<RdmaHeap<hydra::rdma::LOCAL_READ>, 256> > local_heap;
-  decltype(heap.malloc<key_entry>()) table_ptr;
+  decltype(heap.malloc<LocalRDMAObj<key_entry> >()) table_ptr;
   monitor<hopscotch_server> dht;
   monitor<std::unordered_map<qp_t, RDMAServerSocket::client_t> > clients;
 

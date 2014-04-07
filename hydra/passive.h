@@ -28,7 +28,6 @@ public:
   std::future<void>
   post_recv(const msg& msg, const ibv_mr* mr);
   void recv(const msg& msg);
-  size_t size() const { return table_size; }
 
 #if 0
   routing_entry predecessor(const __uint128_t &id) const;
@@ -54,15 +53,6 @@ private:
 
   WorkerThread messageThread;
 
-  
   mr remote;
-
-  key_entry * remote_table;
-  //TODO: node for hash
-  size_t prefetch; 
-
-  size_t table_size;
-  uint32_t rkey;
-
 };
 }

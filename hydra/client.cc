@@ -34,36 +34,34 @@ hydra::client::find_entry(const RDMAClientSocket &socket,
                           const size_t key_length) const {
   const hydra::node_info info = get_info(socket);
   const size_t table_size = info.table_size;
-  key_entry *remote_table = static_cast<key_entry *>(info.key_extents.addr);
+  RDMAObj<key_entry> *remote_table =
+      static_cast<RDMAObj<key_entry> *>(info.key_extents.addr);
   const uint32_t rkey = info.key_extents.rkey;
 
   const size_t index = hash(key, key_length) % table_size;
 
-  auto mem = socket.malloc<key_entry>();
-  do {
-    socket.read(mem.first.get(), mem.second, &remote_table[index], rkey).get();
-  } while (!mem.first->valid());
-  auto &entry = mem.first;
+  auto mem = socket.from<key_entry>(
+      reinterpret_cast<uintptr_t>(&remote_table[index]), info.key_extents.rkey);
+  const auto &entry = mem.first->get();
 
-  for (size_t hop = entry->hop, d = 1; hop; hop >>= 1, d++) {
-    if ((hop & 1) && !entry->is_empty() &&
-        (key_length == entry->key_length())) {
-      auto data = socket.malloc<unsigned char>(entry->ptr.size);
+  for (size_t hop = entry.hop, d = 1; hop; hop >>= 1, d++) {
+    if ((hop & 1) && !entry.is_empty() &&
+        (key_length == entry.key_length())) {
+      auto data = socket.malloc<unsigned char>(entry.ptr.size);
       uint64_t crc = 0;
       do {
-        socket.read(data.first.get(), data.second, entry->key(), entry->rkey,
-                    entry->ptr.size).get();
-        crc = hash64(data.first.get(), entry->ptr.size);
-      } while (entry->ptr.crc != crc);
+        socket.read(data.first.get(), data.second, entry.key(), entry.rkey,
+                    entry.ptr.size).get();
+        crc = hash64(data.first.get(), entry.ptr.size);
+      } while (entry.ptr.crc != crc);
       if (memcmp(data.first.get(), key, key_length) == 0) {
-        //auto p = std::move(data.first);
-        return {std::move(data.first), entry->value_length()};
+        return {std::move(data.first), entry.value_length()};
       }
     }
-    do {
-      socket.read(mem.first.get(), mem.second,
-                  &remote_table[(index + d) % table_size], rkey).get();
-    } while (!mem.first->valid());
+    socket.reload<hydra::key_entry>(
+        mem,
+        reinterpret_cast<uintptr_t>(&remote_table[(index + d) % table_size]),
+        rkey);
   }
 
   return {value_ptr(nullptr, [](void *) {}), 0};

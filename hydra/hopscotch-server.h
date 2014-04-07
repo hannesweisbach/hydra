@@ -18,7 +18,7 @@ class hopscotch_server : public server_dht {
   size_t move_into(size_t to);
 
 public:
-  hopscotch_server(key_entry * table, size_t hop_range = 32, size_t initial_size = 32)
+  hopscotch_server(LocalRDMAObj<key_entry> * table, size_t hop_range = 32, size_t initial_size = 32)
       : server_dht(table, initial_size), hop_range(hop_range) {}
   hopscotch_server(const hopscotch_server &) = delete;
   hopscotch_server(hopscotch_server &&) = default;

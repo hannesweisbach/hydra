@@ -28,11 +28,11 @@ size_t hydra::hopscotch_server::home_of(const hydra::server_dht::key_type &key) 
 }
 
 size_t hydra::hopscotch_server::next_free_index(size_t from) const {
-  if (table[from].is_empty())
+  if (table[from].get().is_empty())
     return from;
   for (size_t i = (from + 1) % table_size; i != from;
        i = (i + 1) % table_size) {
-    if (table[i].is_empty()) {
+    if (table[i].get().is_empty()) {
       return i;
     }
   }
@@ -43,7 +43,7 @@ size_t hydra::hopscotch_server::next_movable(size_t to) const {
   size_t start = (to - (hop_range - 1) + table_size) % table_size;
   for (size_t i = start; i != to; i = (i + 1) % table_size) {
     const size_t distance = (to - i + table_size) % table_size;
-    size_t hop = table[i].hop;
+    size_t hop = table[i].get().hop;
     for (size_t d = 0; hop; d++, hop >>= 1) {
       if ((hop & 1) && (d < distance))
           return (i + d) % table_size;
@@ -56,22 +56,22 @@ void hydra::hopscotch_server::add(hydra::hopscotch_server::resource_entry&& e, c
   table[to] = key_entry(e.key(), e.size, e.key_size, e.rkey);
   size_t distance = (to - home + table_size) % table_size;
   assert(distance < hop_range);
-  table[home].set_hop(distance);
+  table[home]([=](auto &&entry) { entry.set_hop(distance); });
   shadow_table[to] = std::move(e);
   used++;
 }
 
 void hydra::hopscotch_server::move(size_t from, size_t to) {
   //log_info() << "Moving " << from " to " << to;
-  const size_t home = home_of(table[from]);
+  const size_t home = home_of(table[from].get());
   add(std::move(shadow_table[from]), to, home);
   
   const size_t old_hops = (from - home + table_size) % table_size;
   assert(old_hops < hop_range);
   //TODO express in terms of delete
-  table[home].clear_hop(old_hops);
+  table[home]([=](auto &&entry) { entry.clear_hop(old_hops); });
   //mark from as free.
-  table[from].empty();
+  table[from]([](auto &&entry) { entry.empty(); });
 }
 
 size_t hydra::hopscotch_server::move_into(size_t to) {
@@ -110,12 +110,12 @@ hydra::Return_t hydra::hopscotch_server::add(hydra::hopscotch_server::resource_e
 
 size_t hydra::hopscotch_server::contains(const key_type &key) {
   const size_t size = key.second;
-  for (size_t i = home_of(key), hop = table[i].hop; hop;
+  for (size_t i = home_of(key), hop = table[i].get().hop; hop;
        i = (i + 1) % table_size, hop >>= 1) {
     size_t distance = (i - home_of(key) + table_size) % table_size;
     if ((hop & 1) && (distance < hop_range)) {
-      if (table[i].key_length() == size &&
-          memcmp(table[i].key(), key.first, size) == 0) {
+      if (table[i].get().key_length() == size &&
+          memcmp(table[i].get().key(), key.first, size) == 0) {
         return i;
       }
     }
@@ -124,14 +124,14 @@ size_t hydra::hopscotch_server::contains(const key_type &key) {
 }
 
 hydra::Return_t hydra::hopscotch_server::remove(const key_type &key) {
-  for (size_t i = home_of(key), hop = table[i].hop; hop;
+  for (size_t i = home_of(key), hop = table[i].get().hop; hop;
        i = (i + 1) % table_size, hop >>= 1) {
     size_t distance = (i - home_of(key) + table_size) % table_size;
     if ((hop & 1) && (distance < hop_range)) {
-      if (table[i].key_length() == key.second &&
-          memcmp(table[i].key(), key.first, key.second) == 0) {
-        table[home_of(key)].clear_hop(distance);
-        table[i].empty();
+      if (table[i].get().key_length() == key.second &&
+          memcmp(table[i].get().key(), key.first, key.second) == 0) {
+        table[home_of(key)]([=](auto && entry) { entry.clear_hop(distance); });
+        table[i]([](auto &&entry) { entry.empty(); });
         shadow_table[i].empty();
         used--;
         return SUCCESS;
@@ -146,8 +146,8 @@ void hydra::hopscotch_server::dump() const {
     auto &e = table[i];
     //auto &r = shadow_table[i];
     // if(!e.is_empty())
-    log_info() << &e << " " << std::setw(2) << i << " " << e << " " << e.valid()
-               << " " << e.crc << " " << e.rkey;
+    log_info() << &e << " " << std::setw(2) << i << " " << e.get() << " "
+               << e.get().rkey;
 #if 0
     log_info() << (void*)r.mem.get() << " " << r.size << " " << r.key_size << " "
                << r.rkey;
@@ -159,10 +159,10 @@ void hydra::hopscotch_server::check_consistency() const {
   for (size_t i = 0; i < table_size; i++) {
     auto& shadow_entry = shadow_table[i];
     auto& rdma_entry = table[i];
-    assert(shadow_entry.mem.get() == rdma_entry.key());
-    assert(shadow_entry.rkey == rdma_entry.rkey);
-    assert(shadow_entry.size == rdma_entry.ptr.size);
-    assert(shadow_entry.key_size == rdma_entry.key_size);
+    assert(shadow_entry.mem.get() == rdma_entry.get().key());
+    assert(shadow_entry.rkey == rdma_entry.get().rkey);
+    assert(shadow_entry.size == rdma_entry.get().ptr.size);
+    assert(shadow_entry.key_size == rdma_entry.get().key_size);
     assert(rdma_entry.valid());
   }
 }

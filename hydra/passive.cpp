@@ -26,8 +26,7 @@ auto size2Class = [](size_t size) -> size_t {
 hydra::passive::passive(const std::string &host, const std::string &port)
     : s(host, port), heap(48U, size2Class, s), local_heap(s),
       msg_buffer(local_heap.malloc<msg>(2)),
-      info(local_heap.malloc<node_info>()),
-      remote_table(nullptr), prefetch(1) {
+      info(local_heap.malloc<node_info>()) {
   log_info() << "Starting client to " << host << ":" << port;
   post_recv(msg_buffer.first.get()[0], msg_buffer.second);
   post_recv(msg_buffer.first.get()[1], msg_buffer.second);
@@ -48,8 +47,7 @@ hydra::passive::passive(const std::string &host, const std::string &port)
 hydra::passive::passive(hydra::passive &&other)
     : s(std::move(other.s)), heap(std::move(other.heap)),
       local_heap(std::move(other.local_heap)),
-      msg_buffer(std::move(other.msg_buffer)), info(std::move(other.info)),
-      remote_table(std::move(other.remote_table)), prefetch(other.prefetch) {}
+      msg_buffer(std::move(other.msg_buffer)), info(std::move(other.info)) {}
 
 hydra::passive &hydra::passive::operator=(hydra::passive &&other) {
   std::swap(s, other.s);
@@ -57,8 +55,6 @@ hydra::passive &hydra::passive::operator=(hydra::passive &&other) {
   std::swap(local_heap, other.local_heap);
   std::swap(msg_buffer, other.msg_buffer);
   std::swap(info, other.info);
-  std::swap(prefetch, other.prefetch);
-  std::swap(remote_table, other.remote_table);
 
   return *this;
 }
@@ -102,12 +98,6 @@ void hydra::passive::update_info() {
   log_info() << "remote mr: " << remote;
   s.read(info.first.get(), info.second,
          reinterpret_cast<node_info *>(remote.addr), remote.rkey).get();
-  log_info() << info.first->key_extents;
-  remote_table = reinterpret_cast<key_entry *>(info.first->key_extents.addr);
-  rkey = info.first->key_extents.rkey;
-  table_size = info.first->table_size;
-  log_debug() << "Remote table: " << table_size << " @" << (void *)remote_table
-              << " (" << rkey << ")";
 }
 
 void hydra::passive::recv(const msg &r) {
