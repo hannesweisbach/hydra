@@ -7,7 +7,7 @@
 hydra::client::client(const std::string &ip, const std::string &port)
     : root_node(ip, port) {}
 
-hydra::node_id hydra::client::responsible_node(const char *key,
+hydra::node_id hydra::client::responsible_node(const unsigned char *key,
                                                const size_t length) const {
   return chord::successor(
       root_node.table(),
@@ -59,24 +59,25 @@ std::future<bool> hydra::client::add(const char *key, const size_t key_length,
   });
 }
 
-std::future<bool> hydra::client::remove(const char *key,
+std::future<bool> hydra::client::remove(const unsigned char *key,
                                         const size_t key_length) const {
   auto nodeid = responsible_node(key, key_length);
   hydra::passive node(nodeid.ip, nodeid.port);
   return node.remove(key, key_length);
 }
 
-bool hydra::client::contains(const char *key, const size_t key_length) const {
+bool hydra::client::contains(const unsigned char *key,
+                             const size_t key_length) const {
   auto nodeid = responsible_node(key, key_length);
   hydra::passive node(nodeid.ip, nodeid.port);
-  return node.contains(key, key_length);
+  return node.contains(reinterpret_cast<const char*>(key), key_length);
 }
 
 /* alloc: return managed array or std::unique_ptr<char[]>
  * or { char[], size, unqiue_ptr<ibv_mr> }
  * this should also play nice with read.
  */
-hydra::client::value_ptr hydra::client::get(const char *key,
+hydra::client::value_ptr hydra::client::get(const unsigned char *key,
                                             const size_t key_length) const {
   auto nodeid = responsible_node(key, key_length);
   //TODO: guard socket connect/disconnect

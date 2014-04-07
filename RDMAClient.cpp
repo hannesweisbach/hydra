@@ -13,11 +13,11 @@
 #include "utils.h"
 #include "hydra/passive.h"
 
-std::unique_ptr<char[]> get_random_string(size_t length) {
+std::unique_ptr<unsigned char[]> get_random_string(size_t length) {
   static std::mt19937_64 generator;
-  static std::uniform_int_distribution<char> distribution(' ', '~');
+  static std::uniform_int_distribution<unsigned char> distribution(' ', '~');
 
-  std::unique_ptr<char[]> random(new char[length]);
+  std::unique_ptr<unsigned char[]> random(new unsigned char[length]);
   for(size_t i = 0; i < length; i++)
     random[i] = distribution(generator);
 
@@ -27,8 +27,8 @@ std::unique_ptr<char[]> get_random_string(size_t length) {
 bool test_add(hydra::passive& c) {
   const size_t key_size = 16;
   const size_t val_size = 243;
-  std::unique_ptr<char[]> key(get_random_string(key_size));
-  std::unique_ptr<char[]> value(get_random_string(val_size));
+  std::unique_ptr<unsigned char[]> key(get_random_string(key_size));
+  std::unique_ptr<unsigned char[]> value(get_random_string(val_size));
 
   log_hexdump_ptr(key.get(), key_size);
 
@@ -38,8 +38,8 @@ bool test_add(hydra::passive& c) {
 bool test_add_contains(hydra::passive& c) {
   const size_t key_size = 16;
   const size_t val_size = 243;
-  std::unique_ptr<char[]> key(get_random_string(key_size));
-  std::unique_ptr<char[]> value(get_random_string(val_size));
+  std::unique_ptr<unsigned char[]> key(get_random_string(key_size));
+  std::unique_ptr<unsigned char[]> value(get_random_string(val_size));
 
   log_hexdump_ptr(key.get(), key_size);
   
@@ -50,8 +50,8 @@ bool test_add_contains(hydra::passive& c) {
 bool test_add_get(hydra::passive& c) {
   const size_t key_size = 16;
   const size_t val_size = 243;
-  std::unique_ptr<char[]> key(get_random_string(key_size));
-  std::unique_ptr<char[]> value(get_random_string(val_size));
+  std::unique_ptr<unsigned char[]> key(get_random_string(key_size));
+  std::unique_ptr<unsigned char[]> value(get_random_string(val_size));
 
   assert(c.add(key.get(), key_size, value.get(), val_size).get());
   hydra::passive::value_ptr p = c.get(key.get(), key_size);
@@ -62,8 +62,8 @@ bool test_add_get(hydra::passive& c) {
 bool test_double_add(hydra::passive& c) {
   const size_t key_size = 16;
   const size_t val_size = 16;
-  std::unique_ptr<char[]> key(get_random_string(key_size));
-  std::unique_ptr<char[]> value(get_random_string(val_size));
+  std::unique_ptr<unsigned char[]> key(get_random_string(key_size));
+  std::unique_ptr<unsigned char[]> value(get_random_string(val_size));
 
   
   /* add key/value pair, check contains and get */
@@ -87,8 +87,8 @@ bool test_double_add(hydra::passive& c) {
 bool test_add_remove(hydra::passive& c) {
   const size_t key_size = 16;
   const size_t val_size = 243;
-  std::unique_ptr<char[]> key(get_random_string(key_size));
-  std::unique_ptr<char[]> value(get_random_string(val_size));
+  std::unique_ptr<unsigned char[]> key(get_random_string(key_size));
+  std::unique_ptr<unsigned char[]> value(get_random_string(val_size));
 
   assert(c.add(key.get(), key_size, value.get(), val_size).get());
   assert(c.contains(key.get(), key_size));
@@ -105,12 +105,12 @@ bool test_add_remove(hydra::passive& c) {
 bool test_grow(hydra::passive& c) {
   const size_t key_size = 16;
   const size_t val_size = 16;
-  std::unique_ptr<char[]> key(get_random_string(key_size));
-  std::unique_ptr<char[]> value(get_random_string(val_size));
+  std::unique_ptr<unsigned char[]> key(get_random_string(key_size));
+  std::unique_ptr<unsigned char[]> value(get_random_string(val_size));
 
   size_t old_size = c.size();
   for(size_t i = 0; i < old_size + 1; i++) {
-    std::unique_ptr<char[]> key(get_random_string(key_size));
+    std::unique_ptr<unsigned char[]> key(get_random_string(key_size));
     c.add(key.get(), key_size, value.get(), val_size).get();
     assert(c.contains(key.get(), key_size));
     //std::this_thread::sleep_for(std::chrono::seconds(1));

@@ -12,17 +12,21 @@
 namespace hydra {
 class client {
 public:
+  typedef std::unique_ptr<unsigned char, std::function<void(unsigned char *)> >
+  value_ptr;
+
   client(const std::string &ip, const std::string &port);
-  std::future<bool> add(const char *key, const size_t key_length,
-                        const char *value, const size_t value_length) const;
-  std::future<bool> remove(const char *key, const size_t key_length) const;
-  bool contains(const char *key, const size_t key_length) const;
-  typedef std::unique_ptr<char, std::function<void(char *)> > value_ptr;
-  value_ptr get(const char *key, const size_t key_length) const;
+  std::future<bool> add(const unsigned char *key, const size_t key_length,
+                        const unsigned char *value,
+                        const size_t value_length) const;
+  std::future<bool> remove(const unsigned char *key,
+                           const size_t key_length) const;
+  bool contains(const unsigned char *key, const size_t key_length) const;
+  value_ptr get(const unsigned char *key, const size_t key_length) const;
 
 private:
   passive root_node;
-  node_id responsible_node(const char *key, const size_t size) const;
+  node_id responsible_node(const unsigned char *key, const size_t size) const;
   node_info get_info(const RDMAClientSocket &socket) const;
 };
 }
