@@ -28,7 +28,6 @@ public:
   std::future<void>
   post_recv(const msg& msg, const ibv_mr* mr);
   void recv(const msg& msg);
-  bool contains(const char * key, size_t key_length);
   size_t size() const { return table_size; }
 
 #if 0
