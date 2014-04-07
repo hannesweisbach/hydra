@@ -5,6 +5,9 @@
 #include <functional>
 
 #include "hydra/passive.h"
+#include "hydra/types.h"
+
+#include "rdma/RDMAClientSocket.h"
 
 namespace hydra {
 class client {
@@ -20,5 +23,7 @@ public:
 private:
   passive root_node;
   node_id responsible_node(const char *key, const size_t size) const;
+  node_info get_info(RDMAClientSocket &socket) const;
 };
 }
+
