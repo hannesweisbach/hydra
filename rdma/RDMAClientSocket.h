@@ -49,6 +49,8 @@ class RDMAClientSocket {
 #else
   mutable hydra::ThreadSafeHeap<hydra::FreeListHeap<
       hydra::ZoneHeap<RdmaHeap<hydra::rdma::LOCAL_READ>, 1024> > > local_heap;
+  mutable hydra::ThreadSafeHeap<hydra::ZoneHeap<
+      RdmaHeap<hydra::rdma::REMOTE_READ>, 1024 * 1024> > remote_heap;
 #endif
 
 public:
@@ -79,6 +81,10 @@ public:
         rdma_reg_read(id.get(), static_cast<void *>(const_cast<T *>(ptr)),
                       size),
         "rdma_reg_read");
+  }
+
+  template <typename T> auto malloc(const size_t n_elems = 1) {
+    return remote_heap.malloc<T>(n_elems);
   }
 
   template <typename T> void sendImmediate(const T &o) const {
