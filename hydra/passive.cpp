@@ -65,9 +65,9 @@ hydra::passive &hydra::passive::operator=(hydra::passive &&other) {
 
 hydra::passive::~passive() {
   disconnect_request request;
-  auto future = request.set_completion();
+  //auto future = request.set_completion();
   s.sendImmediate(request);
-  future.get();
+  //future.get();
   s.disconnect();
 }
 
