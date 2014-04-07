@@ -14,7 +14,7 @@ hydra::node_id hydra::client::responsible_node(const char *key,
       static_cast<hydra::keyspace_t::value_type>(hydra::hash(key, length)));
 }
 
-hydra::node_info hydra::client::get_info(RDMAClientSocket& socket) const {
+hydra::node_info hydra::client::get_info(const RDMAClientSocket& socket) const {
   auto init = socket.recv_async<mr_response>();
   init_request request;
   socket.sendImmediate(request);
