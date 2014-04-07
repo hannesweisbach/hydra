@@ -16,8 +16,7 @@ hydra::node_id hydra::client::responsible_node(const unsigned char *key,
 
 hydra::node_info hydra::client::get_info(const RDMAClientSocket& socket) const {
   auto init = socket.recv_async<mr_response>();
-  init_request request;
-  socket.sendImmediate(request);
+  socket.sendImmediate(init_request());
 
   init.first.get(); //block.
   auto mr = init.second.first->value();
@@ -73,13 +72,13 @@ hydra::client::find_entry(const RDMAClientSocket &socket,
 std::future<bool> hydra::client::add(const unsigned char *key, const size_t key_length,
                         const unsigned char *value, const size_t value_length) const {
   return hydra::async([=]() {
-    auto nodeid = responsible_node(key, key_length);
-    RDMAClientSocket socket(nodeid.ip, nodeid.port);
+    const auto nodeid = responsible_node(key, key_length);
+    const RDMAClientSocket socket(nodeid.ip, nodeid.port);
     socket.connect();
     auto response = socket.recv_async<put_response>();
 
-    auto key_mr = socket.malloc<char>(key_length);
-    auto val_mr = socket.malloc<char>(value_length);
+    auto key_mr = socket.malloc<unsigned char>(key_length);
+    auto val_mr = socket.malloc<unsigned char>(value_length);
 
     memcpy(key_mr.first.get(), key, key_length);
     memcpy(val_mr.first.get(), value, value_length);
