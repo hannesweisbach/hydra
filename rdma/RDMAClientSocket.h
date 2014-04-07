@@ -83,7 +83,7 @@ public:
         "rdma_reg_read");
   }
 
-  template <typename T> auto malloc(const size_t n_elems = 1) {
+  template <typename T> auto malloc(const size_t n_elems = 1) const {
     return remote_heap.malloc<T>(n_elems);
   }
 
@@ -104,7 +104,7 @@ public:
 
   template <typename T>
   void read(T *local, uint64_t remote, uint32_t rkey,
-                           size_t size = sizeof(T)) {
+                           size_t size = sizeof(T)) const {
 
     log_trace() << "Reading remote @" << std::hex << std::showbase << remote
                 << std::dec << " (" << size << ") " << rkey << " into local "
@@ -114,7 +114,7 @@ public:
 
   template <typename T, typename U>
   auto read(T *local, ibv_mr *mr, U *remote, uint32_t rkey,
-                        size_t n_elems = 1) {
+                        size_t n_elems = 1) const {
     static_assert(std::is_same<typename std::remove_cv<T>::type,
                                typename std::remove_cv<U>::type>::value,
                   "Need same types.");
