@@ -301,7 +301,7 @@ cq_ptr createCQ(rdma_id_ptr &id, int entries, void *context,
   return cq_ptr(cq, ::ibv_destroy_cq);
 }
 
-static void call_completion_handler(ibv_wc &wc) {
+static void call_completion_handler(const ibv_wc &wc) {
   /* wc.wr_id is a pointer to the continuation handler */
   auto f = reinterpret_cast<std::function<void(const ibv_wc &)> *>(wc.wr_id);
   if (f) {
