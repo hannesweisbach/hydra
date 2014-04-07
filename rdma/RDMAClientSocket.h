@@ -127,7 +127,7 @@ public:
 
   template <typename T, typename = typename std::enable_if<
                             !std::is_pointer<T>::value>::type>
-  auto recv_async() {
+  auto recv_async() const {
     auto buffer = local_heap.malloc<T>();
     auto future = rdma_recv_async(id, buffer);
     return std::make_pair(std::move(future), std::move(buffer));
