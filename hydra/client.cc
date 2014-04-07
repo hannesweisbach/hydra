@@ -102,22 +102,25 @@ std::future<bool> hydra::client::add(const unsigned char *key, const size_t key_
 
 std::future<bool> hydra::client::remove(const unsigned char *key,
                                         const size_t key_length) const {
-  const auto nodeid = responsible_node(key, key_length);
-  auto node = std::make_shared<passive>(nodeid.ip, nodeid.port);
-  auto key_mr = node->remote_from(key, key_length);
+  return hydra::async([=]() {
+    const auto nodeid = responsible_node(key, key_length);
+    const RDMAClientSocket socket(nodeid.ip, nodeid.port);
+    socket.connect();
 
-  remove_request request = { { key_mr.first.get(), key_length,
-                               key_mr.second->rkey } };
+    auto response = socket.recv_async<remove_response>();
 
-  std::shared_ptr<unsigned char> key_ptr = std::move(key_mr.first);
-  auto future = request.set_completion<bool>([=](bool) {
-    (void)(key_ptr);
-    (void)(node);
+    auto key_mr = socket.malloc<unsigned char>(key_length);
+    memcpy(key_mr.first.get(), key, key_length);
+
+    remove_request request = { { key_mr.first.get(), key_length,
+                                 key_mr.second->rkey } };
+
+    socket.sendImmediate(request);
+
+    response.first.get();
+    socket.sendImmediate(disconnect_request());
+    return response.second.first->value();
   });
-
-  node->send(request);
-
-  return future;
 }
 
 bool hydra::client::contains(const unsigned char *key,
