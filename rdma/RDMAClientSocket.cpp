@@ -70,6 +70,7 @@ RDMAClientSocket::~RDMAClientSocket() {
   fut_send.get();
   dispatch_release(send_queue);
   dispatch_release(recv_queue);
+  disconnect();
 }
 
 void RDMAClientSocket::connect() const {
