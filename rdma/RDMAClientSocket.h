@@ -122,7 +122,7 @@ public:
                 << (void *)local << " " << mr << " (" << n_elems << " "
                 << typeid(T).name() << ", " << n_elems * sizeof(T) << " bytes)";
     return rdma_read_async__(id.get(), local, n_elems * sizeof(T), mr,
-                             reinterpret_cast<uint64_t>(remote), rkey);
+                             reinterpret_cast<uintptr_t>(remote), rkey);
   }
 
   template <typename T, typename = typename std::enable_if<
@@ -142,21 +142,20 @@ public:
   }
 
   template <typename T>
-  auto from(const uint64_t addr, const uint32_t rkey,
+  auto from(const RDMAObj<T> *addr, const uint32_t rkey,
             size_t retries =
                 0) const -> decltype(local_heap.malloc<RDMAObj<T> >()) {
     auto o = local_heap.malloc<RDMAObj<T> >();
-    reload<T>(o, addr, rkey, retries);
+    reload(o, addr, rkey, retries);
     return o;
   }
 
   template <typename T>
   void reload(decltype(local_heap.malloc<RDMAObj<T> >()) & o,
-              const uint64_t addr, const uint32_t rkey,
+              const RDMAObj<T> *addr, const uint32_t rkey,
               size_t retries = 0) const {
     do {
-      read(o.first.get(), o.second, reinterpret_cast<RDMAObj<T> *>(addr), rkey)
-          .get();
+      read(o.first.get(), o.second, addr, rkey).get();
     } while (retries-- > 0 && o.first->valid());
 
     if (!o.first->valid())
