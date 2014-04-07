@@ -28,12 +28,7 @@ public:
   std::future<void>
   post_recv(const msg& msg, const ibv_mr* mr);
   void recv(const msg& msg);
-  std::future<bool> add(const char *key, size_t key_length, const char *value,
-           size_t value_length);
-  std::future<bool> remove(const char * key, size_t key_length);
   bool contains(const char * key, size_t key_length);
-  typedef std::unique_ptr<char, std::function<void(char*)>> value_ptr;
-  value_ptr get(const char * key, size_t key_length);
   size_t size() const { return table_size; }
 
 #if 0

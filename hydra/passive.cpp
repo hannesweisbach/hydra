@@ -168,25 +168,6 @@ hydra::routing_table hydra::passive::table() const {
   return table.second.first->get();
 }
 
-#if 0
-hydra::routing_entry hydra::passive::predecessor(const __uint128_t &id) const {
-  auto table = s.read<RDMAObj<routing_table> >(
-      reinterpret_cast<uintptr_t>(info.first->routing_table.addr),
-      info.first->routing_table.rkey);
-  table.first.get();
-  return table.second.first->get().preceding_node(id);
-}
-
-hydra::node_id hydra::passive::successor(const __uint128_t &id) const {
-  auto table = s.read<RDMAObj<routing_table> >(
-      reinterpret_cast<uintptr_t>(info.first->routing_table.addr),
-      info.first->routing_table.rkey);
-  table.first.get();
-  return table.second.first->get().preceding_node(id);
-  //return predecessor(id).successor;
-}
-#endif
-
 void hydra::passive::update_predecessor(const hydra::node_id &pred) const {
   notification_predecessor m(pred);
   s.sendImmediate(m);
@@ -207,44 +188,6 @@ bool hydra::passive::has_id(const keyspace_t &id) const {
   auto t = table.second.first->get();
   return id.in(t.self().node.id, t.successor().node.id);
 //  return hydra::interval({t.self().node.id, t.successor().node.id}).contains(id);
-}
-
-std::future<bool> hydra::passive::add(const char *key, size_t key_length, const char *value,
-                        size_t value_length) {
-  // TODO maybe expose allocation functions, so that key and value are placed
-  // into memory, allocated by heap.malloc()
-  // TODO: maybe alloc + memcpy?
-  ibv_mr *key_mr = s.mapMemory(key, key_length);
-  ibv_mr *value_mr = s.mapMemory(value, value_length);
-  
-  log_info() << key_mr;
-  //log_info() << value_mr;
-
-  put_request request = { { key, key_length, key_mr->rkey },
-                          { value, value_length, value_mr->rkey } };
-  auto future = request.set_completion<bool>([=](bool) {
-    rdma_dereg_mr(key_mr);
-    rdma_dereg_mr(value_mr);
-  });
-
-  s.sendImmediate(request);
-
-  return future;
-}
-
-std::future<bool> hydra::passive::remove(const char * key, size_t key_length) {
-  ibv_mr *key_mr = s.mapMemory(key, key_length);
-
-  log_info() << key_mr;
-
-  remove_request request = { { key, key_length, key_mr->rkey } };
-  auto future = request.set_completion<bool>([=](bool) {
-    rdma_dereg_mr(key_mr);
-  });
-
-  s.sendImmediate(request);
-  
-  return future;
 }
 
 bool hydra::passive::contains(const char *key, size_t key_length) {
@@ -336,47 +279,3 @@ bool hydra::passive::contains(const char *key, size_t key_length) {
   return false;
 }
 
-/* alloc: return managed array or std::unique_ptr<char[]>
- * or { char[], size, unqiue_ptr<ibv_mr> }
- * this should also play nice with read.
- */
-hydra::passive::value_ptr hydra::passive::get(const char *key,
-                                            const size_t key_length) {
-  size_t index = hash(key, key_length) % table_size;
-
-  auto mem = local_heap.malloc<key_entry>();
-  do {
-    s.read(mem.first.get(), mem.second, &remote_table[index], rkey).get();
-  } while (!mem.first->valid());
-  auto &entry = mem.first;
-
-  for (size_t hop = entry->hop, d = 1; hop; hop >>= 1, d++) {
-    if ((hop & 1) && !entry->is_empty() &&
-        (key_length == entry->key_length())) {
-      auto data = local_heap.malloc<unsigned char>(entry->ptr.size);
-      uint64_t crc = 0;
-      do {
-        s.read(data.first.get(), data.second, entry->key(), entry->rkey,
-               entry->ptr.size).get();
-        crc = hash64(data.first.get(), entry->ptr.size);
-      } while (entry->ptr.crc != crc);
-      if (memcmp(data.first.get(), key, key_length) == 0) {
-        uint8_t *val = data.first.get() + entry->key_length();
-        size_t length = entry->value_length();
-        value_ptr result([=]() {
-                           void *p = check_nonnull(malloc(length));
-                           memcpy(p, val, length);
-                           return reinterpret_cast<char *>(p);
-                         }(),
-                         std::function<void(char *)>(free));
-        return result;
-      }
-    }
-    do {
-      s.read(mem.first.get(), mem.second,
-             &remote_table[(index + d) % table_size], rkey).get();
-    } while (!mem.first->valid());
-  }
-
-  return value_ptr(nullptr, [](void*){});
-}
