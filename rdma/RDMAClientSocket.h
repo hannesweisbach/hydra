@@ -142,22 +142,25 @@ public:
   }
 
   template <typename T>
-  auto from(const uint64_t addr, const uint32_t rkey, size_t retries = 0)
-      -> decltype(local_heap.malloc<RDMAObj<T> >()) {
+  auto from(const uint64_t addr, const uint32_t rkey,
+            size_t retries =
+                0) const -> decltype(local_heap.malloc<RDMAObj<T> >()) {
     auto o = local_heap.malloc<RDMAObj<T> >();
-    reload(o, addr, rkey, retries);
+    reload<T>(o, addr, rkey, retries);
     return o;
   }
 
   template <typename T>
   void reload(decltype(local_heap.malloc<RDMAObj<T> >()) & o,
-              const uint64_t addr, const uint32_t rkey, size_t retries = 0) {
+              const uint64_t addr, const uint32_t rkey,
+              size_t retries = 0) const {
     do {
-      read(o.first.get(), o.second, reinterpret_cast<T *>(addr), rkey).get();
+      read(o.first.get(), o.second, reinterpret_cast<RDMAObj<T> *>(addr), rkey)
+          .get();
     } while (retries-- > 0 && o.first->valid());
 
     if (!o.first->valid())
-      throw std::runtime_error("Invalid remote object");
+      throw std::runtime_error("Could not validate remote object");
   }
 };
 
