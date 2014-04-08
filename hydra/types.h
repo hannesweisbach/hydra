@@ -195,6 +195,11 @@ struct routing_table {
 
     return *it;
   }
+
+  bool has_id(const keyspace_t &id) const {
+    return id.in(predecessor().node.id + 1, self().node.id);
+  }
+
   routing_entry &operator[](const size_t i) {
     return table[i + successor_index];
   }
