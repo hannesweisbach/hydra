@@ -244,7 +244,9 @@ rdma_id_ptr createCmId(const std::string &host, const std::string &port,
   std::exception_ptr exception;
 
   for (auto ai : AddrList(host, port, passive)) {
-    log_info() << ai->ai_src_canonname << " " << ai->ai_dst_canonname;
+    if(ai->ai_src_canonname || ai->ai_dst_canonname)
+      log_info() << "Connect from " << ai->ai_src_canonname << " to "
+                 << ai->ai_dst_canonname;
 
     char iface[NI_MAXHOST];
     if (!getnameinfo(ai->ai_src_addr, ai->ai_src_len, iface, sizeof(iface),
