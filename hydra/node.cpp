@@ -228,8 +228,13 @@ void node::update_others() const {
     // send message to p
     // send self().node and i+1
     if (p.id != routing_table.first->get().self().node.id) {
-      hydra::passive node(p.ip, p.port);
-      node.send(notification_update(routing_table.first->get().self().node, i));
+      hydra::async([=]() {
+        RDMAClientSocket socket(p.ip, p.port);
+        socket.connect();
+        socket.sendImmediate(
+            notification_update(routing_table.first->get().self().node, i));
+        socket.sendImmediate(disconnect_request());
+      });
     }
     // p.update_finger_table(id, i + 1);
   }
@@ -242,10 +247,14 @@ void node::update_routing_table(const hydra::node_id &s, const size_t i) {
       table[i].node = s;
       auto pred = table.predecessor().node;
       if (pred.id != s.id) {
-        hydra::passive node(pred.ip, pred.port);
-        node.send(notification_update(s, i));
         // send message to p
         // p.update_finger_table(id, i + 1);
+        hydra::async([=]() {
+          RDMAClientSocket socket(pred.ip, pred.port);
+          socket.connect();
+          socket.sendImmediate(notification_update(s, i));
+          socket.sendImmediate(disconnect_request());
+        });
       }
       log_info() << table;
     }
