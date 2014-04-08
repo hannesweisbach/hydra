@@ -10,9 +10,9 @@
 #include "util/Logger.h"
 
 class WorkerThread {
-  std::condition_variable empty;
-  std::mutex list_lock;
-  std::list<std::function<void()> > queue;
+  mutable std::condition_variable empty;
+  mutable std::mutex list_lock;
+  mutable std::list<std::function<void()> > queue;
   std::thread thread;
 
   bool done = false;
@@ -23,7 +23,7 @@ public:
   WorkerThread();
   ~WorkerThread();
   template <typename Func, typename... Args>
-  auto send(Func &&work, Args &&... args)
+  auto send(Func &&work, Args &&... args) const
       -> std::future<typename std::result_of<Func(Args...)>::type> {
     using result_type = typename std::result_of<Func(Args...)>::type;
     using packaged_type = std::packaged_task<result_type()>;
