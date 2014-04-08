@@ -17,6 +17,7 @@
 #include "util/exception.h"
 #include "util/Logger.h"
 #include "hydra/types.h"
+#include "util/demangle.h"
 
 class RDMAClientSocket;
 
@@ -120,7 +121,8 @@ public:
                   "Need same types.");
     log_debug() << "Reading from " << (void *)remote << " (" << rkey << ") to "
                 << (void *)local << " " << mr << " (" << n_elems << " "
-                << typeid(T).name() << ", " << n_elems * sizeof(T) << " bytes)";
+                << hydra::util::demangle(typeid(T).name()) << ", "
+                << n_elems * sizeof(T) << " bytes)";
     return rdma_read_async__(id.get(), local, n_elems * sizeof(T), mr,
                              reinterpret_cast<uintptr_t>(remote), rkey);
   }
