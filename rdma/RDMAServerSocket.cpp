@@ -36,6 +36,7 @@ RDMAServerSocket::RDMAServerSocket(const std::string &host,
     throw_errno("ibv_req_notify");
 #endif
   async_fut = rdma_handle_cq_event_async(running, cc.get());
+  accept_future = accept();
 }
 
 RDMAServerSocket::~RDMAServerSocket() {
@@ -43,6 +44,20 @@ RDMAServerSocket::~RDMAServerSocket() {
   rdma_destroy_srq(id.get());
   assert(false);
   //rdma_disconnect(id.get());
+}
+
+std::future<void> RDMAServerSocket::disconnect(const qp_t qp_num) const {
+  return clients([=](auto &clients) {
+    auto client = clients.find(qp_num);
+    if (client != std::end(clients)) {
+      rdma_disconnect(client->second.get());
+      clients.erase(client);
+    } else {
+      std::ostringstream s;
+      s << "rdma_cm_id* for qp " << qp_num << " not found." << std::endl;
+      throw std::runtime_error(s.str());
+    }
+  });
 }
 
 void RDMAServerSocket::listen(int backlog) {
@@ -54,60 +69,61 @@ void RDMAServerSocket::listen(int backlog) {
              << ntohs(id->route.addr.src_sin.sin_port) << " " << id.get() << " " << (void*) this;
 }
 
-std::future<RDMAServerSocket::client_t> RDMAServerSocket::accept() {
+std::future<void> RDMAServerSocket::accept() const {
   /* maybe do rdma_get_cm_event */
-  //return std::async(std::launch::async, [=] {
+  // return std::async(std::launch::async, [=] {
   return acceptThread.send([=] {
 #ifndef HAVE_LIBDISPATCH
-  
+
 #else
-  //return hydra::async([=] {
+// return hydra::async([=] {
 #endif
-    rdma_cm_id *clientId;
-    if (rdma_get_request(id.get(), &clientId))
-      throw_errno("rdma_get_request");
+    while (1) {
+      rdma_cm_id *clientId = nullptr;
+      if (rdma_get_request(id.get(), &clientId))
+        throw_errno("rdma_get_request");
 
-    log_trace() << "Connection request";
+      auto id = client_t(clientId, [](rdma_cm_id *id) {
+        rdma_destroy_qp(id);
+        log_info() << "rdma_destroy_qp(" << (void *)id << ")";
+        rdma_destroy_id(id);
+        log_info() << "rdma_destroy_id(" << (void *)id << ")";
+      });
 
-    ibv_qp_init_attr qp_attr = {};
-    qp_attr.qp_type = IBV_QPT_RC;
-    qp_attr.cap.max_send_wr = 10;
-    qp_attr.cap.max_recv_wr = 10;
-    qp_attr.cap.max_send_sge = 1;
-    qp_attr.cap.max_recv_sge = 1;
-    qp_attr.cap.max_inline_data = 72;
-    qp_attr.recv_cq = cq.get();
-    qp_attr.send_cq = cq.get();
-    qp_attr.srq = id->srq;
-    qp_attr.sq_sig_all = 0;
-    if (rdma_create_qp(clientId, NULL, &qp_attr))
-      throw_errno("rdma_create_qp");
+      log_trace() << "Connection request";
 
-    log_info() << "Max inline data: " << qp_attr.cap.max_inline_data;
-    /* WTF? why did I set the srq in qp_attr then?
-     * This shit is seriously broken.
-     */
-    /* Set the new connection to use our SRQ */
-    clientId->srq = id->srq;
+      ibv_qp_init_attr qp_attr = {};
+      qp_attr.qp_type = IBV_QPT_RC;
+      qp_attr.cap.max_send_wr = 10;
+      qp_attr.cap.max_recv_wr = 10;
+      qp_attr.cap.max_send_sge = 1;
+      qp_attr.cap.max_recv_sge = 1;
+      qp_attr.cap.max_inline_data = 72;
+      qp_attr.recv_cq = cq.get();
+      qp_attr.send_cq = cq.get();
+      qp_attr.srq = this->id->srq;
+      qp_attr.sq_sig_all = 0;
+      if (rdma_create_qp(id.get(), NULL, &qp_attr))
+        throw_errno("rdma_create_qp");
 
-    if (rdma_accept(clientId, nullptr))
-      throw_errno("rdma_accept");
+      log_info() << "Max inline data: " << qp_attr.cap.max_inline_data;
+      /* WTF? why did I set the srq in qp_attr then?
+       * This shit is seriously broken.
+       */
+      /* Set the new connection to use our SRQ */
+      id->srq = this->id->srq;
 
-    log_trace() << "Accepted Connection request";
+      if (rdma_accept(id.get(), nullptr))
+        throw_errno("rdma_accept");
 
-    return client_t(clientId, [](rdma_cm_id *id) {
-        assert(false);
-      rdma_destroy_qp(id);
-      log_info() << "rdma_destroy_qp(" << (void*)id << ")";
-      rdma_destroy_id(id);
-      log_info() << "rdma_destroy_id(" << (void*)id << ")";
-    });
+      log_trace() << "Accepted Connection request " << id.get() << " "
+                  << id->qp->qp_num;
+
+      clients([id = std::move(id)](auto & clients) mutable {
+        clients.emplace(id->qp->qp_num, std::move(id));
+      });
+    }
   });
-}
-
-void RDMAServerSocket::sendImmediate(rdma_cm_id * id, const void * buffer, const size_t size) const {
-  if(rdma_post_send(id, nullptr, buffer, size, nullptr, IBV_SEND_INLINE | IBV_SEND_FENCE))
-    log_error() << "ibv_post_send " << strerror(errno);
 }
 
 mr_ptr RDMAServerSocket::register_remote_read(void *ptr, size_t size) const {
