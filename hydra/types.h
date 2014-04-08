@@ -229,11 +229,11 @@ struct key_entry {
   uint32_t rkey;
 
   key_entry(const unsigned char *p = nullptr, const size_t size = 0,
-            const size_t key_size = 0, const uint32_t rkey = 0) noexcept
-      : ptr(p, size),
-        key_size(key_size),
-        hop(0),
-        rkey(rkey) {}
+            const size_t key_size = 0, const uint32_t rkey = 0,
+            const uint32_t hop = 0) noexcept : ptr(p, size),
+                                               key_size(key_size),
+                                               hop(hop),
+                                               rkey(rkey) {}
   bool is_empty() const { return ptr.is_empty(); }
   void empty() {
     key_size = 0;
