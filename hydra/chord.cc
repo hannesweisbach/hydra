@@ -24,7 +24,7 @@ static routing_table find_table(routing_table table, const keyspace_t &id) {
 
     init.first.get(); // block.
     auto mr = init.second.first->value();
-    auto info = socket.read<hydra::node_info>(mr.addr, mr.rkey, mr.size);
+    auto info = socket.read<hydra::node_info>(mr.addr, mr.rkey);
     info.first.get(); // block
 
     auto table_ = socket.read<RDMAObj<routing_table> >(
