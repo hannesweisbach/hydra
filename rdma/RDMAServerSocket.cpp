@@ -21,6 +21,7 @@ RDMAServerSocket::RDMAServerSocket(const std::string &host,
       cq(createCQ(id, cq_entries, nullptr, cc, 0)), running(true) {
   assert(max_wr);
         log_info() << "Created id " << id.get() << " " << (void*) this;
+        rdma_migrate_id(id.get(), rdma_create_event_channel());
 #if 1
   /* TODO: throw, if id is not valid here */
   /* on second thought, let one of the calls below fail, if id is not valid */
@@ -36,7 +37,7 @@ RDMAServerSocket::RDMAServerSocket(const std::string &host,
     throw_errno("ibv_req_notify");
 #endif
   async_fut = rdma_handle_cq_event_async(running, cc.get());
-  accept_future = accept();
+  cm_events();
 }
 
 RDMAServerSocket::~RDMAServerSocket() {
@@ -69,62 +70,71 @@ void RDMAServerSocket::listen(int backlog) {
              << ntohs(id->route.addr.src_sin.sin_port) << " " << id.get() << " " << (void*) this;
 }
 
-std::future<void> RDMAServerSocket::accept() const {
-  /* maybe do rdma_get_cm_event */
-  // return std::async(std::launch::async, [=] {
-  return acceptThread.send([=] {
-#ifndef HAVE_LIBDISPATCH
+void RDMAServerSocket::accept(client_t client_id) const {
+  ibv_qp_init_attr qp_attr = {};
+  qp_attr.qp_type = IBV_QPT_RC;
+  qp_attr.cap.max_send_wr = 10;
+  qp_attr.cap.max_recv_wr = 10;
+  qp_attr.cap.max_send_sge = 1;
+  qp_attr.cap.max_recv_sge = 1;
+  qp_attr.cap.max_inline_data = 72;
+  qp_attr.recv_cq = cq.get();
+  qp_attr.send_cq = cq.get();
+  qp_attr.srq = id->srq;
+  qp_attr.sq_sig_all = 0;
+  if (rdma_create_qp(client_id.get(), NULL, &qp_attr))
+    throw_errno("rdma_create_qp");
 
-#else
-// return hydra::async([=] {
-#endif
-    while (1) {
-      rdma_cm_id *clientId = nullptr;
-      if (rdma_get_request(id.get(), &clientId))
-        throw_errno("rdma_get_request");
+  log_info() << "Max inline data: " << qp_attr.cap.max_inline_data;
+  /* WTF? why did I set the srq in qp_attr then?
+   * This shit is seriously broken.
+   */
+  /* Set the new connection to use our SRQ */
+  client_id->srq = id->srq;
 
-      auto id = client_t(clientId, [](rdma_cm_id *id) {
-        rdma_destroy_qp(id);
-        log_info() << "rdma_destroy_qp(" << (void *)id << ")";
-        rdma_destroy_id(id);
-        log_info() << "rdma_destroy_id(" << (void *)id << ")";
-      });
+  if (rdma_accept(client_id.get(), nullptr))
+    throw_errno("rdma_accept");
 
-      log_trace() << "Connection request";
+  log_trace() << "Accepted Connection request";
 
-      ibv_qp_init_attr qp_attr = {};
-      qp_attr.qp_type = IBV_QPT_RC;
-      qp_attr.cap.max_send_wr = 10;
-      qp_attr.cap.max_recv_wr = 10;
-      qp_attr.cap.max_send_sge = 1;
-      qp_attr.cap.max_recv_sge = 1;
-      qp_attr.cap.max_inline_data = 72;
-      qp_attr.recv_cq = cq.get();
-      qp_attr.send_cq = cq.get();
-      qp_attr.srq = this->id->srq;
-      qp_attr.sq_sig_all = 0;
-      if (rdma_create_qp(id.get(), NULL, &qp_attr))
-        throw_errno("rdma_create_qp");
-
-      log_info() << "Max inline data: " << qp_attr.cap.max_inline_data;
-      /* WTF? why did I set the srq in qp_attr then?
-       * This shit is seriously broken.
-       */
-      /* Set the new connection to use our SRQ */
-      id->srq = this->id->srq;
-
-      if (rdma_accept(id.get(), nullptr))
-        throw_errno("rdma_accept");
-
-      log_trace() << "Accepted Connection request " << id.get() << " "
-                  << id->qp->qp_num;
-
-      clients([id = std::move(id)](auto & clients) mutable {
-        clients.emplace(id->qp->qp_num, std::move(id));
-      });
-    }
+  clients([client_id = std::move(client_id)](auto & clients) mutable {
+    clients.emplace(client_id->qp->qp_num, std::move(client_id));
   });
 }
+
+void RDMAServerSocket::cm_events() const {
+  eventThread.send([=]() {
+    while (1) {
+      rdma_cm_event *event;
+
+      if (id->event) {
+        rdma_ack_cm_event(id->event);
+        id->event = nullptr;
+      }
+
+      check_zero(rdma_get_cm_event(id->channel, &event));
+      check_zero(event->status);
+
+      log_info() << "Received " << event->event;
+
+      switch (event->event) {
+      case RDMA_CM_EVENT_CONNECT_REQUEST:
+        accept(client_t(event->id, [](rdma_cm_id *id) {
+          rdma_destroy_qp(id);
+          log_info() << "rdma_destroy_qp(" << (void *)id << ")";
+          rdma_destroy_id(id);
+          log_info() << "rdma_destroy_id(" << (void *)id << ")";
+        }));
+        break;
+      case RDMA_CM_EVENT_DISCONNECTED:
+        rdma_disconnect(event->id);
+        break;
+      default:
+        break;
+      }
+    };
+  });
+};
 
 mr_ptr RDMAServerSocket::register_remote_read(void *ptr, size_t size) const {
   return mr_ptr(check_nonnull(rdma_reg_read(id.get(), ptr, size),

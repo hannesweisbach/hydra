@@ -21,13 +21,14 @@ private:
   rdma_id_ptr id;
   comp_channel_ptr cc;
   cq_ptr cq;
-  WorkerThread acceptThread;
+  WorkerThread eventThread;
   std::future<void> async_fut;
   std::future<void> accept_future;
   std::atomic_bool running;
   mutable monitor<std::unordered_map<qp_t, RDMAServerSocket::client_t> > clients;
 
-  std::future<void> accept() const;
+  void accept(client_t id) const;
+  void cm_events() const;
 
 public:
   RDMAServerSocket(const std::string &host, const std::string &port,
