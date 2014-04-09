@@ -83,8 +83,8 @@ void RDMAServerSocket::accept(client_t client_id) const {
   qp_attr.send_cq = cq.get();
   qp_attr.srq = id->srq;
   qp_attr.sq_sig_all = 0;
-  if (rdma_create_qp(client_id.get(), NULL, &qp_attr))
-    throw_errno("rdma_create_qp");
+
+  check_zero(rdma_create_qp(client_id.get(), NULL, &qp_attr));
 
   log_info() << "Max inline data: " << qp_attr.cap.max_inline_data;
   /* WTF? why did I set the srq in qp_attr then?
@@ -93,8 +93,7 @@ void RDMAServerSocket::accept(client_t client_id) const {
   /* Set the new connection to use our SRQ */
   client_id->srq = id->srq;
 
-  if (rdma_accept(client_id.get(), nullptr))
-    throw_errno("rdma_accept");
+  check_zero(rdma_accept(client_id.get(), nullptr));
 
   log_trace() << "Accepted Connection request";
 
