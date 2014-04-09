@@ -61,7 +61,6 @@ class node {
 public:
   node(const std::string& ip, const std::string &port,
        uint32_t msg_buffers = 5);
-  void connect(const std::string& host, const std::string& ip);
   void join(const std::string& ip, const std::string& port);
 };
 

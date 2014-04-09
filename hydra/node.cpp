@@ -86,20 +86,6 @@ node::node(const std::string &ip, const std::string &port, uint32_t msg_buffers)
 //  hydra::client test(ip, port);
 }
 
-void node::connect(const std::string &host, const std::string &ip) {
-  RDMAClientSocket s(host, ip);
-
-  msg m;
-  auto mr = s.mapMemory(&m);
-
-  log_debug() << "msg is " << m;
-
-  auto future = s.recv_async(m, mr);
-  s.connect();
-
-  future.get();
-}
-
 std::future<void> node::notify_all(const msg &m) {
   return socket([=](rdma_cm_id *id) { sendImmediate(id, m); });
 }
