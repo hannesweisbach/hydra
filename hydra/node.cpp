@@ -143,10 +143,6 @@ void node::recv(const msg &req, const qp_t &qp) {
     auto notification = static_cast<const notification_update &>(req);
     update_routing_table(notification.node(), notification.index());
   } break;
-  case msg::subtype::disconnect: {
-    socket.disconnect(qp).get();
-    log_debug() << "Disconnecting " << qp;
-  } break;
   }
 }
 
@@ -205,7 +201,6 @@ void node::update_others() const {
         socket.connect();
         socket.sendImmediate(
             notification_update(routing_table.first->get().self().node, i));
-        socket.sendImmediate(disconnect_request());
       });
     }
     // p.update_finger_table(id, i + 1);
@@ -225,7 +220,6 @@ void node::update_routing_table(const hydra::node_id &s, const size_t i) {
           RDMAClientSocket socket(pred.ip, pred.port);
           socket.connect();
           socket.sendImmediate(notification_update(s, i));
-          socket.sendImmediate(disconnect_request());
         });
       }
       log_info() << table;

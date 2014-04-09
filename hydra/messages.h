@@ -145,7 +145,6 @@ public:
     invalid,
     put,
     del,
-    disconnect,
     init,
     resize,
     predecessor,
@@ -282,11 +281,6 @@ public:
   }
 };
 
-class disconnect_request : public request {
-public:
-  disconnect_request() : request(subtype::disconnect) {}
-};
-
 class init_request : public request {
 public:
   init_request() : request(subtype::init) {}
@@ -368,12 +362,6 @@ public:
       : mr_response(request, init) {
     memcpy(data_ + sizeof(header), &init, sizeof(init));
   }
-};
-
-class disconnect_response : public response {
-public:
-  disconnect_response(const request &request)
-      : response(request) {}
 };
 
 class notification_resize : public msg {

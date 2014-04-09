@@ -32,7 +32,6 @@ static routing_table find_table(routing_table table, const keyspace_t &id) {
         info.second.first->routing_table.rkey);
     table_.first.get();
     table = table_.second.first->get();
-    socket.sendImmediate(disconnect_request());
 #endif
     //table = node.table();
   }

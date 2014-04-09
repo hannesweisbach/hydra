@@ -59,14 +59,6 @@ hydra::passive &hydra::passive::operator=(hydra::passive &&other) {
   return *this;
 }
 
-hydra::passive::~passive() {
-  disconnect_request request;
-  //auto future = request.set_completion();
-  s.sendImmediate(request);
-  //future.get();
-  s.disconnect();
-}
-
 std::future<void> hydra::passive::post_recv(const msg &m,
                                            const ibv_mr *mr) {
   auto fut = s.recv_async(m, mr);

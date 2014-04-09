@@ -89,7 +89,6 @@ std::future<bool> hydra::client::add(const unsigned char *key, const size_t key_
 
     /* The blocking time depends on the remote node. TODO: Benchmark. */
     response.first.get(); // block.
-    socket.sendImmediate(disconnect_request());
     return response.second.first->value();
   });
 }
@@ -112,7 +111,6 @@ std::future<bool> hydra::client::remove(const unsigned char *key,
     socket.sendImmediate(request);
 
     response.first.get();
-    socket.sendImmediate(disconnect_request());
     return response.second.first->value();
   });
 }
@@ -123,8 +121,6 @@ bool hydra::client::contains(const unsigned char *key,
   const RDMAClientSocket socket(nodeid.ip, nodeid.port);
   socket.connect();
   const auto entry = find_entry(socket, key, key_length);
-  socket.sendImmediate(disconnect_request());
-  socket.disconnect();
   return entry.first.get() != nullptr;
 }
 
@@ -139,8 +135,6 @@ hydra::client::value_ptr hydra::client::get(const unsigned char *key,
   const RDMAClientSocket socket(nodeid.ip, nodeid.port);
   socket.connect();
   auto entry = find_entry(socket, key, key_length);
-  socket.sendImmediate(disconnect_request());
-  socket.disconnect();
 
   if (entry.first.get() == nullptr) {
     return std::move(entry.first);

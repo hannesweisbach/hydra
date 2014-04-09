@@ -24,9 +24,7 @@ public:
   passive(const std::string &host, const std::string &port);
   passive(passive &&);
   passive &operator=(passive &&);
-  ~passive();
-  std::future<void>
-  post_recv(const msg& msg, const ibv_mr* mr);
+  std::future<void> post_recv(const msg &msg, const ibv_mr *mr);
   void recv(const msg& msg);
 
 #if 0

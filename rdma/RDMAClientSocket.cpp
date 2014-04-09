@@ -65,12 +65,12 @@ RDMAClientSocket &RDMAClientSocket::operator=(RDMAClientSocket &&other) {
 }
 
 RDMAClientSocket::~RDMAClientSocket() {
+  disconnect();
   running = false;
   fut_recv.get();
   fut_send.get();
   dispatch_release(send_queue);
   dispatch_release(recv_queue);
-  disconnect();
 }
 
 void RDMAClientSocket::connect() const {
