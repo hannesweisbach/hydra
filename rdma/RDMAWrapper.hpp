@@ -36,8 +36,6 @@ std::ostream &operator<<(std::ostream &ostream, const ibv_device_attr &attr);
 std::ostream &operator<<(std::ostream &ostream, const enum ibv_atomic_cap& cap);
 std::ostream &operator<<(std::ostream &ostream, const ibv_device &dev);
 
-std::shared_ptr< ::rdma_event_channel> createEventChannel();
-
 using mr_ptr = std::unique_ptr< ::ibv_mr, std::function<void(ibv_mr *)> >;
 using rdma_id_ptr = std::unique_ptr< ::rdma_cm_id, decltype(&rdma_destroy_ep)>;
 using comp_channel_ptr = std::unique_ptr<
@@ -50,6 +48,11 @@ static_assert(std::is_same<qp_t, decltype(ibv_qp::qp_num)>::value,
 template <typename T>
 using pointer_t = std::unique_ptr<T, std::function<void(T *)> >;
 template <typename T> using rdma_ptr = std::pair<pointer_t<T>, ibv_mr *>;
+
+using ec_ptr = std::unique_ptr< ::rdma_event_channel,
+                                decltype(&rdma_destroy_event_channel)>;
+
+ec_ptr createEventChannel();
 
 rdma_id_ptr createCmId(const std::string &host, const std::string &port,
                        const bool passive = false,

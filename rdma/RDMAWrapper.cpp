@@ -168,10 +168,9 @@ std::ostream &operator<<(std::ostream &ostream, const ibv_device &dev) {
   return ostream;
 }
 
-[[deprecated]] std::shared_ptr< ::rdma_event_channel> createEventChannel() {
-  ::rdma_event_channel *ec = check_nonnull(::rdma_create_event_channel());
-  return std::shared_ptr< ::rdma_event_channel>(ec,
-                                                ::rdma_destroy_event_channel);
+ec_ptr createEventChannel() {
+  return ec_ptr(check_nonnull(::rdma_create_event_channel()),
+                ::rdma_destroy_event_channel);
 }
 
 class AddrIterator {
