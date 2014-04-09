@@ -38,12 +38,11 @@ std::ostream &operator<<(std::ostream &ostream, const ibv_device &dev);
 
 std::shared_ptr< ::rdma_event_channel> createEventChannel();
 
-typedef std::unique_ptr< ::ibv_mr, std::function<void(ibv_mr *)> > mr_ptr;
-typedef std::unique_ptr< ::rdma_cm_id, decltype(&rdma_destroy_ep)> rdma_id_ptr;
-typedef std::unique_ptr< ::ibv_comp_channel,
-                         decltype(& ::ibv_destroy_comp_channel)>
-comp_channel_ptr;
-typedef std::unique_ptr< ::ibv_cq, decltype(&ibv_destroy_cq)> cq_ptr;
+using mr_ptr = std::unique_ptr< ::ibv_mr, std::function<void(ibv_mr *)> >;
+using rdma_id_ptr = std::unique_ptr< ::rdma_cm_id, decltype(&rdma_destroy_ep)>;
+using comp_channel_ptr = std::unique_ptr<
+    ::ibv_comp_channel, decltype(& ::ibv_destroy_comp_channel)>;
+using cq_ptr = std::unique_ptr< ::ibv_cq, decltype(&ibv_destroy_cq)>;
 using qp_t = decltype(ibv_wc::qp_num);
 static_assert(std::is_same<qp_t, decltype(ibv_qp::qp_num)>::value,
               "QP number type must be the same in ibv_wc and ibv_qp");
