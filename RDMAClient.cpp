@@ -1,6 +1,7 @@
 #include <string>
 #include <chrono>
 #include <random>
+#include <cstring>
 
 #include <getopt.h>
 #include <unistd.h>
@@ -101,6 +102,52 @@ bool test_add_remove(hydra::client& c) {
   return !c.contains(key.get(), key_size);
 }
 
+auto find_key_in(const size_t key_size, const hydra::keyspace_t &start,
+                 const hydra::keyspace_t &end) {
+  for (;;) {
+    auto key = get_random_string(key_size);
+    if (hydra::keyspace_t(hydra::hash(key.get(), key_size)).in(start, end))
+      return key;
+  }
+}
+
+bool test_wrong_add(hydra::client &c) {
+  auto table = c.table();
+  if (table.self().node.id == table.predecessor().node.id) {
+    log_info() << "Could not perform test. Node is responsible for everything.";
+    return true;
+  }
+  hydra::keyspace_t start = table.self().node.id + 1;
+  hydra::keyspace_t end = table.predecessor().node.id;
+
+
+  const size_t key_size = 16;
+  const size_t val_size = 16;
+  std::unique_ptr<unsigned char[]> value(get_random_string(val_size));
+  auto key = find_key_in(key_size, start, end);
+
+  RDMAClientSocket socket(table.self().node.ip, table.self().node.port);
+  socket.connect();
+
+  auto response = socket.recv_async<put_response>();
+
+  auto key_mr = socket.malloc<unsigned char>(key_size);
+  auto val_mr = socket.malloc<unsigned char>(val_size);
+
+  std::memcpy(key_mr.first.get(), key.get(), key_size);
+  std::memcpy(val_mr.first.get(), value.get(), val_size);
+
+  put_request request = {
+    { key_mr.first.get(), key_size, key_mr.second->rkey },
+    { val_mr.first.get(), val_size, val_mr.second->rkey }
+  };
+
+  socket.sendImmediate(request);
+
+  response.first.get(); // block.
+
+  return !response.second.first->value();
+}
 
 #if 0
 bool test_grow(hydra::client& c) {
@@ -182,6 +229,10 @@ int main(int argc, char * const argv[]) {
   log_info() << "Starting test test_add_remove";
   assert(test_add_remove(c));
   log_info() << "Test test_add_remove done";
+
+  log_info() << "Starting test_wrong_add";
+  assert(test_wrong_add(c));
+  log_info() << "Test test_wrong_add done";
 
 #if 0
   log_info() << "Starting test test_grow";

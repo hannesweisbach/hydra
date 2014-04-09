@@ -239,6 +239,11 @@ void node::handle_add(const put_request &msg, const qp_t &qp) {
       std::move(fut),
       [ =, r = std::move(mem) ](auto s__) mutable {
         s__.get();
+        if (!routing_table.first->get().has_id(hash(r.first.get(), key_size))) {
+          log_err() << "Not responsible for key " << hash(r.first.get(), key_size);
+          ack(qp, put_response(msg, false));
+          return;
+        }
         dht([ =, r1 = std::move(r) ](hopscotch_server & hs) mutable {
                                       server_dht::resource_entry e(
                                           std::move(r1.first), r1.second->rkey,
