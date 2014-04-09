@@ -17,11 +17,12 @@
 RDMAServerSocket::RDMAServerSocket(const std::string &host,
                                    const std::string &port, uint32_t max_wr,
                                    int cq_entries)
-    : id(createCmId(host, port, true)), cc(createCompChannel(id)),
-      cq(createCQ(id, cq_entries, nullptr, cc, 0)), running(true) {
+    : ec(createEventChannel()), id(createCmId(host, port, true)),
+      cc(createCompChannel(id)), cq(createCQ(id, cq_entries, nullptr, cc, 0)),
+      running(true) {
   assert(max_wr);
         log_info() << "Created id " << id.get() << " " << (void*) this;
-        rdma_migrate_id(id.get(), rdma_create_event_channel());
+        check_zero(rdma_migrate_id(id.get(), ec.get()));
 #if 1
   /* TODO: throw, if id is not valid here */
   /* on second thought, let one of the calls below fail, if id is not valid */

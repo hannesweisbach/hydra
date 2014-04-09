@@ -18,6 +18,7 @@ class RDMAServerSocket {
 private:
   using client_t =
       std::unique_ptr<rdma_cm_id, std::function<void(rdma_cm_id *)> >;
+  ec_ptr ec;
   rdma_id_ptr id;
   comp_channel_ptr cc;
   cq_ptr cq;
