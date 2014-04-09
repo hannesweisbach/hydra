@@ -45,6 +45,8 @@ typedef std::unique_ptr< ::ibv_comp_channel,
 comp_channel_ptr;
 typedef std::unique_ptr< ::ibv_cq, decltype(&ibv_destroy_cq)> cq_ptr;
 using qp_t = decltype(ibv_wc::qp_num);
+static_assert(std::is_same<qp_t, decltype(ibv_qp::qp_num)>::value,
+              "QP number type must be the same in ibv_wc and ibv_qp");
 
 template <typename T>
 using pointer_t = std::unique_ptr<T, std::function<void(T *)> >;
