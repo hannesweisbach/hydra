@@ -228,11 +228,13 @@ public:
 AddrIterator begin(AddrList &addr_list) { return addr_list.begin(); }
 AddrIterator end(AddrList &addr_list) { return addr_list.end(); }
 
-template <> AddrIterator std::begin<AddrList>(AddrList &addr_list) {
+namespace std {
+template <> AddrIterator begin<AddrList>(AddrList &addr_list) {
   return addr_list.begin();
 }
-template <> AddrIterator std::end<AddrList>(AddrList &addr_list) {
+template <> AddrIterator end<AddrList>(AddrList &addr_list) {
   return addr_list.end();
+}
 }
 
 static void debug_deleter (rdma_cm_id *) {
