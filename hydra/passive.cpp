@@ -37,7 +37,7 @@ hydra::passive::passive(const std::string &host, const std::string &port)
   init_request request;
   auto future = request.set_completion<const mr &>([&](auto &&mr) {
     remote = mr;
-    update_info();
+    this->update_info();
   });
 
   s.sendImmediate(request);
