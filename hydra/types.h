@@ -178,13 +178,14 @@ struct routing_table {
     log_info() << std::hex << "Checking (" << (unsigned)self().node.id << " "
                << (unsigned)id << ") contains ";
 #endif
-    auto it = std::find_if(table.rbegin(), table.rend() + 2, [=](auto &node) {
+    auto it = std::find_if(table.rbegin(), table.rend() + 2, [=](const auto &node) {
 // return node.interval.contains(id);
 #if 0
       log_info() << std::hex <<  "  " << (unsigned)node.node.id;
 #endif
 #if 1
-      return node.node.id.in(self().node.id + 1, id - 1);
+      //gcc fails to call this->self(), so call it explicitly
+      return node.node.id.in(this->self().node.id + 1, id - 1);
 #else
       return interval({ static_cast<keyspace_t>(),
                         static_cast<keyspace_t>(id - 1) })
