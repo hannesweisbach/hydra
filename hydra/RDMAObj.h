@@ -51,16 +51,3 @@ public:
   }
 };
 
-template <typename T> class RemoteRDMAObj : public RDMAObj<T> {
-  rdma_ptr<T> p;
-
-public:
-  RemoteRDMAObj(rdma_ptr<T> p) : p(std::move(p)) {}
-
-  void load(uint64_t ptr, uint32_t rkey, size_t retry = 0) {
-    do {
-      //s.read(p.first.get(), p.second, reinterpret_cast<T *>(ptr), rkey).get();
-    } while (retry-- > 0 && p.first->valid());
-  }
-};
-
