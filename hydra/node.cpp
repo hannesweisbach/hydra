@@ -241,7 +241,7 @@ void node::handle_add(const put_request &msg, const qp_t &qp) {
         s__.get();
         if (!routing_table_.first->get().has_id(hash(r.first.get(), key_size))) {
           log_err() << "Not responsible for key " << hash(r.first.get(), key_size);
-          ack(qp, put_response(msg, false));
+          this->ack(qp, put_response(msg, false));
           return;
         }
         dht([ =, r1 = std::move(r) ](hopscotch_server & hs) mutable {
@@ -276,7 +276,7 @@ void node::handle_add(const put_request &msg, const qp_t &qp) {
                                              }).get();
                                         ret = hs.add(std::move(e));
                                         hs.check_consistency();
-                                        ack(qp, put_response(msg, ret == hydra::SUCCESS));
+                                        this->ack(qp, put_response(msg, ret == hydra::SUCCESS));
 #if 1
                                         return;
 #else
@@ -287,7 +287,7 @@ void node::handle_add(const put_request &msg, const qp_t &qp) {
                                       // TODO: ack/nack according to return
                                       // value
                                       log_trace() << "Acking";
-                                      ack(qp, put_response(msg, ret == hydra::SUCCESS));
+                                      this->ack(qp, put_response(msg, ret == hydra::SUCCESS));
                                       log_trace() << "Acking done";
                                     });
       });
@@ -319,7 +319,7 @@ void node::handle_del(const remove_request &msg, const qp_t &qp) {
                                   // s.dump();
                                   // TODO: ack/nack according to return
                                   // value
-                                  ack(qp, remove_response(msg, true));
+                                  this->ack(qp, remove_response(msg, true));
                                 });
   });
 }
