@@ -42,7 +42,7 @@ class node {
   WorkerThread messageThread;
 
   monitor<decltype(heap.malloc<LocalRDMAObj<node_info>>())> info;
-  decltype(heap.malloc<LocalRDMAObj<routing_table>>()) routing_table;
+  decltype(heap.malloc<LocalRDMAObj<routing_table>>()) routing_table_;
 
   void post_recv(const msg& m, const ibv_mr* mr);
   void recv(const msg &msg, const qp_t &qp);

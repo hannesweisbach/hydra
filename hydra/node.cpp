@@ -29,14 +29,14 @@ node::node(const std::string &ip, const std::string &port, uint32_t msg_buffers)
       dht(table_ptr.first.get(), 12U, 8U),
       msg_buffer(local_heap.malloc<msg>(msg_buffers)),
       info(heap.malloc<LocalRDMAObj<node_info> >()),
-      routing_table(heap.malloc<LocalRDMAObj<hydra::routing_table> >()) {
+      routing_table_(heap.malloc<LocalRDMAObj<hydra::routing_table> >()) {
 
-  (*routing_table.first)([&](auto &table) {
-    new (&table) struct routing_table(ip, port);
+  (*routing_table_.first)([&](auto &table) {
+    new (&table) hydra::routing_table(ip, port);
     log_info() << table;
   });
 
-  log_info() << "valid: " << routing_table.first->valid();
+  log_info() << "valid: " << routing_table_.first->valid();
 #if 0
   std::thread t([&,n = hash(ip)]() {
     size_t k = 0;
@@ -71,7 +71,7 @@ node::node(const std::string &ip, const std::string &port, uint32_t msg_buffers)
          (*rdma_obj.first)([&](auto &info) {
            info.table_size = 8;
            info.key_extents = *table_ptr.second;
-           info.routing_table = *routing_table.second;
+           info.routing_table = *routing_table_.second;
            info.id = static_cast<keyspace_t::value_type>(
                hash((ip + port).c_str(), ip.size() + port.size()));
 
@@ -121,7 +121,7 @@ void node::recv(const msg &req, const qp_t &qp) {
   } break;
   case msg::msubtype::predecessor: {
     auto notification = static_cast<const notification_predecessor &>(req);
-    (*routing_table.first)([&](auto &table) {
+    (*routing_table_.first)([&](auto &table) {
       table.predecessor().node = notification.predecessor();
     });
   } break;
@@ -142,7 +142,7 @@ void node::join(const std::string& ip, const std::string& port) {
 }
 
 void node::init_routing_table(const hydra::passive& remote) {
-  (*routing_table.first)([&](auto &table) {
+  (*routing_table_.first)([&](auto &table) {
     table.successor().node = chord::successor(remote.table(), table.successor().start);
 
     auto pred = chord::predecessor(remote.table(), table.successor().start);
@@ -176,17 +176,17 @@ void node::init_routing_table(const hydra::passive& remote) {
 void node::update_others() const {
   const size_t max = std::numeric_limits<hydra::keyspace_t::value_type>::digits;
   for (size_t i = 0; i < max; i++) {
-    keyspace_t id_ = routing_table.first->get().self().node.id -
+    keyspace_t id_ = routing_table_.first->get().self().node.id -
                      static_cast<hydra::keyspace_t::value_type>(1 << i) + 1;
-    auto p = chord::predecessor(routing_table.first->get(), id_);
+    auto p = chord::predecessor(routing_table_.first->get(), id_);
     // send message to p
     // send self().node and i+1
-    if (p.id != routing_table.first->get().self().node.id) {
+    if (p.id != routing_table_.first->get().self().node.id) {
       hydra::async([=]() {
         RDMAClientSocket socket(p.ip, p.port);
         socket.connect();
         socket.sendImmediate(
-            notification_update(routing_table.first->get().self().node, i));
+            notification_update(routing_table_.first->get().self().node, i));
       });
     }
     // p.update_finger_table(id, i + 1);
@@ -195,7 +195,7 @@ void node::update_others() const {
 
 //called upon reception of update message
 void node::update_routing_table(const hydra::node_id &s, const size_t i) {
-  (*routing_table.first)([&](auto &table) {
+  (*routing_table_.first)([=](auto &table) {
     if (s.id.in(table.self().node.id, table[i].node.id - 1)) {
       table[i].node = s;
       auto pred = table.predecessor().node;
@@ -239,7 +239,7 @@ void node::handle_add(const put_request &msg, const qp_t &qp) {
       std::move(fut),
       [ =, r = std::move(mem) ](auto s__) mutable {
         s__.get();
-        if (!routing_table.first->get().has_id(hash(r.first.get(), key_size))) {
+        if (!routing_table_.first->get().has_id(hash(r.first.get(), key_size))) {
           log_err() << "Not responsible for key " << hash(r.first.get(), key_size);
           ack(qp, put_response(msg, false));
           return;
