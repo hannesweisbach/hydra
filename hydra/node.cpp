@@ -102,16 +102,16 @@ void node::post_recv(const msg &m, const ibv_mr *mr) {
 void node::recv(const msg &req, const qp_t &qp) {
   log_info() << req;
 
-  assert(req.type() == msg::type::request || req.type() == msg::type::notification);
+  assert(req.type() == msg::mtype::request || req.type() == msg::mtype::notification);
 
   switch (req.subtype()) {
-  case msg::subtype::put:
+  case msg::msubtype::put:
     handle_add(static_cast<const put_request &>(req), qp);
     break;
-  case msg::subtype::del:
+  case msg::msubtype::del:
     handle_del(static_cast<const remove_request &>(req), qp);
     break;
-  case msg::subtype::init: {
+  case msg::msubtype::init: {
     auto request = static_cast<const init_request &>(req);
     info([&](const auto &info) {
            init_response m(request, info.second);
@@ -119,13 +119,13 @@ void node::recv(const msg &req, const qp_t &qp) {
            socket(qp, [=](rdma_cm_id *id) { sendImmediate(id, m); });
          }).get();
   } break;
-  case msg::subtype::predecessor: {
+  case msg::msubtype::predecessor: {
     auto notification = static_cast<const notification_predecessor &>(req);
     (*routing_table.first)([&](auto &table) {
       table.predecessor().node = notification.predecessor();
     });
   } break;
-  case msg::subtype::routing: {
+  case msg::msubtype::routing: {
     auto notification = static_cast<const notification_update &>(req);
     update_routing_table(notification.node(), notification.index());
   } break;

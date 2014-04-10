@@ -134,14 +134,14 @@ struct ack_data {
 
 class msg {
 public:
-  enum class type {
+  enum class mtype {
     invalid,
     request,
     response,
     notification
   };
 
-  enum class subtype {
+  enum class msubtype {
     invalid,
     put,
     del,
@@ -152,8 +152,8 @@ public:
   };
 
   struct header {
-    enum type type;
-    enum subtype subtype;
+    mtype type;
+    msubtype subtype;
     uint64_t cookie;
   };
 
@@ -165,42 +165,42 @@ protected:
   uint8_t data_[max_size];
 
 public:
-  msg(enum type type = type::invalid,
-      enum subtype subtype = subtype::invalid) noexcept {
+  msg(mtype type = mtype::invalid,
+      msubtype subtype = msubtype::invalid) noexcept {
     memcpy(data_ + offsetof(header, type), &type, sizeof(type));
     memcpy(data_ + offsetof(header, subtype), &subtype, sizeof(subtype));
   }
 
-  enum subtype subtype() const {
-    enum subtype stype;
+  msubtype subtype() const {
+    msubtype stype;
     memcpy(&stype, data_ + offsetof(header, subtype), sizeof(stype));
     return stype;
   }
 
-  enum type type() const {
-    enum type type;
+  mtype type() const {
+    mtype type;
     memcpy(&type, data_ + offsetof(header, type), sizeof(type));
     return type;
   }
 
   // TODO: add void * payload() {...}
 
-  bool is_request() const { return type() == type::request; }
+  bool is_request() const { return type() == mtype::request; }
 
-  bool is_response() const { return type() == type::response; }
+  bool is_response() const { return type() == mtype::response; }
 
-  bool is_notification() const { return type() == type::notification; }
+  bool is_notification() const { return type() == mtype::notification; }
 
-  bool is_valid() const { return type() != type::invalid; }
+  bool is_valid() const { return type() != mtype::invalid; }
 };
 
 class request : public msg {
   friend class response;
 
 public:
-  request(const enum subtype r,
+  request(const msubtype r,
           const uint64_t cookie = reinterpret_cast<uintptr_t>(nullptr))
-      : msg(type::request, r) {
+      : msg(mtype::request, r) {
     memcpy(data_ + offsetof(header, cookie), &cookie, sizeof(cookie));
   }
 
@@ -250,7 +250,7 @@ public:
 
 class put_request : public request {
 public:
-  put_request(const mr key, const mr value) : request(subtype::put) {
+  put_request(const mr key, const mr value) : request(msubtype::put) {
     memcpy(data_ + sizeof(header), &key, sizeof(key));
     memcpy(data_ + sizeof(header) + sizeof(key), &value, sizeof(value));
   }
@@ -270,7 +270,7 @@ public:
 
 class remove_request : public request {
 public:
-  remove_request(const mr key) : request(subtype::del) {
+  remove_request(const mr key) : request(msubtype::del) {
     memcpy(data_ + sizeof(header), &key, sizeof(key));
   }
 
@@ -283,7 +283,7 @@ public:
 
 class init_request : public request {
 public:
-  init_request() : request(subtype::init) {}
+  init_request() : request(msubtype::init) {}
 };
 
 class response : public msg {
@@ -304,7 +304,7 @@ class response : public msg {
   }
 
 public:
-  response(const request &request) : msg(type::response, request.subtype()) {
+  response(const request &request) : msg(mtype::response, request.subtype()) {
     auto cookie = request.cookie();
     memcpy(data_ + offsetof(header, cookie), &cookie, sizeof(cookie));
   }
@@ -367,7 +367,7 @@ public:
 class notification_resize : public msg {
 public:
   notification_resize(const mr& init)
-      : msg(type::notification, subtype::resize) {
+      : msg(mtype::notification, msubtype::resize) {
     memcpy(data_ + sizeof(header), &init, sizeof(init));
   }
 
@@ -381,7 +381,7 @@ public:
 class notification_predecessor : public msg {
   public:
   notification_predecessor(const hydra::node_id& init)
-      : msg(type::notification, subtype::predecessor) {
+      : msg(mtype::notification, msubtype::predecessor) {
     memcpy(data_ + sizeof(header), &init, sizeof(init));
   }
 
@@ -395,7 +395,7 @@ class notification_predecessor : public msg {
 class notification_update : public msg {
   public:
   notification_update(const hydra::node_id& init, const size_t i)
-      : msg(type::notification, subtype::routing) {
+      : msg(mtype::notification, msubtype::routing) {
     memcpy(data_ + sizeof(header), &init, sizeof(init));
     memcpy(data_ + sizeof(header) + sizeof(init), &i, sizeof(i));
   }

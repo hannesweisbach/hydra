@@ -96,12 +96,14 @@ void hydra::passive::recv(const msg &r) {
   log_info() << r;
 
   switch (r.type()) {
-  case msg::type::response:
-    static_cast<const response &>(r).complete_();
+  case msg::mtype::response:
+    // TODO: This is only required to avoid deadlock when destructing this
+    // object from the completion.
+    hydra::async([=]() { static_cast<const response &>(r).complete_(); });
     break;
-  case msg::type::notification:
+  case msg::mtype::notification:
     switch (r.subtype()) {
-    case msg::subtype::resize: {
+    case msg::msubtype::resize: {
       update_info();
 #if 0
       std::thread t([&]() {
