@@ -100,7 +100,6 @@ namespace hydra {
 template <typename F, typename... Args>
 auto async(dispatch_queue_t q, F &&f, Args &&... args)
     -> std::future<typename std::result_of<F(Args...)>::type> {
-  typedef typename std::remove_reference<F>::type fn_type;
   using result_type = typename std::result_of<F(Args...)>::type;
   using packaged_type = std::packaged_task<result_type()>;
 
@@ -129,11 +128,7 @@ template <typename F, typename... Args,
 auto async(F &&f, Args &&... args)
     -> std::future<typename std::result_of<F(Args...)>::type> {
   return hydra::async(
-#if 1
       dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
-#else
-      dispatch_queue_create("", NULL),
-#endif
       std::forward<F>(f), std::forward<Args>(args)...);
 }
 
