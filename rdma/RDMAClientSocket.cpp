@@ -113,8 +113,3 @@ mr_ptr RDMAClientSocket::register_local_read(void *ptr, size_t size) const {
                 );
 }
 
-std::shared_ptr<ibv_mr> allocateMapMemory(const RDMAClientSocket &s,
-                                          size_t size, size_t aligment) {
-  return std::make_shared<ibv_mr>(); 
-         
-}

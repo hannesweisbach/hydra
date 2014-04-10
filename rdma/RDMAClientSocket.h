@@ -165,9 +165,6 @@ public:
   }
 };
 
-std::shared_ptr<ibv_mr>
-allocateMapMemory(const RDMAClientSocket &s, size_t size, size_t alignment);
-
 namespace hydra {
   inline mr_ptr register_remote_read(RDMAClientSocket& socket, void * ptr, size_t size) {
     return socket.register_remote_read(ptr, size);
