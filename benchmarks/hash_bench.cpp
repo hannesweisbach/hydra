@@ -8,19 +8,17 @@
 
 static uint64_t start_benchmark() {
   uint64_t high, low;
+#ifdef __clang__
   asm volatile("cpuid\n\t"
                "rdtsc\n\t"
                : "=d"(high), "=a"(low)::"%rax", "%rbx", "%rcx", "%rdx");
-  return (high << 32) | low;
-}
-
-static uint64_t start_benchmark2() {
-  uint64_t high, low;
+#else
   asm volatile("cpuid\n\t"
                "rdtsc\n\t"
                "mov %%rdx, %0\n\t"
                "mov %%rax, %1\n\t"
                : "=r"(high), "=r"(low)::"%rax", "%rbx", "%rcx", "%rdx");
+#endif
   return (high << 32) | low;
 }
 
