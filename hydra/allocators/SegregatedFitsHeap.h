@@ -117,13 +117,12 @@ public:
                 std::numeric_limits<size_t>::digits),
         binmap(entries, 0), size2Class(size2Class) {
     for (size_t i = 0, lastSize = 0; size2Class(i) < numBins; i++) {
+      static_cast<void>(lastSize);
 #ifndef NDEBUG
       if(size2Class(i) != size2Class(i + 1)) {
-        log_info() << "Bucket " << size2Class(i) << " from " << lastSize << " to " << i << " (" << i - lastSize << ")";
+        //log_info() << "Bucket " << size2Class(i) << " from " << lastSize << " to " << i << " (" << i - lastSize << ")";
         lastSize = i + 1;
       }
-#else
-      (void)(lastSize);
 #endif
       maxSize = i;
     }
