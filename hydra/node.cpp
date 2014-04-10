@@ -239,8 +239,11 @@ void node::handle_add(const put_request &msg, const qp_t &qp) {
       std::move(fut),
       [ =, r = std::move(mem) ](auto s__) mutable {
         s__.get();
-        if (!routing_table_.first->get().has_id(hash(r.first.get(), key_size))) {
-          log_err() << "Not responsible for key " << hash(r.first.get(), key_size);
+        if (!routing_table_.first->get().has_id(
+                 static_cast<hydra::keyspace_t::value_type>(
+                     hash(r.first.get(), key_size)))) {
+          log_err() << "Not responsible for key "
+                    << hash(r.first.get(), key_size);
           this->ack(qp, put_response(msg, false));
           return;
         }
