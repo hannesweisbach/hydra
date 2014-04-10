@@ -161,9 +161,6 @@ void hydra::passive::send(const msg& m) const {
   s.sendImmediate(m);
 }
 
-void hydra::passive::update_table_entry(const hydra::node_id &pred,
-                                       size_t entry) const {}
-
 bool hydra::passive::has_id(const keyspace_t &id) const {
   auto table = s.read<RDMAObj<routing_table> >(
       reinterpret_cast<uintptr_t>(info.first->routing_table.addr),
