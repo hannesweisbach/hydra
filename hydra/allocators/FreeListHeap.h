@@ -45,22 +45,6 @@
 namespace hydra {
 
 template <class SuperHeap> class FreeListHeap : public SuperHeap {
-private:
-  using freelist_t = std::vector<std::pair<char *, ibv_mr *> >;
-
-  template <typename T> rdma_ptr<T> make_pointer(char *p, ibv_mr *mr) {
-    return rdma_ptr<T>(pointer_t<T>(reinterpret_cast<T *>(p), [=](T *p) {
-                         std::unique_lock<spinlock> l(*freelist_lock);
-                         freelist->emplace_back(reinterpret_cast<char *>(p),
-                                                mr);
-                       }),
-                       mr);
-  }
-
-  std::vector<rdma_ptr<char> > allocs;
-  std::shared_ptr<freelist_t> freelist;
-  std::shared_ptr<spinlock> freelist_lock;
-
 public:
   template <typename T>
   using pointer_t = typename SuperHeap::template pointer_t<T>;
@@ -141,6 +125,22 @@ public:
         mr_type(ptr.second));
   }
 #endif
+private:
+  using freelist_t = std::vector<std::pair<char *, ibv_mr *> >;
+
+  template <typename T> rdma_ptr<T> make_pointer(char *p, ibv_mr *mr) {
+    return rdma_ptr<T>(pointer_t<T>(reinterpret_cast<T *>(p), [=](T *p) {
+                         std::unique_lock<spinlock> l(*freelist_lock);
+                         freelist->emplace_back(reinterpret_cast<char *>(p),
+                                                mr);
+                       }),
+                       mr);
+  }
+
+  std::vector<rdma_ptr<char> > allocs;
+  std::shared_ptr<freelist_t> freelist;
+  std::shared_ptr<spinlock> freelist_lock;
+
 };
 }
 
