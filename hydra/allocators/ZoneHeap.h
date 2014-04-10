@@ -32,7 +32,7 @@ public:
     remaining -= size;
     rdma_ptr<T> ret(
         pointer_t<T>(reinterpret_cast<T *>(arenas.back().first.get() + current),
-                     [](T *p) { /*log_debug() << "Deallocating " << p;*/ }),
+                     [](T *) { /*log_debug() << "Deallocating " << p;*/ }),
         arenas.back().second);
     current += size;
 
