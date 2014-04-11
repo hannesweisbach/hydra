@@ -156,6 +156,7 @@ public:
         data_(std::forward<Args>(args)...) {
     assert(queue);
   }
+  ~monitor() { dispatch_release(queue); }
 
   monitor(monitor<T> &&other)
       : name(std::move(other.name)), queue(std::move(other.queue)),
