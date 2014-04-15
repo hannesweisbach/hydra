@@ -73,6 +73,7 @@ void hydra::hopscotch_server::move(size_t from, size_t to) {
   table[home]([=](auto &&entry) { entry.clear_hop(old_hops); });
   //mark from as free.
   table[from]([](auto &&entry) { entry.empty(); });
+  shadow_table[from].empty();
 }
 
 size_t hydra::hopscotch_server::move_into(size_t to) {
