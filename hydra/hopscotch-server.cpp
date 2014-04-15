@@ -18,7 +18,7 @@ std::ostream &hydra::operator<<(std::ostream &s, const hydra::key_entry &e) {
     s.write(
         reinterpret_cast<const char *>(e.value()),
         (std::streamsize)std::min(e.value_length(), static_cast<size_t>(16)));
-  s << ")";
+  s << ") " << e.rkey;
   return s;
 }
 
@@ -148,8 +148,7 @@ void hydra::hopscotch_server::dump() const {
     auto &e = table[i];
     //auto &r = shadow_table[i];
     // if(!e.is_empty())
-    log_info() << &e << " " << std::setw(2) << i << " " << e.get() << " "
-               << e.get().rkey;
+    log_info() << &e << " " << std::setw(2) << i << " " << e.get();
 #if 0
     log_info() << (void*)r.mem.get() << " " << r.size << " " << r.key_size << " "
                << r.rkey;
