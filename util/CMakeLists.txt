@@ -3,6 +3,10 @@ add_library(uint128 STATIC uint128.cpp)
 target_link_libraries(workerthread)
 add_library(logger STATIC Logger.cpp)
 add_library(demangle STATIC demangle.cc)
+
+add_executable(demangler demangler.cc)
+target_link_libraries(demangler demangle)
+
 if(${HAVE_LIBDISPATCH})
   target_link_libraries(logger ${LIBDISPATCH} uint128)
 else()
