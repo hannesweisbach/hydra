@@ -5,6 +5,7 @@
 #include <utility>
 #include <functional>
 #include <vector>
+#include <ostream>
 
 #include "types.h"
 
@@ -77,4 +78,9 @@ public:
   size_t next_size() const { return (size_t)(table_size * growth_factor); }
   double load_factor() const { return double(used) / table_size; }
 };
+}
+
+namespace std {
+std::ostream &operator<<(std::ostream &s,
+                         const hydra::server_dht::resource_entry &e);
 }

@@ -1,5 +1,16 @@
 #include "server_dht.h"
 
+namespace std {
+std::ostream &operator<<(std::ostream &s,
+                         const hydra::server_dht::resource_entry &e) {
+  s << "ptr: " << static_cast<void *>(e.mem.get()) << std::endl;
+  s << "size: " << e.size << std::endl;
+  s << "key_size: " << e.key_size << std::endl;
+  s << "rkey: " << e.rkey;
+  return s;
+}
+}
+
 void hydra::server_dht::resize(LocalRDMAObj<key_entry> * new_table, size_t size) {
   size_t old_table_size = table_size;
   table_size = size;
