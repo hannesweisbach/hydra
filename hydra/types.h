@@ -239,6 +239,7 @@ struct key_entry {
   void empty() {
     key_size = 0;
     rkey = 0;
+    hop = 0;
     ptr.reset();
   }
   bool has_key(const char *k, size_t klen) const {
