@@ -12,8 +12,9 @@ void hydra::server_dht::resize(LocalRDMAObj<key_entry> * new_table, size_t size)
   std::vector<resource_entry> old_shadow_table(table_size);
   std::swap(shadow_table, old_shadow_table);
 
-  for(size_t i = 0; i < old_table_size; i++) {
-    add(std::move(old_shadow_table[i]));
+  for(auto&&entry : old_shadow_table) {
+    if(entry.mem)
+      add(std::move(entry));
   }
 }
 
