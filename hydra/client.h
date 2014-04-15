@@ -24,6 +24,7 @@ public:
                            const size_t key_length) const;
   bool contains(const unsigned char *key, const size_t key_length) const;
   value_ptr get(const unsigned char *key, const size_t key_length) const;
+  routing_table table() const;
 
 private:
   passive root_node;

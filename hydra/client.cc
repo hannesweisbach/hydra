@@ -64,6 +64,8 @@ hydra::client::find_entry(const RDMAClientSocket &socket,
   return {value_ptr(nullptr, [](void *) {}), 0};
 }
 
+hydra::routing_table hydra::client::table() const { return root_node.table(); }
+
 std::future<bool> hydra::client::add(const unsigned char *key, const size_t key_length,
                         const unsigned char *value, const size_t value_length) const {
   return hydra::async([=]() {
@@ -89,6 +91,7 @@ std::future<bool> hydra::client::add(const unsigned char *key, const size_t key_
 
     /* The blocking time depends on the remote node. TODO: Benchmark. */
     response.first.get(); // block.
+
     return response.second.first->value();
   });
 }
