@@ -112,7 +112,7 @@ void RDMAServerSocket::accept(client_t client_id) const {
 
 void RDMAServerSocket::cm_events() const {
   eventThread.send([=]() {
-    while (1) {
+    while (running.load()) {
       rdma_cm_event *event;
 
       if (id->event) {
@@ -120,10 +120,30 @@ void RDMAServerSocket::cm_events() const {
         id->event = nullptr;
       }
 
-      check_zero(rdma_get_cm_event(id->channel, &event));
-      check_zero(event->status);
+      int fd = id->channel->fd;
+      fd_set rfds;
+      FD_ZERO(&rfds);
+      FD_SET(fd, &rfds);
+      struct timeval timeout = { 1, 0 };
+      int err = select(fd + 1, &rfds, nullptr, nullptr, &timeout);
+      if (err == 0) {
+        /* timeout - to check done */
+        continue;
+      } else if (err < 0) {
+        if (errno == EINTR)
+          continue;
+        throw_errno("select()");
+      } else {
+        if (FD_ISSET(fd, &rfds)) {
+          check_zero(rdma_get_cm_event(id->channel, &event));
+          check_zero(event->status);
+        } else {
+          log_err() << "Quit select without error, timeout and an fd set";
+          assert(false);
+        }
+      }
 
-      log_info() << "Received " << event->event;
+      //log_info() << "Received " << event->event;
 
       switch (event->event) {
       case RDMA_CM_EVENT_CONNECT_REQUEST:
