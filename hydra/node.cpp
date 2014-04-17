@@ -218,7 +218,6 @@ void node::send(const uint64_t id) {
 }
 
 void node::handle_add(const put_request &msg, const qp_t &qp) {
-  log_info() << msg;
   const size_t key_size = msg.key().size;
   const size_t val_size = msg.value().size;
   const size_t size = key_size + val_size;
@@ -227,7 +226,6 @@ void node::handle_add(const put_request &msg, const qp_t &qp) {
   auto key = mem.first.get();
   auto value = key + key_size;
   auto mr = mem.second;
-  log_info() << mem.second;
 
   auto fut = socket(qp, [=](rdma_cm_id *id) {
     rdma_read_async__(id, value, val_size, mr, msg.value().addr,
@@ -251,9 +249,13 @@ void node::handle_add(const put_request &msg, const qp_t &qp) {
                                       server_dht::resource_entry e(
                                           std::move(r1.first), r1.second->rkey,
                                           size, key_size);
+#ifndef NDEBUG
                                       hs.check_consistency();
+#endif
                                       auto ret = hs.add(std::move(e));
+#ifndef NDEBUG
                                       hs.check_consistency();
+#endif
                                       if (ret == hydra::NEED_RESIZE) {
                                         info([&](auto &rdma_obj) {
                                                size_t new_size = hs.next_size();
@@ -262,23 +264,21 @@ void node::handle_add(const put_request &msg, const qp_t &qp) {
                                                    new_size);
                                                hs.resize(new_table.first.get(),
                                                          new_size);
+#ifndef NDEBUG
                                                hs.check_consistency();
+#endif
                                                (*rdma_obj.first)([&](
                                                    auto &info) {
-                                                 log_info() << info.table_size
-                                                            << " "
-                                                            << info.key_extents;
                                                  info.table_size = new_size;
                                                  info.key_extents =
                                                      *new_table.second;
-                                                 log_info() << info.table_size
-                                                            << " "
-                                                            << info.key_extents;
                                                });
                                                std::swap(table_ptr, new_table);
                                              }).get();
                                         ret = hs.add(std::move(e));
+#ifndef NDEBUG
                                         hs.check_consistency();
+#endif
                                         this->ack(qp, put_response(msg, ret == hydra::SUCCESS));
 #if 1
                                         return;
@@ -289,16 +289,12 @@ void node::handle_add(const put_request &msg, const qp_t &qp) {
                                       }
                                       // TODO: ack/nack according to return
                                       // value
-                                      log_trace() << "Acking";
                                       this->ack(qp, put_response(msg, ret == hydra::SUCCESS));
-                                      log_trace() << "Acking done";
                                     });
       });
 }
 
 void node::handle_del(const remove_request &msg, const qp_t &qp) {
-  log_info() << msg;
-
   const size_t size = msg.key().size;
 
   auto mem = local_heap.malloc<unsigned char>(size);
