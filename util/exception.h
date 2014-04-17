@@ -24,6 +24,8 @@ inline T* check_nonnull(T* ptr, const std::string& s = "") {
   return ptr;
 }
 
+#if __clang__
+
 #define check_zero(x)                                                          \
   _Pragma("clang diagnostic push")                                             \
   _Pragma("clang diagnostic ignored \"-Wgnu-statement-expression\"")           \
@@ -37,3 +39,18 @@ inline T* check_nonnull(T* ptr, const std::string& s = "") {
     tmp;                                                                       \
   })                                                                           \
   _Pragma("clang diagnostic pop")
+
+#else
+
+#define check_zero(x)                                                          \
+  ({                                                                           \
+    auto tmp = x;                                                              \
+    if (tmp) {                                                                 \
+      std::ostringstream ss;                                                   \
+      ss << __func__ << "(" << __LINE__ << ")";                                \
+      throw_errno(ss.str());                                                   \
+    };                                                                         \
+    tmp;                                                                       \
+  })
+
+#endif

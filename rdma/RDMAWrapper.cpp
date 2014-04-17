@@ -484,4 +484,11 @@ public:
   }
 };
 
-rdma_initializer rdma_init;
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wglobal-constructors"
+static rdma_initializer rdma_init;
+#pragma clang diagnostic pop
+#else
+static rdma_initializer rdma_init;
+#endif
