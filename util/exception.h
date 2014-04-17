@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <string>
 #include <cstring>
+#include <sstream>
 
 #include "util/Logger.h"
 
@@ -23,9 +24,16 @@ inline T* check_nonnull(T* ptr, const std::string& s = "") {
   return ptr;
 }
 
-template<typename T>
-inline void check_zero(T result, const std::string& s = "") {
-  if(result)
-    throw_errno(s);
-}
-
+#define check_zero(x)                                                          \
+  _Pragma("clang diagnostic push")                                             \
+  _Pragma("clang diagnostic ignored \"-Wgnu-statement-expression\"")           \
+  ({                                                                           \
+    auto tmp = x;                                                              \
+    if (tmp) {                                                                 \
+      std::ostringstream ss;                                                   \
+      ss << __func__ << "(" << __LINE__ << ")";                                \
+      throw_errno(ss.str());                                                   \
+    };                                                                         \
+    tmp;                                                                       \
+  })                                                                           \
+  _Pragma("clang diagnostic pop")

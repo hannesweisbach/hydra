@@ -70,8 +70,7 @@ template <typename T,
 void sendImmediate(::rdma_cm_id *id, const T &o) {
   check_zero(rdma_post_send(id, nullptr,
                             static_cast<void *>(const_cast<T *>(&o)), sizeof(T),
-                            nullptr, IBV_SEND_INLINE),
-             __func__);
+                            nullptr, IBV_SEND_INLINE));
 }
 
 template <typename RDMAFunctor, typename Continuation>
@@ -93,7 +92,7 @@ auto rdma_continuation(RDMAFunctor &&functor, Continuation &&continuation)
     delete f;
   };
 
-  check_zero(functor(f), __func__);
+  check_zero(functor(f));
 
   return promise->get_future();
 }
@@ -122,7 +121,7 @@ auto async_rdma_operation2(RDMAFunctor &&functor, T value)
   };
 
   log_info() << "wr_id: " << (void *)f;
-  check_zero(functor(reinterpret_cast<void*>(f)), __func__);
+  check_zero(functor(reinterpret_cast<void*>(f)));
 
   return promise->get_future();
 }
@@ -155,7 +154,7 @@ auto async_rdma_operation(RDMAFunctor &&functor)
 
   //log_info() << "wr_id: " << reinterpret_cast<void *>(f)
   //           << " promise: " << reinterpret_cast<void *>(promise.get());
-  check_zero(functor(reinterpret_cast<void*>(f)), __func__);
+  check_zero(functor(reinterpret_cast<void*>(f)));
 
   return promise->get_future();
 }

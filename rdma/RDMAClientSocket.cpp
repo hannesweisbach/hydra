@@ -51,7 +51,7 @@ RDMAClientSocket::~RDMAClientSocket() {
 }
 
 void RDMAClientSocket::connect() const {
-  check_zero(rdma_connect(id.get(), nullptr), "rdma_connect");
+  check_zero(rdma_connect(id.get(), nullptr));
 }
 
 void RDMAClientSocket::disconnect() const { rdma_disconnect(id.get()); }
