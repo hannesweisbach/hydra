@@ -318,56 +318,53 @@ static void call_completion_handler(const ibv_wc &wc) {
 }
 
 static bool recv_helper__(ibv_comp_channel *cc) {
-  int err;
+  int ret;
   unsigned int n_events = 0;
   void *user_context;
   struct ibv_cq *cq;
-  struct ibv_wc wc;
+  struct ibv_wc wcs[16];
   bool flushing = false;
 
   /* TODO maybe use rdma_get_recv/send_comp? */
-  if (ibv_get_cq_event(cc, &cq, &user_context)) {
-    throw_errno("ibv_get_cq_event()");
-  }
-  ibv_req_notify_cq(cq, 0);
+  check_zero(ibv_get_cq_event(cc, &cq, &user_context));
+  ibv_ack_cq_events(cq, 1);
+  check_zero(ibv_req_notify_cq(cq, 0));
 
-  while ((err = ibv_poll_cq(cq, 1, &wc))) {
-    if (err < 0) {
+  while ((ret = ibv_poll_cq(cq, 16, wcs))) {
+    if (ret < 0) {
       throw_errno("ibv_poll_cq()");
       break;
     }
-    n_events++;
 
-    if (wc.status == IBV_WC_WR_FLUSH_ERR) {
-      flushing = true;
-    }
+    for (int i = 0; i < ret; i++) {
+      struct ibv_wc wc = wcs[i];
+      if (wc.status == IBV_WC_WR_FLUSH_ERR) {
+        flushing = true;
+      }
 
-    if (wc.status != IBV_WC_SUCCESS) {
-      /* wc.opcode is invalid - but we need to set the an exception in the
-       * std::future */
-      call_completion_handler(wc);
-      continue;
-    }
+      if (wc.status != IBV_WC_SUCCESS) {
+        /* wc.opcode is invalid - but we need to set the an exception in the
+         * std::future */
+        call_completion_handler(wc);
+        continue;
+      }
 
-    switch (wc.opcode) {
-    case IBV_WC_SEND:
-      [[clang::fallthrough]];
-    case IBV_WC_RECV:
-      [[clang::fallthrough]];
-    case IBV_WC_RDMA_READ:
-      call_completion_handler(wc);
-      break;
-    default:
-      log_info() << "Received " << wc.opcode << " on id " << std::hex
-                 << std::showbase << wc.wr_id << std::dec;
-      break;
+      switch (wc.opcode) {
+      case IBV_WC_SEND:
+        [[clang::fallthrough]];
+      case IBV_WC_RECV:
+        [[clang::fallthrough]];
+      case IBV_WC_RDMA_READ:
+        call_completion_handler(wc);
+        break;
+      default:
+        log_info() << "Received " << wc.opcode << " on id " << std::hex
+                   << std::showbase << wc.wr_id << std::dec;
+        break;
+      }
     }
   }
 
-  ibv_ack_cq_events(cq, n_events);
-  if (ibv_req_notify_cq(cq, 0)) {
-    throw_errno("ibv_req_notify_cq()");
-  }
   return flushing;
 }
 
