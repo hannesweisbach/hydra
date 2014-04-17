@@ -59,7 +59,6 @@ public:
       : table(table), shadow_table(initial_size), table_size(initial_size),
         used(0), growth_factor(growth_factor_) {
     for (size_t i = 0; i < table_size; i++) {
-      log_info() << i << " " << (void *)shadow_table[i].mem.get();
       shadow_table[i].empty();
       table[i]([](auto &&entry) { entry.empty(); });
       //table[i].empty();
