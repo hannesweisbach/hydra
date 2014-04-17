@@ -43,7 +43,9 @@ std::ostream &operator<<(std::ostream &ostream,
     CASE(IBV_WC_RECV);
     CASE(IBV_WC_RECV_RDMA_WITH_IMM);
   }
+#if __GNUC__ and not __clang__
   return ostream;
+#endif
 }
 
 std::ostream &operator<<(std::ostream &ostream, const ibv_mr &mr) {
@@ -69,7 +71,9 @@ std::ostream &operator<<(std::ostream &ostream, const enum ibv_atomic_cap& cap) 
     CASE(IBV_ATOMIC_HCA);
     CASE(IBV_ATOMIC_GLOB);
   }
+#if __GNUC__ and not __clang__
   return ostream;
+#endif
 }
 
 std::ostream &operator<<(std::ostream &ostream, const ibv_device_attr &attr) {
