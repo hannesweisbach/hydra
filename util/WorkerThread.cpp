@@ -16,9 +16,7 @@ WorkerThread::process_work() {
     std::function<void()> work_item;
     {
       std::unique_lock<std::mutex> lock(list_lock);
-      while(queue.size() == 0) {
-        empty.wait(lock);
-      }
+      empty.wait(lock, [&]() { return queue.size() > 0; });
       work_item = queue.front();
       queue.pop_front();
     }
