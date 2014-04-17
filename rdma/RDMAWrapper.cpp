@@ -8,8 +8,10 @@
 
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/epoll.h>
 #include <sys/select.h>
 #include <netdb.h>
+#include <unistd.h>
 
 #include "RDMAWrapper.hpp"
 
@@ -369,11 +371,52 @@ static bool recv_helper__(ibv_comp_channel *cc) {
   return flushing;
 }
 
-std::future<void> rdma_handle_cq_event_async(std::atomic_bool &running,
-                                             ibv_comp_channel *cc,
-                                             async_queue_type queue) {
-  return hydra::async(queue, [=, &running] {
-    int fd = cc->fd;
+class epoll_wrapper {
+  int efd;
+
+public:
+  epoll_wrapper() : efd(epoll_create(1)) {
+    if (efd < 0)
+      throw_errno();
+  }
+  ~epoll_wrapper() { close(efd); }
+  void add(int fd, epoll_event *event) {
+    check_zero(epoll_ctl(efd, EPOLL_CTL_ADD, fd, event));
+  }
+  void del(int fd) { check_zero(epoll_ctl(efd, EPOLL_CTL_DEL, fd, nullptr)); }
+  void mod(int fd, epoll_event *event) {
+    check_zero(epoll_ctl(efd, EPOLL_CTL_MOD, fd, event));
+  }
+  int wait(epoll_event *events, int maxevents, int timeout) {
+    for (;;) {
+      int ret = epoll_wait(efd, events, maxevents, timeout);
+      if (ret < 0) {
+        if (errno == EINTR) {
+          log_info() << "Interrupted.";
+          continue;
+        } else {
+          throw_errno();
+        }
+      }
+      return ret;
+    }
+  }
+};
+
+std::future<void> rdma_handle_cq_event_async(ibv_comp_channel *cc,
+                                             async_queue_type queue,
+                                             int pipe_fd) {
+  return hydra::async(queue, [=] {
+    std::array<epoll_event, 2> events;
+    epoll_wrapper poll;
+    events[0].events = EPOLLIN;
+    events[0].data.fd = cc->fd;
+    events[1].events = EPOLLIN;
+    events[1].data.fd = pipe_fd;
+
+    poll.add(cc->fd, &events[0]);
+    poll.add(pipe_fd, &events[1]);
+
     bool flushing = false;
     while (1) {
       /* TODO: throw exeception/return if
@@ -381,26 +424,19 @@ std::future<void> rdma_handle_cq_event_async(std::atomic_bool &running,
        *   rdma_disconnect() was called) and
        * - subsequent select() timed out (we got the last event -- the queue is
        *   drained
+       *   TODO: we don't have a timeout anymore. can we just quit? (and thus
+       *         drop flushing?)
        * - The above doesn't work for an (empty) send queue.
        *   -> use SRQ?
        *   -> boolean
        */
-      fd_set rfds;
-      FD_ZERO(&rfds);
-      FD_SET(fd, &rfds);
-      struct timeval timeout = { 1, 0 };
-      int err = select(fd + 1, &rfds, nullptr, nullptr, &timeout);
-      if (err == 0) {
-        /* timeout - to check done */
-        if (flushing || !running.load())
-          return;
-      } else if (err < 0) {
-        throw_errno("select()");
-      } else {
-        if (FD_ISSET(fd, &rfds)) {
-          // TODO maybe throw exception on error -- at least throw exception on
-          // qp error state
+      int ret = poll.wait(events.data(), events.size(), -1);
+      for (int i = 0; i < ret; i++) {
+        if (events[i].data.fd == cc->fd) {
           flushing = recv_helper__(cc);
+        } else if (events[i].data.fd == pipe_fd) {
+          close(pipe_fd);
+          return;
         } else {
           log_err() << "Quit select without error, timeout and an fd set";
           assert(false);

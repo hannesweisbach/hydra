@@ -44,7 +44,8 @@ class RDMAClientSocket {
   dispatch_queue_t recv_queue;
 #endif
   std::atomic_bool running;
-
+  int fd1;
+  int fd2;
 #if 0
   mutable hydra::ThreadSafeHeap<hydra::ZoneHeap<RdmaHeap<hydra::rdma::LOCAL_READ>, 256>> local_heap;
 #else

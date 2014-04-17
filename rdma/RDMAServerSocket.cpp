@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <assert.h>
+#include <unistd.h>
 
 #include "RDMAServerSocket.h"
 #include "RDMAWrapper.hpp"
@@ -37,15 +38,22 @@ RDMAServerSocket::RDMAServerSocket(const std::string &host,
   if (ibv_req_notify_cq(cq.get(), 0))
     throw_errno("ibv_req_notify");
 #endif
-  async_fut = rdma_handle_cq_event_async(running, cc.get());
+  queue = dispatch_queue_create("hydra.cq.server-queue", nullptr);
+  int fds[2];
+  pipe(fds);
+  fd1 = fds[1];
+  async_fut = rdma_handle_cq_event_async(cc.get(), queue, fds[0]);
   cm_events();
 }
 
 RDMAServerSocket::~RDMAServerSocket() {
   running = false;
+  char c;
+  write(fd1, &c, 1);
+  close(fd1);
+  rdma_disconnect(id.get());
   rdma_destroy_srq(id.get());
-  assert(false);
-  //rdma_disconnect(id.get());
+  dispatch_release(queue);
 }
 
 std::future<void> RDMAServerSocket::disconnect(const qp_t qp_num) const {

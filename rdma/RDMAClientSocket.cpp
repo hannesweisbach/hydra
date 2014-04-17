@@ -1,5 +1,6 @@
 #include <rdma/rdma_cma.h>
 #include <netdb.h>
+#include <unistd.h>
 
 #include "Logger.h"
 #include "RDMAWrapper.hpp"
@@ -28,10 +29,15 @@ RDMAClientSocket::RDMAClientSocket(const std::string &host,
 #ifdef HAVE_LIBDISPATCH
   send_queue = dispatch_queue_create("hydra.cq.send", NULL);
   recv_queue = dispatch_queue_create("hydra.cq.recv", NULL);
+  int fds[2];
+  pipe(fds);
+  fd1 = fds[1];
   fut_recv =
-      rdma_handle_cq_event_async(running, id->recv_cq_channel, recv_queue);
+      rdma_handle_cq_event_async(id->recv_cq_channel, recv_queue, fds[0]);
+  pipe(fds);
+  fd2 = fds[1];
   fut_send =
-      rdma_handle_cq_event_async(running, id->send_cq_channel, send_queue);
+      rdma_handle_cq_event_async(id->send_cq_channel, send_queue, fds[0]);
 #else
   fut_recv = rdma_handle_cq_event_async(running, id->recv_cq_channel, 0);
   fut_send = rdma_handle_cq_event_async(running, id->send_cq_channel, 0);
@@ -66,11 +72,16 @@ RDMAClientSocket &RDMAClientSocket::operator=(RDMAClientSocket &&other) {
 
 RDMAClientSocket::~RDMAClientSocket() {
   disconnect();
-  running = false;
+  //running = false;
+  char c;
+  write(fd1, &c, 1);
+  write(fd2, &c, 1);
   fut_recv.get();
   fut_send.get();
   dispatch_release(send_queue);
   dispatch_release(recv_queue);
+  close(fd1);
+  close(fd2);
 }
 
 void RDMAClientSocket::connect() const {

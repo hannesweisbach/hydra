@@ -18,9 +18,10 @@
 
 #ifdef HAVE_LIBDISPATCH
 std::future<void> rdma_handle_cq_event_async(
-    std::atomic_bool &running, ibv_comp_channel *cc,
+    ibv_comp_channel *cc,
     async_queue_type queue =
-        dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0));
+        dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
+    int pipe_fd = -1);
 
 #else
 std::future<void> rdma_handle_cq_event_async(std::atomic_bool &running,

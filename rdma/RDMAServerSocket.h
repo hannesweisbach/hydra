@@ -28,6 +28,9 @@ private:
   std::atomic_bool running;
   mutable monitor<std::unordered_map<qp_t, RDMAServerSocket::client_t> > clients;
 
+  dispatch_queue_t queue;
+  int fd1;
+
   void accept(client_t id) const;
   void cm_events() const;
 
