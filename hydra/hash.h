@@ -8,14 +8,16 @@
 
 #include <city.h>
 
+#include "hydra/keyspace.h"
+
 namespace hydra {
 template <typename T>
-inline __uint128_t hash(const T * s, size_t len) {
+inline hydra::keyspace_t::value_type hash(const T *s, size_t len) {
   uint128 h = CityHash128(reinterpret_cast<const char *>(s), len);
-  return (
-             __uint128_t)Uint128High64(h)
-             << std::numeric_limits<std::uint64_t>::digits |
-         Uint128Low64(h);
+  return static_cast<hydra::keyspace_t::value_type>(
+      static_cast<__uint128_t>(Uint128High64(h))
+                               << std::numeric_limits<std::uint64_t>::digits |
+      static_cast<__uint128_t>(Uint128Low64(h)));
 }
 
 template <typename T>
@@ -31,14 +33,14 @@ inline uint64_t hash64(const T &s, size_t size = sizeof(T)) {
 
 template <typename T, typename = typename std::enable_if<
                           !std::is_pointer<T>::value, T>::type>
-inline __uint128_t hash(const T& s, size_t size = sizeof(T)) {
+inline hydra::keyspace_t::value_type hash(const T &s, size_t size = sizeof(T)) {
   return hash(&s, size);
 }
 
-template<>
-inline __uint128_t hash<std::string>(const std::string& s, size_t) {
-  return hash((char*)s.c_str(), s.size());
+template <>
+inline hydra::keyspace_t::value_type hash<std::string>(const std::string &s,
+                                                       size_t) {
+  return hash((char *)s.c_str(), s.size());
 }
 }
-
 
