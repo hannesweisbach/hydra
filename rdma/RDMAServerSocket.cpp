@@ -20,7 +20,7 @@ RDMAServerSocket::RDMAServerSocket(const std::string &host,
                                    int cq_entries)
     : ec(createEventChannel()), id(createCmId(host, port, true)),
       cc(createCompChannel(id)), cq(createCQ(id, cq_entries, nullptr, cc, 0)),
-      running(true) {
+      running(true), clients("clients") {
   assert(max_wr);
         log_info() << "Created id " << id.get() << " " << (void*) this;
         check_zero(rdma_migrate_id(id.get(), ec.get()));

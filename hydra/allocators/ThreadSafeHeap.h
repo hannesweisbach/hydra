@@ -14,7 +14,7 @@ public:
   using rdma_ptr = typename SuperHeap::template rdma_ptr<T>;
   template <typename... Args>
   ThreadSafeHeap(Args &&... args)
-      : superHeap(std::forward<Args>(args)...) {}
+      : superHeap("ThreadSafeHeap", std::forward<Args>(args)...) {}
 
   ThreadSafeHeap(ThreadSafeHeap &&other)
       : superHeap(std::move(other.superHeap)) {}

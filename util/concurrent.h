@@ -147,6 +147,7 @@ auto then(Future &&future, Functor &&functor)
 }
 }
 
+#if 0
 template <typename T> class monitor {
   std::string name;
   mutable dispatch_queue_t queue;
@@ -182,6 +183,65 @@ public:
     return hydra::async(queue, std::forward<F>(f), data_);
   }
 };
+#else
+template <typename T> class monitor {
+  mutable T data_;
+  mutable hydra::spinlock mutex_;
+
+public:
+  monitor() = default;
+  template <typename... Args>
+  monitor(const std::string &name, Args &&... args)
+      : data_(std::forward<Args>(args)...), mutex_(name) {}
+
+#if 0
+  monitor<T>& operator=(monitor<T>&& other) {
+    std::swap(data_, other.data_);
+    std::swap(mutex_, other.mutex_);
+
+    return *this;
+  }
+#endif
+
+  template <typename F, typename = typename std::enable_if<
+                            !std::is_same<typename std::result_of<F(T &)>::type,
+                                          void>::value>::type>
+  auto operator()(F &&f)
+      const -> std::future<typename std::result_of<F(T &)>::type> {
+#if 0
+    return std::async(std::launch::async, [
+                                            &,
+                                            f_ = std::forward<F>(f)
+                                          ]() {
+      std::unique_lock<std::mutex> lock(mutex_);
+      return f_(data_);
+    });
+#endif
+    std::promise<typename std::result_of<F(T &)>::type> promise;
+    {
+      std::unique_lock<hydra::spinlock> lock(mutex_);
+      promise.set_value(f(data_));
+    }
+    //mutex_.__debug();
+    return promise.get_future();
+  }
+
+  template <typename F,
+            typename = typename std::enable_if<std::is_same<
+                typename std::result_of<F(T &)>::type, void>::value>::type>
+  auto operator()(F &&f) const -> std::future<void> {
+    std::promise<void> promise;
+    {
+      std::unique_lock<hydra::spinlock> lock(mutex_);
+      f(data_);
+    }
+    promise.set_value();
+    //mutex_.__debug();
+    return promise.get_future();
+  }
+};
+
+#endif
 
 #else /* HAVE_LIBDISPATCH */
 
