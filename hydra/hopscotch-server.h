@@ -19,7 +19,12 @@ class hopscotch_server : public server_dht {
 
 public:
   hopscotch_server(LocalRDMAObj<key_entry> * table, size_t hop_range = 32, size_t initial_size = 32)
-      : server_dht(table, initial_size), hop_range(hop_range) {}
+      : server_dht(table, initial_size), hop_range(hop_range) {
+    assert(
+        ("Number of hops must be <= the number of bits in the type of the hop "
+         "mask.",
+         hop_range <= std::numeric_limits<decltype(key_entry::hop)>::digits));
+  }
   hopscotch_server(const hopscotch_server &) = delete;
   hopscotch_server(hopscotch_server &&) = default;
   Return_t add(resource_entry &&e) override;
