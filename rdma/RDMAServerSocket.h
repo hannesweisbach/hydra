@@ -63,6 +63,7 @@ public:
 
   std::future<void> disconnect(const qp_t qp_num) const;
   void listen(int backlog = 10);
+  rdma_cm_id * find(const qp_t qp_num) const;
   
   template <typename T>
   std::future<T *> recv_async(const T *local, const ibv_mr *mr,

@@ -70,6 +70,16 @@ std::future<void> RDMAServerSocket::disconnect(const qp_t qp_num) const {
   });
 }
 
+rdma_cm_id *RDMAServerSocket::find(const qp_t qp_num) const {
+  return clients([=](const auto & clients)->rdma_cm_id * {
+    auto client = clients.find(qp_num);
+    if (client != std::end(clients))
+      return client->second.get();
+    else
+      return nullptr;
+  }).get();
+}
+
 void RDMAServerSocket::listen(int backlog) {
   if (rdma_listen(id.get(), backlog))
     throw_errno("rdma_listen");
