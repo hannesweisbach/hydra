@@ -59,7 +59,6 @@ void hydra::hopscotch_server::add(hydra::hopscotch_server::resource_entry&& e, c
   assert(distance < hop_range);
   table[home]([=](auto &&entry) { entry.set_hop(distance); });
   shadow_table[to] = std::move(e);
-  used++;
 }
 
 void hydra::hopscotch_server::move(size_t from, size_t to) {
@@ -103,6 +102,7 @@ hydra::Return_t hydra::hopscotch_server::add(hydra::hopscotch_server::resource_e
     if (distance < hop_range) {
       add(std::move(e), next, index);
       dump();
+      used++;
       return SUCCESS;
     }
   }
