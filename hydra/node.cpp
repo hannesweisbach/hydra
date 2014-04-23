@@ -326,5 +326,13 @@ void node::handle_del(const remove_request &msg, const qp_t &qp) {
 void node::ack(const qp_t &qp, const response &r) const {
   socket(qp, [=](rdma_cm_id *id) { sendImmediate(id, r); });
 }
+
+double node::load() const {
+  return dht([](const hopscotch_server &s) { return s.load_factor(); }).get();
+}
+
+void node::dump() const {
+  dht([](const auto &s) { s.dump(); });
+}
 }
 

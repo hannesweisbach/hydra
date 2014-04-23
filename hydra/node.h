@@ -62,6 +62,8 @@ public:
   node(const std::string& ip, const std::string &port,
        uint32_t msg_buffers = 5);
   void join(const std::string& ip, const std::string& port);
+  double load() const;
+  void dump() const;
 };
 
 }
