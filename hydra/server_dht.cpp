@@ -17,6 +17,7 @@ void hydra::server_dht::resize(LocalRDMAObj<key_entry> * new_table, size_t size)
 
   table = new_table;
 
+  //TODO: initialize /w placement new
   for(size_t i = 0; i < size; i++)
     table[i]([](auto &&entry) { entry.empty(); });
 
