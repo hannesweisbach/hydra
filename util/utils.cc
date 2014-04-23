@@ -1,17 +1,45 @@
 #include "concurrent.h"
 
-namespace hydra {
-spinlock::spinlock() noexcept : lock_(false) {}
+#define YIELD 0
 
+namespace hydra {
+spinlock::spinlock() noexcept : locks(0), spins(0), yields(0), lock_(false) {}
+spinlock::spinlock(const std::string &name) noexcept : name(name),
+                                                       locks(0),
+                                                       spins(0),
+                                                       yields(0),
+                                                       lock_(false) {}
 void spinlock::lock() noexcept {
+  locks++;
   if (!lock_.test_and_set(std::memory_order_acquire))
     return;
-  for (size_t i = 0; i < 1024; i++)
+
+#if YIELD
+  for (size_t i = 0; i < 1024; i++) {
+#else
+  for (;;) {
+#endif
     if (!lock_.test_and_set(std::memory_order_acquire))
       return;
-  while (lock_.test_and_set(std::memory_order_acquire))
+    asm volatile("pause":::);
+    spins++;
+  }
+#if YIELD
+  while (lock_.test_and_set(std::memory_order_acquire)) {
     std::this_thread::yield();
+    yields++;
+  }
+#endif
 }
 void spinlock::unlock() noexcept { lock_.clear(std::memory_order_release); }
+
+void spinlock::__debug() noexcept {
+  if (name.empty())
+    log_debug() << static_cast<void *>(this) << " " << locks.load() << " "
+                << spins.load() << " " << yields.load();
+  else
+    log_debug() << name << " " << locks.load() << " " << spins.load() << " "
+                << yields.load();
+}
 }
 
