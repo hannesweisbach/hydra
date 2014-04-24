@@ -80,16 +80,7 @@ std::ostream &operator<<(std::ostream &ostream, const ibv_device_attr &attr) {
   ostream << "struct ibv_device_attr {" << std::endl;
   {
     indent_guard guard(ostream);
-    ostream << indent << "char fw_ver[64] = " << std::hex;
-    for (size_t i = 0; i < 32; i++)
-      ostream << static_cast<unsigned>(attr.fw_ver[i]) << " ";
-    ostream << std::endl;
-
-    ostream << indent << "                  ";
-    for (size_t i = 32; i < 64; i++)
-      ostream << static_cast<unsigned>(attr.fw_ver[i]) << " ";
-    ostream << std::endl << std::dec;
-
+    ostream << indent << "char fw_ver[64] = " << attr.fw_ver << std::endl;
     ostream << indent << "uint64_t node_guid = " << attr.node_guid << std::endl;
     ostream << indent << "uint64_t sys_image_guid = " << attr.sys_image_guid
             << std::endl;
