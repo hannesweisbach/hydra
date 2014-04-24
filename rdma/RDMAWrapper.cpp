@@ -165,6 +165,30 @@ std::ostream &operator<<(std::ostream &ostream, const ibv_device &dev) {
   return ostream;
 }
 
+std::ostream &operator<<(std::ostream &ostream, const ibv_srq_init_attr &attr) {
+  ostream << "struct ibv_srq_init_attr {" << std::endl;
+  {
+    indent_guard guard(ostream);
+    ostream << indent << "void *srq_context = " << attr.srq_context
+            << std::endl;
+    ostream << indent << "ibv_srq_attr attr = " << attr.attr << std::endl;
+  }
+  ostream << indent << "}; @" << (void *)&attr;
+  return ostream;
+}
+
+std::ostream &operator<<(std::ostream &ostream, const ibv_srq_attr &attr) {
+  ostream << "struct ibv_srq_attr {" << std::endl;
+  {
+    indent_guard guard(ostream);
+    ostream << indent << "uint32_t max_wr    = " << attr.max_wr << std::endl;
+    ostream << indent << "uint32_t max_sge   = " << attr.max_sge << std::endl;
+    ostream << indent << "uint32_t srq_limit = " << attr.srq_limit << std::endl;
+  }
+  ostream << indent << "}; @" << (void *)&attr;
+  return ostream;
+}
+
 ec_ptr createEventChannel() {
   return ec_ptr(check_nonnull(::rdma_create_event_channel()),
                 ::rdma_destroy_event_channel);

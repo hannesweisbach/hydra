@@ -36,6 +36,8 @@ std::ostream &operator<<(std::ostream &ostream, const ibv_mr &mr);
 std::ostream &operator<<(std::ostream &ostream, const ibv_device_attr &attr);
 std::ostream &operator<<(std::ostream &ostream, const enum ibv_atomic_cap& cap);
 std::ostream &operator<<(std::ostream &ostream, const ibv_device &dev);
+std::ostream &operator<<(std::ostream &ostream, const ibv_srq_init_attr &attr);
+std::ostream &operator<<(std::ostream &ostream, const ibv_srq_attr &attr);
 
 using mr_ptr = std::unique_ptr< ::ibv_mr, std::function<void(ibv_mr *)> >;
 using rdma_id_ptr = std::unique_ptr< ::rdma_cm_id, decltype(&rdma_destroy_ep)>;
