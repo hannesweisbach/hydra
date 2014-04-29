@@ -10,7 +10,8 @@ struct keyspace_t {
 
   static_assert(std::numeric_limits<value_type>::digits,
                 "You have to implement std::numeric_limits<keyspace_t>.");
-
+  static_assert(!std::numeric_limits<value_type>::is_signed,
+                "hydra::keyspace_t::value_type must be unsigned.");
   static_assert(
       is_power_of_two<std::numeric_limits<value_type>::digits>::value,
       "std::numeric_limits<keyspace_t>::digits must be a power of two.");
