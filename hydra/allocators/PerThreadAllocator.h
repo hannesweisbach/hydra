@@ -19,7 +19,8 @@ template <typename SuperHeap> class PerThreadHeap {
     AlignedHeap(Args &&... args)
         : SuperHeap(std::forward<Args>(args)...) {}
   };
-  std::vector<AlignedHeap> heaps;
+  AlignedHeap *heaps = nullptr;
+  const size_t numHeaps;
 #ifndef NDEBUG
   std::vector<size_t> usage;
 #endif
@@ -29,19 +30,24 @@ public:
   using pointer_t = typename SuperHeap::template pointer_t<T>;
   template <typename T>
   using rdma_ptr = typename SuperHeap::template rdma_ptr<T>;
-  template <typename... Args> PerThreadHeap(size_t numHeaps, Args &&... args) 
+  template <typename... Args>
+  PerThreadHeap(size_t numHeaps, Args &&... args)
+      : numHeaps(numHeaps)
 #ifndef NDEBUG
-    : usage(numHeaps, 0) 
+        ,
+        usage(numHeaps, 0)
 #endif
-    {
-    heaps.reserve(numHeaps);
+  {
+    heaps = reinterpret_cast<AlignedHeap *>(
+        new char[sizeof(AlignedHeap) * numHeaps]);
     for (size_t i = 0; i < numHeaps; i++) {
       // TODO warn on rvalues
-      heaps.emplace_back(std::forward<Args>(args)...);
+      new (&heaps[i]) AlignedHeap(std::forward<Args>(args)...);
     }
   }
 #ifndef NDEBUG
   ~PerThreadHeap() {
+    delete []heaps;
     log_info() << "Usage stats:";
     for(size_t i = 0; i < usage.size(); i++)
       log_info() << "Heap " << i << " " << usage[i];
@@ -54,7 +60,7 @@ public:
     size_t index = hash(std::this_thread::get_id()) % heaps.size();
 #else
     /* cityhash is faster and more uniform */
-    size_t index = hydra::hash64(std::this_thread::get_id()) % heaps.size();
+    size_t index = hydra::hash64(std::this_thread::get_id()) % numHeaps;
 #endif
 #ifndef NDEBUG
     usage[index]++;
