@@ -74,7 +74,9 @@ public:
   void resize(LocalRDMAObj<key_entry> *new_table, size_t size);
 
   size_t size() const { return table_size; }
-  size_t next_size() const { return (size_t)(table_size * growth_factor); }
+  virtual size_t next_size() const {
+    return (size_t)(table_size * growth_factor);
+  }
   double load_factor() const { return double(used) / table_size; }
 };
 }

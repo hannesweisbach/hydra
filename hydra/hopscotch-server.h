@@ -30,6 +30,7 @@ public:
   Return_t add(resource_entry &&e) override;
   Return_t remove(const key_type& key) override;
   size_t contains(const key_type &key) override;
+  size_t next_size() const override;
   void dump() const;
   void check_consistency() const;
 };

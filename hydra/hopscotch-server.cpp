@@ -22,6 +22,14 @@ std::ostream &hydra::operator<<(std::ostream &s, const hydra::key_entry &e) {
   return s;
 }
 
+size_t hydra::hopscotch_server::next_size() const {
+  const size_t max_size =
+      std::numeric_limits<hydra::keyspace_t::value_type>::max() + hop_range;
+  assert(("Table cannot grow anymore.", table_size <= max_size));
+  const size_t proposed_next_size = server_dht::next_size();
+  return std::min(max_size, proposed_next_size);
+}
+
 size_t hydra::hopscotch_server::home_of(const hydra::server_dht::key_type &key) const {
   __uint128_t h = hash(key.first, key.second);
   return (h % table_size);
