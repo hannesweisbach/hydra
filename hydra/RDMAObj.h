@@ -19,35 +19,26 @@ public:
 };
 
 template <typename T> class LocalRDMAObj : public RDMAObj<T> {
-  
+
+  template <typename F> void void_helper(F &&f, std::true_type) {
+    f(RDMAObj<T>::obj);
+    RDMAObj<T>::rehash();
+  }
+
+  template <typename F> auto void_helper(F &&f, std::false_type) {
+    auto ret = f(RDMAObj<T>::obj);
+    RDMAObj<T>::rehash();
+    return ret;
+  }
+
 public:
   template <typename... Args>
   LocalRDMAObj(Args &&... args)
       : RDMAObj<T>(std::forward<Args>(args)...) {}
-#if 0
-  template <typename F>
-  auto operator()(F &&f) const -> typename std::result_of<F(const T &)>::type {
-    return f(obj);
-  }
-#endif
-  
-  template <typename F, typename = typename std::enable_if<
-                            !std::is_same<typename std::result_of<F(T &)>::type,
-                                          void>::value>::type>
-  auto operator()(F &&f) -> typename std::result_of<F(T &)>::type {
-    auto ret = f(RDMAObj<T>::obj);
-    RDMAObj<T>::rehash();
-    //RDMAObj<T>::crc = hydra::hash64(&RDMAObj<T>::obj);
-    return ret;
-  }
 
-  template <typename F,
-            typename = typename std::enable_if<std::is_same<
-                typename std::result_of<F(T &)>::type, void>::value>::type>
-  void operator()(F &&f) {
-    f(RDMAObj<T>::obj);
-    //RDMAObj<T>::crc = hydra::hash64(&LocalRDMAObj<T>::obj);
-    RDMAObj<T>::rehash();
+  template <typename F> auto operator()(F &&f) {
+    return void_helper(std::forward<F>(f),
+                       std::is_void<typename std::result_of<F(T &)>::type>());
   }
 };
 
