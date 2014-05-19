@@ -188,6 +188,37 @@ template <typename T> class monitor {
   mutable T data_;
   mutable hydra::spinlock mutex_;
 
+  template <typename F>
+  std::future<void> void_helper(F &&f, std::true_type) const {
+    std::promise<void> promise;
+    {
+      std::unique_lock<hydra::spinlock> lock(mutex_);
+      f(data_);
+    }
+    promise.set_value();
+    // mutex_.__debug();
+    return promise.get_future();
+  }
+
+  template <typename F> auto void_helper(F &&f, std::false_type) const {
+#if 0
+    return std::async(std::launch::async, [
+                                            &,
+                                            f_ = std::forward<F>(f)
+                                          ]() {
+      std::unique_lock<std::mutex> lock(mutex_);
+      return f_(data_);
+    });
+#endif
+    std::promise<typename std::result_of<F(T &)>::type> promise;
+    {
+      std::unique_lock<hydra::spinlock> lock(mutex_);
+      promise.set_value(f(data_));
+    }
+    // mutex_.__debug();
+    return promise.get_future();
+  }
+
 public:
   monitor() = default;
   template <typename... Args>
@@ -203,41 +234,11 @@ public:
   }
 #endif
 
-  template <typename F, typename = typename std::enable_if<
-                            !std::is_same<typename std::result_of<F(T &)>::type,
-                                          void>::value>::type>
+  template <typename F>
   auto operator()(F &&f)
       const -> std::future<typename std::result_of<F(T &)>::type> {
-#if 0
-    return std::async(std::launch::async, [
-                                            &,
-                                            f_ = std::forward<F>(f)
-                                          ]() {
-      std::unique_lock<std::mutex> lock(mutex_);
-      return f_(data_);
-    });
-#endif
-    std::promise<typename std::result_of<F(T &)>::type> promise;
-    {
-      std::unique_lock<hydra::spinlock> lock(mutex_);
-      promise.set_value(f(data_));
-    }
-    //mutex_.__debug();
-    return promise.get_future();
-  }
-
-  template <typename F,
-            typename = typename std::enable_if<std::is_same<
-                typename std::result_of<F(T &)>::type, void>::value>::type>
-  auto operator()(F &&f) const -> std::future<void> {
-    std::promise<void> promise;
-    {
-      std::unique_lock<hydra::spinlock> lock(mutex_);
-      f(data_);
-    }
-    promise.set_value();
-    //mutex_.__debug();
-    return promise.get_future();
+    return void_helper(std::forward<F>(f),
+                       std::is_void<typename std::result_of<F(T &)>::type>());
   }
 };
 
