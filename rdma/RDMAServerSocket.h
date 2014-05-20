@@ -34,6 +34,18 @@ private:
   void accept(client_t id) const;
   void cm_events() const;
 
+  template <typename T>
+  auto recv_async_helper(const T &local, const ibv_mr *mr, size_t size,
+                         std::true_type) {
+    return rdma_recv_async(id.get(), local, mr, size);
+  }
+
+  template <typename T>
+  auto recv_async_helper(const T &local, const ibv_mr *mr, size_t,
+                         std::false_type) {
+    return rdma_recv_async(id.get(), &local, mr, sizeof(T));
+  }
+
 public:
   RDMAServerSocket(const std::string &host, const std::string &port,
                    uint32_t max_wr = 10, int cq_entries = 10);
@@ -71,11 +83,9 @@ public:
     return rdma_recv_async(id.get(), local, mr, size);
   }
 
-  template <typename T, typename = typename std::enable_if<
-                            !std::is_pointer<T>::value>::type>
-  auto recv_async(const T &local, const ibv_mr *mr,
-                              size_t size = sizeof(T)) {
-    return rdma_recv_async(id.get(), &local, mr, size);
+  template <typename T>
+  auto recv_async(const T &local, const ibv_mr *mr, size_t size = sizeof(T)) {
+    return recv_async_helper(local, mr, size, std::is_pointer<T>());
   }
 
   template <typename T>
