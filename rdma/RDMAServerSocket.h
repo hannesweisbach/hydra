@@ -35,6 +35,20 @@ private:
   void cm_events() const;
 
   template <typename T>
+  auto read_helper(rdma_cm_id *id, const T &local, const size_t size,
+                   const ibv_mr *mr, const uint64_t &remote,
+                   const uint32_t &rkey, std::true_type) {
+    return rdma_read_async__(id, local, size, mr, remote, rkey);
+  }
+
+  template <typename T>
+  auto read_helper(rdma_cm_id *id, T &local, const size_t size,
+                   const ibv_mr *mr, const uint64_t &remote,
+                   const uint32_t &rkey, std::false_type) {
+    return rdma_read_async__(id, &local, size, mr, remote, rkey);
+  }
+
+  template <typename T>
   auto recv_async_helper(rdma_cm_id *id, const T &local, const ibv_mr *mr,
                          size_t size, std::true_type) {
     return rdma_recv_async(id, local, mr, size);
@@ -93,6 +107,14 @@ public:
                   size_t size = sizeof(T)) {
     return recv_async_helper(find(qp_num), local, mr, size,
                              std::is_pointer<T>());
+  }
+
+  template <typename T>
+  auto read(const qp_t &qp_num, T &local, const ibv_mr *mr,
+            const uint64_t &remote, const uint32_t &rkey,
+            const size_t size = sizeof(T)) {
+      return read_helper(find(qp_num), local, size, mr, remote, rkey,
+                         std::is_pointer<T>());
   }
 
         template <typename T>
