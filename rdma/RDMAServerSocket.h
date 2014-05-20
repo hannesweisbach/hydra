@@ -35,15 +35,15 @@ private:
   void cm_events() const;
 
   template <typename T>
-  auto recv_async_helper(const T &local, const ibv_mr *mr, size_t size,
-                         std::true_type) {
-    return rdma_recv_async(id.get(), local, mr, size);
+  auto recv_async_helper(rdma_cm_id *id, const T &local, const ibv_mr *mr,
+                         size_t size, std::true_type) {
+    return rdma_recv_async(id, local, mr, size);
   }
 
   template <typename T>
-  auto recv_async_helper(const T &local, const ibv_mr *mr, size_t,
-                         std::false_type) {
-    return rdma_recv_async(id.get(), &local, mr, sizeof(T));
+  auto recv_async_helper(rdma_cm_id *id, const T &local, const ibv_mr *mr,
+                         size_t, std::false_type) {
+    return rdma_recv_async(id, &local, mr, sizeof(T));
   }
 
 public:
@@ -85,10 +85,17 @@ public:
 
   template <typename T>
   auto recv_async(const T &local, const ibv_mr *mr, size_t size = sizeof(T)) {
-    return recv_async_helper(local, mr, size, std::is_pointer<T>());
+    return recv_async_helper(id.get(), local, mr, size, std::is_pointer<T>());
   }
 
   template <typename T>
+  auto recv_async(const qp_t qp_num, const T &local, const ibv_mr *mr,
+                  size_t size = sizeof(T)) {
+    return recv_async_helper(find(qp_num), local, mr, size,
+                             std::is_pointer<T>());
+  }
+
+        template <typename T>
   [[deprecated]]  ibv_mr * regMemory(const T*ptr, size_t size = sizeof(T)) const {
       log_trace() << id.get() << " " << (void*) this;
       return check_nonnull(rdma_reg_read(id.get(), static_cast<void*>(const_cast<T*>(ptr)), size), "rdma_reg_read");
