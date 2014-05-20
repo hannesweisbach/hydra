@@ -4,6 +4,9 @@ target_link_libraries(workerthread)
 add_library(logger STATIC Logger.cpp)
 add_library(demangle STATIC demangle.cc)
 
+add_library(futuredispatch STATIC dispatch.cc)
+target_link_libraries(futuredispatch dispatch)
+
 add_executable(demangler demangler.cc)
 target_link_libraries(demangler demangle)
 
