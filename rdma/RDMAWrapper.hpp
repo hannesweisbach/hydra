@@ -190,10 +190,11 @@ auto rdma_read_async(const rdma_id_ptr &id, const T &buffer, const size_t size,
 
 template <typename T>
 std::future<qp_t> rdma_read_async__(rdma_cm_id *id, T *local, size_t size,
-                                    ibv_mr *mr, uint64_t remote,
+                                    const ibv_mr *mr, uint64_t remote,
                                     uint32_t rkey) {
-  auto functor = std::bind(rdma_post_read, id, std::placeholders::_1, local,
-                           size, mr, IBV_SEND_SIGNALED, remote, rkey);
+  auto functor =
+      std::bind(rdma_post_read, id, std::placeholders::_1, local, size,
+                const_cast<ibv_mr *>(mr), IBV_SEND_SIGNALED, remote, rkey);
   return async_rdma_operation(functor);
 }
 
