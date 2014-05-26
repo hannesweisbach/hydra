@@ -148,35 +148,25 @@ auto then(Future &&future, Functor &&functor)
 }
 }
 
-#if 0
-template <typename T> class monitor {
+template <typename T> class active {
   std::string name;
   mutable dispatch_queue_t queue;
   mutable T data_;
 
 public:
-  monitor() : monitor(T()) {}
+  active() : active(T()) {}
   template <typename... Args>
-  monitor(Args &&... args)
-      : name("hydra.queue.monitor" +
+  active(const std::string&, Args &&... args)
+      : name("hydra.queue.active" +
              std::to_string(reinterpret_cast<uintptr_t>(this))),
         queue(dispatch_queue_create(name.c_str(), NULL)),
         data_(std::forward<Args>(args)...) {
     assert(queue);
   }
-  ~monitor() { dispatch_release(queue); }
+  ~active() { dispatch_release(queue); }
 
-  monitor(monitor<T> &&other)
-      : name(std::move(other.name)), queue(std::move(other.queue)),
-        data_(std::move(other.data_)) {}
-
-  monitor<T>& operator=(monitor<T>&& other) {
-    std::swap(name, other.name);
-    std::swap(queue, other.queue);
-    std::swap(data_, other.data_);
-
-    return *this;
-  }
+  active(active<T> &&) = delete;
+  active(const active &) = delete;
 
   template <typename F>
   auto operator()(F &&f)
@@ -184,7 +174,6 @@ public:
     return hydra::async(queue, std::forward<F>(f), data_);
   }
 };
-#else
 
 template <typename T, typename Lock = std::shared_timed_mutex> class monitor {
 #if 1
