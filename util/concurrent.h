@@ -287,7 +287,6 @@ public:
 
 #else /* HAVE_LIBDISPATCH */
 
-#include <mutex>
 typedef int async_queue_type;
 
 template <typename T> class monitor {
