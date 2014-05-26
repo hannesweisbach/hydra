@@ -2,6 +2,7 @@
 #include <memory>
 #include <future>
 #include <mutex>
+#include <shared_mutex>
 #include <list>
 #include <string>
 #include <iostream>
@@ -184,65 +185,116 @@ public:
   }
 };
 #else
-template <typename T> class monitor {
+
+template <typename T, typename Lock = std::shared_timed_mutex> class monitor {
+#if 1
+  template <typename T1> struct arguments;
+
+  template <typename T1, typename R, typename... Args>
+  struct arguments<R (T1::*)(Args...)> {
+    using type = std::tuple<Args...>;
+  };
+
+  template <typename T1, typename R, typename... Args>
+  struct arguments<R (T1::*)(Args...) const> {
+    using type = std::tuple<Args...>;
+  };
+
+  struct template_detector {
+    template <typename F, typename... Args>
+    static decltype(&F::template operator()<Args...>, std::true_type())
+        is_templated(int);
+
+    template <typename F, typename... Args>
+    static decltype(&F::operator(), std::false_type()) is_templated(...);
+  };
+
+  struct member_function_args {
+    template <typename F, typename... Args>
+    static typename arguments<decltype(&F::operator())>::type
+    expand_arguments(std::false_type);
+
+    template <typename F, typename... Args>
+    static typename arguments<decltype(&F::template operator()<Args...>)>::type
+    expand_arguments(std::true_type);
+  };
+
+  template <typename F, typename... A>
+  struct has_template : decltype(template_detector::template is_templated<F, A...>(0)) {
+  };
+
+  template <typename F, typename T1> struct functor_args {
+    using type = decltype(
+        member_function_args::template expand_arguments<F, T1>(has_template<F, T1>()));
+  };
+#endif
   mutable T data_;
-  mutable hydra::spinlock mutex_;
+  mutable Lock mutex_;
 
   template <typename F>
-  std::future<void> void_helper(F &&f, std::true_type) const {
-    std::promise<void> promise;
-    {
-      std::unique_lock<hydra::spinlock> lock(mutex_);
-      f(data_);
-    }
+  void void_helper(F &&f, std::promise<void> &promise, std::true_type) const {
+    f(data_);
     promise.set_value();
-    // mutex_.__debug();
+  }
+
+  template <typename F, typename R>
+  void void_helper(F &&f, std::promise<R> &promise, std::false_type) const {
+    promise.set_value(f(data_));
+  }
+
+  template <typename F, typename R = typename std::result_of<F(T &)>::type>
+  std::future<R> setup(F &&f) const {
+    std::promise<R> promise;
+    void_helper(std::forward<F>(f), promise, std::is_void<R>());
     return promise.get_future();
   }
 
-  template <typename F> auto void_helper(F &&f, std::false_type) const {
-#if 0
-    return std::async(std::launch::async, [
-                                            &,
-                                            f_ = std::forward<F>(f)
-                                          ]() {
-      std::unique_lock<std::mutex> lock(mutex_);
-      return f_(data_);
-    });
-#endif
-    std::promise<typename std::result_of<F(T &)>::type> promise;
+  template <typename F> auto const_helper(F &&f, std::true_type) const {
+    /* shared lock */
+    std::shared_lock<Lock> lock(mutex_);
+    return setup(std::forward<F>(f));
+  }
+
+  template <typename F> auto const_helper(F &&f, std::false_type) const {
+    std::unique_lock<Lock> lock(mutex_);
+    return setup(std::forward<F>(f));
+  }
+
+  template <typename F> auto copy_or_reference(F &&f, std::true_type) const {
+    using Args = typename functor_args<F, T>::type;
+    using FirstArgRef = typename std::tuple_element<0, Args>::type;
+    using FirstArg = typename std::remove_reference<FirstArgRef>::type;
+    using IsConst = typename std::is_const<FirstArg>::type;
+    return const_helper(std::forward<F>(f), IsConst());
+  }
+
+  template <typename F> auto copy_or_reference(F &&f, std::false_type) const {
+    T copy;
     {
-      std::unique_lock<hydra::spinlock> lock(mutex_);
-      promise.set_value(f(data_));
+      std::shared_lock<Lock> lock(mutex_);
+      copy = data_;
     }
-    // mutex_.__debug();
-    return promise.get_future();
+    std::cout << "copy - shared" << std::endl;
+    return f(std::move(copy));
+  }
+
+  template <typename F, typename FirstArgument = typename std::tuple_element<
+                            0, typename functor_args<F, T>::type>::type>
+  auto expand(F &&f) const {
+    return copy_or_reference(std::forward<F>(f),
+                             std::is_reference<FirstArgument>());
   }
 
 public:
   monitor() = default;
   template <typename... Args>
   monitor(const std::string &name, Args &&... args)
-      : data_(std::forward<Args>(args)...), mutex_(name) {}
+      : data_(std::forward<Args>(args)...) /*, mutex_(name)*/ {}
 
-#if 0
-  monitor<T>& operator=(monitor<T>&& other) {
-    std::swap(data_, other.data_);
-    std::swap(mutex_, other.mutex_);
-
-    return *this;
-  }
-#endif
-
-  template <typename F>
-  auto operator()(F &&f)
-      const -> std::future<typename std::result_of<F(T &)>::type> {
-    return void_helper(std::forward<F>(f),
-                       std::is_void<typename std::result_of<F(T &)>::type>());
+  template <typename F> auto operator()(F &&f) const {
+    return expand(std::forward<F>(f));
   }
 };
-
-#endif
 
 #else /* HAVE_LIBDISPATCH */
 
