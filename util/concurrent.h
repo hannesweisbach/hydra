@@ -176,7 +176,6 @@ public:
 };
 
 template <typename T, typename Lock = std::shared_timed_mutex> class monitor {
-#if 1
   template <typename T1> struct arguments;
 
   template <typename T1, typename R, typename... Args>
@@ -216,7 +215,7 @@ template <typename T, typename Lock = std::shared_timed_mutex> class monitor {
     using type = decltype(
         member_function_args::template expand_arguments<F, T1>(has_template<F, T1>()));
   };
-#endif
+
   mutable T data_;
   mutable Lock mutex_;
 
