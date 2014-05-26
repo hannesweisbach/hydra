@@ -8,14 +8,13 @@
 
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <sys/epoll.h>
-#include <sys/select.h>
 #include <netdb.h>
 #include <unistd.h>
 
 #include "RDMAWrapper.hpp"
 
 #include "util/concurrent.h"
+#include "util/epoll.h"
 
 #define CASE(_case_)                                                           \
   case _case_:                                                                 \
@@ -387,44 +386,12 @@ static bool recv_helper__(ibv_comp_channel *cc) {
   return flushing;
 }
 
-class epoll_wrapper {
-  int efd;
-
-public:
-  epoll_wrapper() : efd(epoll_create(1)) {
-    if (efd < 0)
-      throw_errno();
-  }
-  ~epoll_wrapper() { close(efd); }
-  void add(int fd, epoll_event *event) {
-    check_zero(epoll_ctl(efd, EPOLL_CTL_ADD, fd, event));
-  }
-  void del(int fd) { check_zero(epoll_ctl(efd, EPOLL_CTL_DEL, fd, nullptr)); }
-  void mod(int fd, epoll_event *event) {
-    check_zero(epoll_ctl(efd, EPOLL_CTL_MOD, fd, event));
-  }
-  int wait(epoll_event *events, int maxevents, int timeout) {
-    for (;;) {
-      int ret = epoll_wait(efd, events, maxevents, timeout);
-      if (ret < 0) {
-        if (errno == EINTR) {
-          log_info() << "Interrupted.";
-          continue;
-        } else {
-          throw_errno();
-        }
-      }
-      return ret;
-    }
-  }
-};
-
 std::future<void> rdma_handle_cq_event_async(ibv_comp_channel *cc,
                                              async_queue_type queue,
                                              int pipe_fd) {
   return hydra::async(queue, [=] {
     std::array<epoll_event, 2> events;
-    epoll_wrapper poll;
+    hydra::util::epoll poll;
     events[0].events = EPOLLIN;
     events[0].data.fd = cc->fd;
     events[1].events = EPOLLIN;

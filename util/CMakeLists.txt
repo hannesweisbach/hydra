@@ -4,6 +4,7 @@ target_link_libraries(workerthread)
 add_library(logger STATIC Logger.cpp)
 add_library(demangle STATIC demangle.cc)
 
+add_library(epoll STATIC epoll.cc)
 add_library(futuredispatch STATIC dispatch.cc)
 target_link_libraries(futuredispatch dispatch)
 
