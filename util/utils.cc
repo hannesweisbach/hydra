@@ -9,7 +9,7 @@ spinlock::spinlock(const std::string &name) noexcept : name(name),
                                                        spins(0),
                                                        yields(0),
                                                        lock_(false) {}
-void spinlock::lock() noexcept {
+void spinlock::lock() const noexcept {
   locks++;
   if (!lock_.test_and_set(std::memory_order_acquire))
     return;
@@ -31,7 +31,10 @@ void spinlock::lock() noexcept {
   }
 #endif
 }
-void spinlock::unlock() noexcept { lock_.clear(std::memory_order_release); }
+bool spinlock::try_lock() const noexcept {
+  return lock_.test_and_set(std::memory_order_acquire);
+}
+void spinlock::unlock() const noexcept { lock_.clear(std::memory_order_release); }
 
 void spinlock::__debug() noexcept {
   if (name.empty())
