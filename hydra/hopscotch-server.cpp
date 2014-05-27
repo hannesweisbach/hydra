@@ -40,9 +40,11 @@ size_t hydra::hopscotch_server::next_free_index(size_t from) const {
     return from;
   for (size_t i = (from + 1) % table_size; i != from;
        i = (i + 1) % table_size) {
+    shadow_table[i].lock();
     if (table[i].get().is_empty()) {
       return i;
     }
+    shadow_table[i].unlock();
   }
   return invalid_index();
 }
@@ -51,10 +53,13 @@ size_t hydra::hopscotch_server::next_movable(size_t to) const {
   size_t start = (to - (hop_range - 1) + table_size) % table_size;
   for (size_t i = start; i != to; i = (i + 1) % table_size) {
     const size_t distance = (to - i + table_size) % table_size;
+    /* racy */
     size_t hop = table[i].get().hop;
     for (size_t d = 0; hop; d++, hop >>= 1) {
+      shadow_table[(i + d) % table_size].lock();
       if ((hop & 1) && (d < distance))
           return (i + d) % table_size;
+      shadow_table[(i + d) % table_size].unlock();
     }
   }
   return invalid_index();
@@ -65,6 +70,7 @@ void hydra::hopscotch_server::add(hydra::hopscotch_server::resource_entry&& e, c
   table[to] = key_entry(e.key(), e.size, e.key_size, e.rkey, table[to].get().hop);
   size_t distance = (to - home + table_size) % table_size;
   assert(distance < hop_range);
+  /* racy */
   table[home]([=](auto &&entry) { entry.set_hop(distance); });
   shadow_table[to] = std::move(e);
 }
@@ -85,21 +91,28 @@ void hydra::hopscotch_server::move(size_t from, size_t to) {
 
 size_t hydra::hopscotch_server::move_into(size_t to) {
   size_t movable = next_movable(to);
-  if(!index_valid(movable))
+  if(!index_valid(movable)) {
+    shadow_table[to].unlock();
     return movable;
+  }
 
   move(movable, to);
+  shadow_table[to].unlock();
   return movable;
 }
 
 hydra::Return_t hydra::hopscotch_server::add(hydra::hopscotch_server::resource_entry&& e) {
   key_type key(e.key(), e.key_size);
-  if (contains(key) != invalid_index()) {
-    add(std::move(e), contains(key), home_of(key));
+  /* overwrite existing key */
+  auto index = contains(key);
+  if (index != invalid_index()) {
+    add(std::move(e), index, home_of(key));
+//    shadow_table[index].debug();
+    shadow_table[index].unlock();
     return SUCCESS;
   }
-  size_t index = home_of(key);
 
+  index = home_of(key);
   log_info() << "index: " << index << " " << (void*)e.key() << " " << e.key_size;
   log_info() << hash(e.key(), e.key_size) << " " << table_size << " " << hash64(e.key(), e.size);
   log_info() << hash(e.key(), e.key_size) % table_size;
@@ -111,8 +124,11 @@ hydra::Return_t hydra::hopscotch_server::add(hydra::hopscotch_server::resource_e
       add(std::move(e), next, index);
       dump();
       used++;
+  //    shadow_table[next].debug();
+      shadow_table[next].unlock();
       return SUCCESS;
     }
+    //shadow_table[next].unlock();
   }
 
   return NEED_RESIZE;
@@ -124,10 +140,12 @@ size_t hydra::hopscotch_server::contains(const key_type &key) {
        i = (i + 1) % table_size, hop >>= 1) {
     size_t distance = (i - home_of(key) + table_size) % table_size;
     if ((hop & 1) && (distance < hop_range)) {
+      shadow_table[i].lock();
       if (table[i].get().key_length() == size &&
           memcmp(table[i].get().key(), key.first, size) == 0) {
         return i;
       }
+      shadow_table[i].unlock();
     }
   }
   return invalid_index();
@@ -138,14 +156,17 @@ hydra::Return_t hydra::hopscotch_server::remove(const key_type &key) {
        i = (i + 1) % table_size, hop >>= 1) {
     size_t distance = (i - home_of(key) + table_size) % table_size;
     if ((hop & 1) && (distance < hop_range)) {
+      shadow_table[i].lock();
       if (table[i].get().key_length() == key.second &&
           memcmp(table[i].get().key(), key.first, key.second) == 0) {
         table[home_of(key)]([=](auto && entry) { entry.clear_hop(distance); });
         table[i]([](auto &&entry) { entry.empty(); });
         shadow_table[i].empty();
         used--;
+        shadow_table[i].unlock();
         return SUCCESS;
       }
+      shadow_table[i].unlock();
     }
   }
   return NOTFOUND;

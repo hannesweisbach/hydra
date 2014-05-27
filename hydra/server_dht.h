@@ -8,6 +8,7 @@
 #include <ostream>
 
 #include "types.h"
+#include "util/concurrent.h"
 
 namespace hydra {
 class server_dht {
@@ -22,14 +23,28 @@ public:
   typedef std::pair<const value_type *, size_t> key_type;
   struct resource_entry {
     mem_type mem;
+    uint32_t rkey;
     size_t size;
     size_t key_size;
-    uint32_t rkey;
+    mutable hydra::spinlock lock_;
 
   public:
     resource_entry() = default;
     resource_entry(resource_entry &&other) = default;
-    resource_entry &operator=(resource_entry &&other) = default;
+    resource_entry &operator=(resource_entry &&other) {
+      /* if other lock is taken, take ours */
+      if(!other.lock_.try_lock())
+        lock_.lock();
+      mem = std::move(other.mem);
+      rkey = other.rkey;
+      size = other.size;
+      key_size = other.key_size;
+      other.rkey = 0;
+      other.size = 0;
+      other.key_size = 0;
+      other.lock_.unlock();
+      return *this;
+    }
     resource_entry(mem_type &&mem, uint32_t rkey, size_t size, size_t key_size)
         : mem(std::move(mem)), size(size), key_size(key_size), rkey(rkey) {}
     value_type *key() const { return mem.get(); }
@@ -40,6 +55,9 @@ public:
       size = 0;
       key_size = 0;
     }
+    void lock() const noexcept { lock_.lock(); }
+    void unlock() const noexcept { lock_.unlock(); }
+    void debug() noexcept { lock_.__debug(); }
   };
 
 protected:

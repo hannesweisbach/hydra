@@ -32,7 +32,7 @@ void spinlock::lock() const noexcept {
 #endif
 }
 bool spinlock::try_lock() const noexcept {
-  return lock_.test_and_set(std::memory_order_acquire);
+  return !lock_.test_and_set(std::memory_order_acquire);
 }
 void spinlock::unlock() const noexcept { lock_.clear(std::memory_order_release); }
 
