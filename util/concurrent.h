@@ -281,8 +281,10 @@ template <typename T, typename Lock = std::shared_timed_mutex> class monitor {
 public:
   monitor() = default;
   template <typename... Args>
-  monitor(const std::string &name, Args &&... args)
-      : data_(std::forward<Args>(args)...) /*, mutex_(name)*/ {}
+  monitor(Args &&... args)
+      : data_(std::forward<Args>(args)...)
+        /*, mutex_(typeid(T).name() + std::to_string(reinterpret_cast<uintptr_t>(this))*/ {
+  }
 
   template <typename F> auto operator()(F &&f) const {
     return expand(std::forward<F>(f));

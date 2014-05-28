@@ -26,9 +26,9 @@ auto size2Class = [](size_t size) -> size_t {
 node::node(const std::string &ip, const std::string &port, uint32_t msg_buffers)
     : socket(ip, port, msg_buffers), heap(48U, size2Class, socket),
       local_heap(socket), table_ptr(heap.malloc<LocalRDMAObj<key_entry> >(8)),
-      dht("dht", table_ptr.first.get(), 32U, initial_table_size),
+      dht(table_ptr.first.get(), 32U, initial_table_size),
       msg_buffer(local_heap.malloc<msg>(msg_buffers)),
-      info("info", heap.malloc<LocalRDMAObj<node_info> >()),
+      info(heap.malloc<LocalRDMAObj<node_info> >()),
       routing_table_(heap.malloc<LocalRDMAObj<hydra::routing_table> >()) {
 
   (*routing_table_.first)([&](auto &table) {
