@@ -189,32 +189,36 @@ template <typename T, typename Lock = std::shared_timed_mutex> class monitor {
     using type = std::tuple<Args...>;
   };
 
-  struct template_detector {
-    template <typename F, typename... Args>
-    static decltype(&F::template operator()<Args...>, std::true_type())
-        is_templated(int);
+  template <typename F, typename... Args> struct template_helper {
+    template <typename F_, typename... Args_>
+    static decltype(&F_::template operator()<Args_...>, std::true_type())
+        is_templated(std::nullptr_t);
 
-    template <typename F, typename... Args>
-    static decltype(&F::operator(), std::false_type()) is_templated(...);
+    template <typename F_, typename... Args_>
+    static decltype(&F_::operator(), std::false_type()) is_templated(...);
+
+    using type = decltype(is_templated<F, Args...>(nullptr));
   };
 
-  struct member_function_args {
-    template <typename F, typename... Args>
-    static typename arguments<decltype(&F::operator())>::type
+  template <typename F, typename... Args>
+  struct is_template : template_helper<F, Args...>::type {};
+
+  template <typename F, typename... Args> struct functor_arguments_helper {
+    template <typename F_, typename... Args_>
+    static typename arguments<decltype(&F_::operator())>::type
     expand_arguments(std::false_type);
 
-    template <typename F, typename... Args>
-    static typename arguments<decltype(&F::template operator()<Args...>)>::type
+    template <typename F_, typename... Args_>
+    static typename arguments<
+        decltype(&F_::template operator()<Args_...>)>::type
     expand_arguments(std::true_type);
+
+    using type =
+        decltype(expand_arguments<F, Args...>(is_template<F, Args...>()));
   };
 
-  template <typename F, typename... A>
-  struct has_template : decltype(template_detector::template is_templated<F, A...>(0)) {
-  };
-
-  template <typename F, typename T1> struct functor_args {
-    using type = decltype(
-        member_function_args::template expand_arguments<F, T1>(has_template<F, T1>()));
+  template <typename F, typename... Args> struct functor_args {
+    using type = typename functor_arguments_helper<F, Args...>::type;
   };
 
   mutable T data_;
