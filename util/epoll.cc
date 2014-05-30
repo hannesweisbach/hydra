@@ -1,3 +1,5 @@
+#include <unistd.h>
+
 #include "util/epoll.h"
 #include "util/exception.h"
 #include "util/Logger.h"
@@ -9,7 +11,7 @@ epoll::epoll() : efd(::epoll_create(1)) {
     throw_errno();
 }
 
-epoll::~epoll() { close(efd); }
+epoll::~epoll() { ::close(efd); }
 void epoll::add(int fd, epoll_event *event) {
   check_zero(::epoll_ctl(efd, EPOLL_CTL_ADD, fd, event));
 }
