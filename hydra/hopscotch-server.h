@@ -6,8 +6,7 @@ namespace hydra {
 
 class hopscotch_server : public server_dht {
   const size_t hop_range;
-
-  size_t home_of(const key_entry &e) const {
+  size_t home_of(const hash_table_entry &e) const {
     return home_of(std::make_pair(e.key(), e.key_size));
   }
   size_t home_of(const key_type &key) const;
@@ -18,12 +17,14 @@ class hopscotch_server : public server_dht {
   size_t move_into(size_t to);
 
 public:
-  hopscotch_server(LocalRDMAObj<key_entry> * table, size_t hop_range = 32, size_t initial_size = 32)
-      : server_dht(table, initial_size), hop_range(hop_range) {
+  hopscotch_server(LocalRDMAObj<hash_table_entry> *table, size_t hop_range = 32,
+                   size_t initial_size = 32)
+      : server_dht(table, initial_size), hop_range(hop_range), v(initial_size) {
     assert(
         ("Number of hops must be <= the number of bits in the type of the hop "
          "mask.",
-         hop_range <= std::numeric_limits<decltype(key_entry::hop)>::digits));
+         hop_range <=
+             std::numeric_limits<decltype(hash_table_entry::hop)>::digits));
   }
   hopscotch_server(const hopscotch_server &) = delete;
   hopscotch_server(hopscotch_server &&) = default;

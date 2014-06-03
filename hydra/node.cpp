@@ -25,7 +25,8 @@ auto size2Class = [](size_t size) -> size_t {
 
 node::node(const std::string &ip, const std::string &port, uint32_t msg_buffers)
     : socket(ip, port, msg_buffers), heap(48U, size2Class, socket),
-      local_heap(socket), table_ptr(heap.malloc<LocalRDMAObj<key_entry> >(8)),
+      local_heap(socket),
+      table_ptr(heap.malloc<LocalRDMAObj<hash_table_entry> >(initial_table_size)),
       dht(table_ptr.first.get(), 32U, initial_table_size),
       msg_buffer(local_heap.malloc<msg>(msg_buffers)),
       info(heap.malloc<LocalRDMAObj<node_info> >()),
@@ -255,9 +256,7 @@ void node::handle_add(const put_request &msg, const qp_t &qp) {
                                       if (ret == hydra::NEED_RESIZE) {
                                         info([&](auto &rdma_obj) {
                                                size_t new_size = hs.next_size();
-                                               auto new_table = heap.malloc<
-                                                   LocalRDMAObj<key_entry> >(
-                                                   new_size);
+           auto new_table = heap.malloc<LocalRDMAObj<hash_table_entry> >(new_size);
                                                hs.resize(new_table.first.get(),
                                                          new_size);
                                                hs.check_consistency();

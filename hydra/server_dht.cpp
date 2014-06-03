@@ -11,7 +11,7 @@ std::ostream &operator<<(std::ostream &s,
 }
 }
 
-void hydra::server_dht::resize(LocalRDMAObj<key_entry> * new_table, size_t size) {
+void hydra::server_dht::resize(LocalRDMAObj<hash_table_entry> * new_table, size_t size) {
   size_t old_table_size = table_size;
   table_size = size;
 

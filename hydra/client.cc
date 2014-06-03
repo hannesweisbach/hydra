@@ -34,8 +34,8 @@ hydra::client::find_entry(const RDMAClientSocket &socket,
                           const size_t key_length) const {
   const hydra::node_info info = get_info(socket);
   const size_t table_size = info.table_size;
-  const RDMAObj<key_entry> *remote_table =
-      static_cast<const RDMAObj<key_entry> *>(info.key_extents.addr);
+  const RDMAObj<hash_table_entry> *remote_table =
+      static_cast<const RDMAObj<hash_table_entry> *>(info.key_extents.addr);
   const uint32_t rkey = info.key_extents.rkey;
 
   const size_t index = hash(key, key_length) % table_size;

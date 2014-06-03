@@ -55,13 +55,15 @@ public:
       size = 0;
       key_size = 0;
     }
+#if PER_ENTRY_LOCKS
     void lock() const noexcept { lock_.lock(); }
     void unlock() const noexcept { lock_.unlock(); }
     void debug() noexcept { lock_.__debug(); }
+#endif
   };
 
 protected:
-  LocalRDMAObj<key_entry> *table;
+  LocalRDMAObj<hash_table_entry> *table;
   std::vector<resource_entry> shadow_table;
   size_t table_size;
   size_t used;
@@ -72,7 +74,7 @@ protected:
   size_t invalid_index() const { return table_size + 1; }
 
 public:
-  server_dht(LocalRDMAObj<key_entry> *table, size_t initial_size = 32,
+  server_dht(LocalRDMAObj<hash_table_entry> *table, size_t initial_size = 32,
              double growth_factor_ = 1.3)
       : table(table), shadow_table(initial_size), table_size(initial_size),
         used(0), growth_factor(growth_factor_) {
@@ -89,7 +91,7 @@ public:
   virtual Return_t add(resource_entry &&e) = 0;
   virtual Return_t remove(const key_type &key) = 0;
   virtual size_t contains(const key_type &key) = 0;
-  void resize(LocalRDMAObj<key_entry> *new_table, size_t size);
+  void resize(LocalRDMAObj<hash_table_entry> *new_table, size_t size);
 
   size_t size() const { return table_size; }
   virtual size_t next_size() const {

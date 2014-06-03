@@ -167,18 +167,19 @@ enum Return_t {
   NEED_RESIZE
 };
 
-struct key_entry {
+struct hash_table_entry {
   verifying_ptr<unsigned char> ptr;
   size_t key_size;
   uint32_t hop;
   uint32_t rkey;
 
-  key_entry(const unsigned char *p = nullptr, const size_t size = 0,
-            const size_t key_size = 0, const uint32_t rkey = 0,
-            const uint32_t hop = 0) noexcept : ptr(p, size),
-                                               key_size(key_size),
-                                               hop(hop),
-                                               rkey(rkey) {}
+  hash_table_entry(const unsigned char *p, const size_t size,
+                   const size_t key_size, const uint32_t rkey,
+                   const uint32_t hop) noexcept : ptr(p, size),
+                                                  key_size(key_size),
+                                                  hop(hop),
+                                                  rkey(rkey) {}
+  hash_table_entry() noexcept : hash_table_entry(nullptr, 0, 0, 0, 0) {}
   bool is_empty() const { return ptr.is_empty(); }
   void empty() {
     key_size = 0;
@@ -197,7 +198,7 @@ struct key_entry {
   size_t value_length() const { return ptr.size - key_size; }
 };
 
-std::ostream &operator<<(std::ostream &s, const hydra::key_entry &e);
+std::ostream &operator<<(std::ostream &s, const hydra::hash_table_entry &e);
 std::ostream &operator<<(std::ostream &s, const hydra::node_id &id);
 std::ostream &operator<<(std::ostream &s, const hydra::routing_entry &e);
 std::ostream &operator<<(std::ostream &s, const hydra::routing_table &t);

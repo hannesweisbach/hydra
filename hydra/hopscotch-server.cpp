@@ -6,7 +6,7 @@
 #include "Logger.h"
 #include "hopscotch-server.h"
 
-std::ostream &hydra::operator<<(std::ostream &s, const hydra::key_entry &e) {
+std::ostream &hydra::operator<<(std::ostream &s, const hydra::hash_table_entry &e) {
   s << std::hex << std::setfill('0') << std::setw(2) << (uint32_t)e.hop << std::dec
     << " ";
   s << (void*)e.key() << " (";
@@ -67,7 +67,7 @@ size_t hydra::hopscotch_server::next_movable(size_t to) const {
 
 void hydra::hopscotch_server::add(hydra::hopscotch_server::resource_entry&& e, const size_t to, const size_t home) {
   assert(e.mem);
-  table[to] = key_entry(e.key(), e.size, e.key_size, e.rkey, table[to].get().hop);
+  table[to] = hash_table_entry(e.key(), e.size, e.key_size, e.rkey, table[to].get().hop);
   size_t distance = (to - home + table_size) % table_size;
   assert(distance < hop_range);
   /* racy */
