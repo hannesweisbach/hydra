@@ -249,13 +249,9 @@ void node::handle_add(const put_request &msg, const qp_t &qp) {
                                       server_dht::resource_entry e(
                                           std::move(r1.first), r1.second->rkey,
                                           size, key_size);
-#ifndef NDEBUG
                                       hs.check_consistency();
-#endif
                                       auto ret = hs.add(std::move(e));
-#ifndef NDEBUG
                                       hs.check_consistency();
-#endif
                                       if (ret == hydra::NEED_RESIZE) {
                                         info([&](auto &rdma_obj) {
                                                size_t new_size = hs.next_size();
@@ -264,9 +260,7 @@ void node::handle_add(const put_request &msg, const qp_t &qp) {
                                                    new_size);
                                                hs.resize(new_table.first.get(),
                                                          new_size);
-#ifndef NDEBUG
                                                hs.check_consistency();
-#endif
                                                (*rdma_obj.first)([&](
                                                    auto &info) {
                                                  info.table_size = new_size;
@@ -276,9 +270,7 @@ void node::handle_add(const put_request &msg, const qp_t &qp) {
                                                std::swap(table_ptr, new_table);
                                              }).get();
                                         ret = hs.add(std::move(e));
-#ifndef NDEBUG
                                         hs.check_consistency();
-#endif
                                         this->ack(qp, put_response(msg, ret == hydra::SUCCESS));
 #if 1
                                         return;

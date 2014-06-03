@@ -186,6 +186,7 @@ void hydra::hopscotch_server::dump() const {
 }
 
 void hydra::hopscotch_server::check_consistency() const {
+#ifndef NDEBUG
   for (size_t i = 0; i < table_size; i++) {
     const auto& shadow_entry = shadow_table[i];
     const auto& rdma_entry = table[i];
@@ -210,5 +211,6 @@ void hydra::hopscotch_server::check_consistency() const {
     }
 #endif
   }
+#endif
 }
 
