@@ -199,28 +199,20 @@ void hydra::hopscotch_server::dump() const {
 void hydra::hopscotch_server::check_consistency() const {
 #ifndef NDEBUG
   for (size_t i = 0; i < table_size; i++) {
-    const auto& shadow_entry = shadow_table[i];
-    const auto& rdma_entry = table[i];
-#if 0
-    assert(shadow_entry.mem.get() == rdma_entry.get().key());
-    assert(shadow_entry.rkey == rdma_entry.get().rkey);
-    assert(shadow_entry.size == rdma_entry.get().ptr.size);
-    assert(shadow_entry.key_size == rdma_entry.get().key_size);
-    assert(rdma_entry.valid());
-#else
+    const auto &shadow_entry = shadow_table[i];
+    const auto &rdma_entry = table[i];
     if ((shadow_entry.mem.get() != rdma_entry.get().key()) ||
-        (shadow_entry.rkey != rdma_entry.get().rkey) ||
-        (shadow_entry.size != rdma_entry.get().ptr.size) ||
-        (shadow_entry.key_size != rdma_entry.get().key_size) ||
+        (shadow_entry.rkey() != rdma_entry.get().rkey) ||
+        (shadow_entry.size() != rdma_entry.get().ptr.size) ||
+        (shadow_entry.key_size() != rdma_entry.get().key_size) ||
         (!rdma_entry.valid()) ||
         (rdma_entry.get().rkey == 0 && (rdma_entry.get().hop & 1))) {
       log_info() << i;
       log_info() << shadow_entry;
       log_info() << rdma_entry.get();
       dump();
-      assert(false);
+      std::terminate();
     }
-#endif
   }
 #endif
 }
