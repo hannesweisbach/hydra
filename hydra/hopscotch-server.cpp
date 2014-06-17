@@ -170,8 +170,8 @@ hydra::Return_t hydra::hopscotch_server::remove(const key_type &key) {
 
   const size_t home = home_of(key);
   const size_t distance = (kv - home + table_size) % table_size;
-  shadow_table[home]([=](auto &&entry) { entry.clear_hop(distance); });
-  shadow_table[kv]([](auto &&entry) { entry.empty(); });
+  shadow_table[home].clear_hop(distance);
+  shadow_table[kv].empty();
   shadow_table[kv].unlock();
   used--;
 

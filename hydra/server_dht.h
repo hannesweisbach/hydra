@@ -67,6 +67,7 @@ public:
     }
     void empty() {
       mem.reset();
+      rdma_entry([](auto &&e) { e.empty(); });
       assert(mem.get() == nullptr);
     }
     size_t size() const noexcept { return rdma_entry.get().ptr.size; }
@@ -74,6 +75,9 @@ public:
     uint32_t rkey() const noexcept { return rdma_entry.get().rkey; }
     bool has_hop(const size_t &idx) const noexcept {
       return rdma_entry.get().hop & (1 << idx);
+    }
+    void clear_hop(const size_t &idx) noexcept {
+      rdma_entry([&](auto &&entry) { entry.clear_hop(idx); });
     }
     bool has_key(const key_type &other_key) const noexcept {
       return (key_size() == other_key.second) &&
