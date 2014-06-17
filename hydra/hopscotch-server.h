@@ -39,7 +39,7 @@ class hopscotch_server : public server_dht {
   size_t home_of(const key_type &key) const;
   size_t next_free_index(size_t from) const;
   size_t next_movable(size_t to) const;
-  void add(std::tuple<mem_type, size_t, size_t, uint32_t> &&e, const size_t to,
+  void add(std::tuple<mem_type, size_t, size_t, uint32_t> &e, const size_t to,
            const size_t home);
   void move(size_t from, size_t to);
   size_t move_into(size_t to);
@@ -56,7 +56,7 @@ public:
   }
   hopscotch_server(const hopscotch_server &) = delete;
   hopscotch_server(hopscotch_server &&) = default;
-  Return_t add(std::tuple<mem_type, size_t, size_t, uint32_t>&& e) override;
+  Return_t add(std::tuple<mem_type, size_t, size_t, uint32_t> &e) override;
   Return_t remove(const key_type& key) override;
   size_t contains(const key_type &key) override;
   size_t next_size() const override;

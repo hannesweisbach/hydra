@@ -118,7 +118,7 @@ public:
   server_dht(const server_dht &) = delete;
   server_dht(server_dht &&) = default;
 
-  virtual Return_t add(std::tuple<mem_type, size_t, size_t, uint32_t>&& e) = 0;
+  virtual Return_t add(std::tuple<mem_type, size_t, size_t, uint32_t>& e) = 0;
   virtual Return_t remove(const key_type &key) = 0;
   virtual size_t contains(const key_type &key) = 0;
   void resize(LocalRDMAObj<hash_table_entry> *new_table, size_t size);
