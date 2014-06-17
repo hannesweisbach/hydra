@@ -65,6 +65,9 @@ public:
     size_t size() const noexcept { return rdma_entry.get().ptr.size; }
     size_t key_size() const noexcept { return rdma_entry.get().key_size; }
     uint32_t rkey() const noexcept { return rdma_entry.get().rkey; }
+    bool has_hop(const size_t &idx) const noexcept {
+      return rdma_entry.get().hop & (1 << idx);
+    }
 #if PER_ENTRY_LOCKS
     void lock() const noexcept { lock_.lock(); }
     void unlock() const noexcept { lock_.unlock(); }
