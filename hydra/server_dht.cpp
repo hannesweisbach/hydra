@@ -28,8 +28,7 @@ void hydra::server_dht::resize(LocalRDMAObj<hash_table_entry> *new_table,
   used = 0;
 
   for (auto &&entry : tmp_shadow_table) {
-    if (entry.mem)
-      // add(std::move(entry));
+    if (entry)
       add(std::make_tuple(std::move(entry.mem), entry.size(), entry.key_size(),
                           entry.rkey()));
   }

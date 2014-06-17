@@ -40,6 +40,8 @@ public:
     }
 #else
     resource_entry &operator=(resource_entry &&other) {
+      assert(other);
+      assert(!*this);
       mem = std::move(other.mem);
       rdma_entry = std::move(other.rdma_entry);
       return *this;
@@ -51,6 +53,10 @@ public:
       mem = std::move(ptr);
       uint32_t hop = rdma_entry.get().hop;
       new (&rdma_entry) server_entry(mem.get(), size, key_size, rkey, hop);
+    }
+    operator bool() const noexcept {
+      assert(bool(mem) == bool(rdma_entry));
+      return bool(mem);
     }
     void empty() {
       mem.reset();
