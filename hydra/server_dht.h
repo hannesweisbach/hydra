@@ -10,6 +10,8 @@
 #include "types.h"
 #include "util/concurrent.h"
 
+#define PER_ENTRY_LOCKS 0
+
 namespace hydra {
 class server_dht {
 protected:
@@ -25,15 +27,19 @@ public:
     mem_type mem;
     server_entry &rdma_entry;
 
+#if PER_ENTRY_LOCKS
     mutable hydra::spinlock lock_;
+#endif
 
   public:
     // resource_entry() = default;
     resource_entry(resource_entry &&other) = default;
+#if PER_ENTRY_LOCKS
     resource_entry &operator=(resource_entry &&other) {
       /* if other lock is taken, take ours */
-      if(!other.lock_.try_lock())
-        lock_.lock();
+
+      if (!other.lock_.try_lock())
+        lock_.try_lock();
       mem = std::move(other.mem);
       other.lock_.unlock();
       return *this;
@@ -72,11 +78,21 @@ public:
     bool has_key(const unsigned char *const other_key) const noexcept {
       return std::equal(key(), key() + key_size(), other_key);
     }
+    void lock() const noexcept {
 #if PER_ENTRY_LOCKS
-    void lock() const noexcept { lock_.lock(); }
-    void unlock() const noexcept { lock_.unlock(); }
-    void debug() noexcept { lock_.__debug(); }
+      lock_.lock();
 #endif
+    }
+    void unlock() const noexcept {
+#if PER_ENTRY_LOCKS
+      lock_.unlock();
+#endif
+    }
+    void debug() noexcept {
+#if PER_ENTRY_LOCKS
+      lock_.__debug();
+#endif
+    }
   };
 
 protected:

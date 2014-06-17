@@ -247,7 +247,13 @@ void node::handle_add(const put_request &msg, const qp_t &qp) {
           this->ack(qp, put_response(msg, false));
           return;
         }
+
+#if PER_ENTRY_LOCKS
+  hopscotch_server &hs = dht;
+#else
         dht([ =, r1 = std::move(r) ](hopscotch_server & hs) mutable {
+#endif
+
   auto e =
       std::make_tuple(std::move(r1.first), size, key_size, r1.second->rkey);
                                       hs.check_consistency();
@@ -319,11 +325,18 @@ void node::ack(const qp_t &qp, const response &r) const {
 }
 
 double node::load() const {
+#if PER_ENTRY_LOCKS
+  return dht.load_factor();
+#else
   return dht([](const hopscotch_server &s) { return s.load_factor(); });
+#endif
 }
 
 void node::dump() const {
+#if PER_ENTRY_LOCKS
+#else
   dht([](const auto &s) { s.dump(); });
+#endif
 }
 }
 

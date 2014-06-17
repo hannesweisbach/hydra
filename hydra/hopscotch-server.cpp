@@ -136,7 +136,7 @@ hydra::Return_t hydra::hopscotch_server::add(
       shadow_table[next].unlock();
       return SUCCESS;
     }
-    //shadow_table[next].unlock();
+    shadow_table[next].unlock();
   }
 
   return NEED_RESIZE;
