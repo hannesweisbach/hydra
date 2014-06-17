@@ -74,7 +74,6 @@ void
 hydra::hopscotch_server::add(std::tuple<mem_type, size_t, size_t, uint32_t> &e,
                              const size_t to, const size_t home) {
   assert(std::get<0>(e));
-  //table[to] = hash_table_entry(e.key(), e.size, e.key_size, e.rkey, table[to].get().hop);
   shadow_table[to].set(std::move(std::get<0>(e)), std::get<1>(e), std::get<2>(e), std::get<3>(e));
   size_t distance = (to - home + table_size) % table_size;
   assert(distance < hop_range);
@@ -127,17 +126,12 @@ hydra::Return_t hydra::hopscotch_server::add(
   }
 
   index = home_of(key);
-  log_info() << "index: " << index << " " << (void*)e.key() << " " << e.key_size;
-  log_info() << hash(e.key(), e.key_size) << " " << table_size << " " << hash64(e.key(), e.size);
-  log_info() << hash(e.key(), e.key_size) % table_size;
-  
   for (size_t next = next_free_index(index); index_valid(next);
        next = move_into(next)) {
     size_t distance = (next - index + table_size) % table_size;
     if (distance < hop_range) {
       add(e, next, index);
       used++;
-  //    shadow_table[next].debug();
       shadow_table[next].unlock();
       return SUCCESS;
     }
