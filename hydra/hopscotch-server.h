@@ -1,6 +1,7 @@
 #include <utility>
 
 #include "server_dht.h"
+#include "util/Logger.h"
 
 namespace hydra {
 
@@ -53,6 +54,9 @@ public:
          "mask.",
          hop_range <=
              std::numeric_limits<decltype(hash_table_entry::hop)>::digits));
+    log_info() << "sizeof(key_entry): " << sizeof(hash_table_entry);
+    log_info() << "sizeof(resource_entry): " << sizeof(resource_entry);
+    log_info() << "sizeof(mem_type): " << sizeof(mem_type);
   }
   hopscotch_server(const hopscotch_server &) = delete;
   hopscotch_server(hopscotch_server &&) = default;
