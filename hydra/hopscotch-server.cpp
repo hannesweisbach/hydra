@@ -36,17 +36,15 @@ size_t hydra::hopscotch_server::home_of(const hydra::server_dht::key_type &key) 
 }
 
 size_t hydra::hopscotch_server::next_free_index(size_t from) const {
-  if (table[from].get().is_empty())
-    return from;
-  for (size_t i = (from + 1) % table_size; i != from;
-       i = (i + 1) % table_size) {
-    shadow_table[i].lock();
-    if (table[i].get().is_empty()) {
-      return i;
-    }
-    shadow_table[i].unlock();
-  }
-  return invalid_index();
+  auto free = [](const auto &e) {
+    e.lock();
+    if (!e) // empty
+      return true;
+    e.unlock();
+    return false;
+  };
+
+  return find_if(from, from, free);
 }
 
 size_t hydra::hopscotch_server::next_movable(size_t to) const {
@@ -144,19 +142,24 @@ hydra::Return_t hydra::hopscotch_server::add(
 
 size_t hydra::hopscotch_server::contains(const key_type &key) {
   const size_t size = key.second;
-  for (size_t i = home_of(key), hop = table[i].get().hop; hop;
-       i = (i + 1) % table_size, hop >>= 1) {
-    size_t distance = (i - home_of(key) + table_size) % table_size;
-    if ((hop & 1) && (distance < hop_range)) {
-      shadow_table[i].lock();
-      if (table[i].get().key_length() == size &&
-          memcmp(table[i].get().key(), key.first, size) == 0) {
-        return i;
-      }
-      shadow_table[i].unlock();
-    }
-  }
-  return invalid_index();
+  size_t start = home_of(key);
+  size_t end = (start + hop_range) % table_size;
+  const auto &home = shadow_table[start];
+  size_t index = 0;
+
+  auto has_key = [&](const auto &e) {
+    if (!home.has_hop(index++))
+      return false;
+
+    e.lock();
+    if (e.key_size() == size && e.has_key(key.first))
+      return true;
+    e.unlock();
+    return false;
+  };
+
+  auto ret = find_if(start, end, has_key);
+  return ret;
 }
 
 hydra::Return_t hydra::hopscotch_server::remove(const key_type &key) {
