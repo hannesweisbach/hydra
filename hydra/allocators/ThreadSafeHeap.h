@@ -25,8 +25,8 @@ public:
 
   template <typename T> inline rdma_ptr<T> malloc(const size_t n_elems = 1) {
     return superHeap([=](SuperHeap &s) {
-                       return s.template malloc<T>(n_elems);
-                     }).get();
+      return s.template malloc<T>(n_elems);
+    });
   }
 };
 }

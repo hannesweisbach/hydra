@@ -64,9 +64,8 @@ public:
   RDMAServerSocket(const std::string &host, const std::string &port,
                    uint32_t max_wr = 10, int cq_entries = 10);
   ~RDMAServerSocket();
-  template <typename Functor>
-  std::future<void> operator()(Functor &&functor) const {
-    return clients([=](auto &clients) {
+  template <typename Functor> void operator()(Functor &&functor) const {
+    return clients([=](const auto &clients) {
       for (const auto &client : clients) {
         functor(client.second.get());
       }
@@ -74,8 +73,9 @@ public:
   }
 
   template <typename Functor>
-  auto operator()(const qp_t qp_num, Functor &&functor) const {
-    return clients([=](auto &clients) {
+  auto operator()(const qp_t qp_num, Functor &&functor)
+      const -> typename std::result_of<Functor(rdma_cm_id *)>::type {
+    return clients([=](const auto &clients) {
       auto client = clients.find(qp_num);
       if (client != std::end(clients)) {
         return functor(client->second.get());
@@ -87,7 +87,7 @@ public:
     });
   }
 
-  std::future<void> disconnect(const qp_t qp_num) const;
+  void disconnect(const qp_t qp_num) const;
   void listen(int backlog = 10);
   rdma_cm_id * find(const qp_t qp_num) const;
   

@@ -51,7 +51,7 @@ class node {
 
   void handle_add(const put_request &msg, const qp_t &qp);
   void handle_del(const remove_request &msg, const qp_t &qp);
-  std::future<void> notify_all(const msg& m);
+  void notify_all(const msg& m);
 
   /* call when joining the network - already running node ip */
   void init_routing_table(const hydra::passive& remote);

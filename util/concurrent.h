@@ -224,33 +224,14 @@ template <typename T, typename Lock = std::shared_timed_mutex> class monitor {
   mutable T data_;
   mutable Lock mutex_;
 
-  template <typename F>
-  void void_helper(F &&f, std::promise<void> &promise, std::true_type) const {
-    f(data_);
-    promise.set_value();
-  }
-
-  template <typename F, typename R>
-  void void_helper(F &&f, std::promise<R> &promise, std::false_type) const {
-    promise.set_value(f(data_));
-  }
-
-  template <typename F, typename R = typename std::result_of<F(T &)>::type>
-  std::future<R> setup(F &&f) const {
-    std::promise<R> promise;
-    void_helper(std::forward<F>(f), promise, std::is_void<R>());
-    return promise.get_future();
-  }
-
   template <typename F> auto const_helper(F &&f, std::true_type) const {
-    /* shared lock */
     std::shared_lock<Lock> lock(mutex_);
-    return setup(std::forward<F>(f));
+    return f(static_cast<const T &>(data_));
   }
 
   template <typename F> auto const_helper(F &&f, std::false_type) const {
     std::unique_lock<Lock> lock(mutex_);
-    return setup(std::forward<F>(f));
+    return f(static_cast<T &>(data_));
   }
 
   template <typename F> auto copy_or_reference(F &&f, std::true_type) const {

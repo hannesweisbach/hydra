@@ -56,7 +56,7 @@ RDMAServerSocket::~RDMAServerSocket() {
   dispatch_release(queue);
 }
 
-std::future<void> RDMAServerSocket::disconnect(const qp_t qp_num) const {
+void RDMAServerSocket::disconnect(const qp_t qp_num) const {
   return clients([=](auto &clients) {
     auto client = clients.find(qp_num);
     if (client != std::end(clients)) {
@@ -77,7 +77,7 @@ rdma_cm_id *RDMAServerSocket::find(const qp_t qp_num) const {
       return client->second.get();
     else
       return nullptr;
-  }).get();
+  });
 }
 
 void RDMAServerSocket::listen(int backlog) {

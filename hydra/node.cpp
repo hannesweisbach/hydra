@@ -88,7 +88,7 @@ node::node(const std::string &ip, const std::string &port, uint32_t msg_buffers)
 //  hydra::client test(ip, port);
 }
 
-std::future<void> node::notify_all(const msg &m) {
+void node::notify_all(const msg &m) {
   return socket([=](rdma_cm_id *id) { sendImmediate(id, m); });
 }
 
@@ -116,10 +116,10 @@ void node::recv(const msg &req, const qp_t &qp) {
   case msg::msubtype::init: {
     auto request = static_cast<const init_request &>(req);
     info([&](const auto &info) {
-           init_response m(request, info.second);
-           log_info() << m;
-           socket(qp, [=](rdma_cm_id *id) { sendImmediate(id, m); });
-         }).get();
+      init_response m(request, info.second);
+      log_info() << m;
+      socket(qp, [=](rdma_cm_id *id) { sendImmediate(id, m); });
+    });
   } break;
   case msg::msubtype::predecessor: {
     auto notification = static_cast<const notification_predecessor &>(req);
@@ -267,7 +267,7 @@ void node::handle_add(const put_request &msg, const qp_t &qp) {
                                                      *new_table.second;
                                                });
                                                std::swap(table_ptr, new_table);
-                                             }).get();
+         });
                                         ret = hs.add(std::move(e));
                                         hs.check_consistency();
                                         this->ack(qp, put_response(msg, ret == hydra::SUCCESS));
@@ -319,7 +319,7 @@ void node::ack(const qp_t &qp, const response &r) const {
 }
 
 double node::load() const {
-  return dht([](const hopscotch_server &s) { return s.load_factor(); }).get();
+  return dht([](const hopscotch_server &s) { return s.load_factor(); });
 }
 
 void node::dump() const {
