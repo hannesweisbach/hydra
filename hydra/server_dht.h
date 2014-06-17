@@ -23,38 +23,42 @@ public:
   typedef std::pair<const value_type *, size_t> key_type;
   struct resource_entry {
     mem_type mem;
-    uint32_t rkey;
-    size_t size;
-    size_t key_size;
+    server_entry &rdma_entry;
+
     mutable hydra::spinlock lock_;
 
   public:
-    resource_entry() = default;
+    // resource_entry() = default;
     resource_entry(resource_entry &&other) = default;
     resource_entry &operator=(resource_entry &&other) {
       /* if other lock is taken, take ours */
       if(!other.lock_.try_lock())
         lock_.lock();
       mem = std::move(other.mem);
-      rkey = other.rkey;
-      size = other.size;
-      key_size = other.key_size;
-      other.rkey = 0;
-      other.size = 0;
-      other.key_size = 0;
       other.lock_.unlock();
       return *this;
     }
-    resource_entry(mem_type &&mem, uint32_t rkey, size_t size, size_t key_size)
-        : mem(std::move(mem)), size(size), key_size(key_size), rkey(rkey) {}
+#else
+    resource_entry &operator=(resource_entry &&other) {
+      mem = std::move(other.mem);
+      rdma_entry = std::move(other.rdma_entry);
+      return *this;
+    }
+#endif
+    resource_entry(server_entry &rdma_entry) : rdma_entry(rdma_entry) {}
     value_type *key() const { return mem.get(); }
+    void set(mem_type ptr, size_t size, size_t key_size, uint32_t rkey) {
+      mem = std::move(ptr);
+      uint32_t hop = rdma_entry.get().hop;
+      new (&rdma_entry) server_entry(mem.get(), size, key_size, rkey, hop);
+    }
     void empty() {
       mem.reset();
       assert(mem.get() == nullptr);
-      rkey = 0;
-      size = 0;
-      key_size = 0;
     }
+    size_t size() const noexcept { return rdma_entry.get().ptr.size; }
+    size_t key_size() const noexcept { return rdma_entry.get().key_size; }
+    uint32_t rkey() const noexcept { return rdma_entry.get().rkey; }
 #if PER_ENTRY_LOCKS
     void lock() const noexcept { lock_.lock(); }
     void unlock() const noexcept { lock_.unlock(); }
@@ -63,10 +67,10 @@ public:
   };
 
 protected:
-  LocalRDMAObj<hash_table_entry> *table;
+  LocalRDMAObj<hash_table_entry> *table = nullptr;
   std::vector<resource_entry> shadow_table;
-  size_t table_size;
-  size_t used;
+  size_t table_size = 0;
+  size_t used = 0;
   const double growth_factor;
 
   bool index_valid(size_t index) const { return index < table_size; }
@@ -76,19 +80,14 @@ protected:
 public:
   server_dht(LocalRDMAObj<hash_table_entry> *table, size_t initial_size = 32,
              double growth_factor_ = 1.3)
-      : table(table), shadow_table(initial_size), table_size(initial_size),
-        used(0), growth_factor(growth_factor_) {
-    for (size_t i = 0; i < table_size; i++) {
-      shadow_table[i].empty();
-      table[i]([](auto &&entry) { entry.empty(); });
-      //table[i].empty();
-    }
+      : growth_factor(growth_factor_) {
+    resize(table, initial_size);
   }
   virtual ~server_dht() = default;
   server_dht(const server_dht &) = delete;
   server_dht(server_dht &&) = default;
 
-  virtual Return_t add(resource_entry &&e) = 0;
+  virtual Return_t add(std::tuple<mem_type, size_t, size_t, uint32_t>&& e) = 0;
   virtual Return_t remove(const key_type &key) = 0;
   virtual size_t contains(const key_type &key) = 0;
   void resize(LocalRDMAObj<hash_table_entry> *new_table, size_t size);

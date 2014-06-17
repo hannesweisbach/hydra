@@ -65,20 +65,27 @@ size_t hydra::hopscotch_server::next_movable(size_t to) const {
   return invalid_index();
 }
 
-void hydra::hopscotch_server::add(hydra::hopscotch_server::resource_entry&& e, const size_t to, const size_t home) {
-  assert(e.mem);
-  table[to] = hash_table_entry(e.key(), e.size, e.key_size, e.rkey, table[to].get().hop);
+void
+hydra::hopscotch_server::add(std::tuple<mem_type, size_t, size_t, uint32_t> &&e,
+                             const size_t to, const size_t home) {
+  assert(std::get<0>(e));
+  //table[to] = hash_table_entry(e.key(), e.size, e.key_size, e.rkey, table[to].get().hop);
+  shadow_table[to].set(std::move(std::get<0>(e)), std::get<1>(e), std::get<2>(e), std::get<3>(e));
   size_t distance = (to - home + table_size) % table_size;
   assert(distance < hop_range);
   /* racy */
   table[home]([=](auto &&entry) { entry.set_hop(distance); });
-  shadow_table[to] = std::move(e);
 }
 
 void hydra::hopscotch_server::move(size_t from, size_t to) {
   //log_info() << "Moving " << from " to " << to;
   const size_t home = home_of(table[from].get());
-  add(std::move(shadow_table[from]), to, home);
+  //add(std::move(shadow_table[from]), to, home);
+  shadow_table[to] = std::move(shadow_table[from]);
+  size_t distance = (to - home + table_size) % table_size;
+  assert(distance < hop_range);
+  /* racy */
+  table[home]([=](auto &&entry) { entry.set_hop(distance); });
   
   const size_t old_hops = (from - home + table_size) % table_size;
   assert(old_hops < hop_range);
@@ -101,8 +108,9 @@ size_t hydra::hopscotch_server::move_into(size_t to) {
   return movable;
 }
 
-hydra::Return_t hydra::hopscotch_server::add(hydra::hopscotch_server::resource_entry&& e) {
-  key_type key(e.key(), e.key_size);
+hydra::Return_t hydra::hopscotch_server::add(
+    std::tuple<mem_type, size_t, size_t, uint32_t> &&e) {
+  key_type key(std::get<0>(e).get(), std::get<2>(e));
   /* overwrite existing key */
   auto index = contains(key);
   if (index != invalid_index()) {

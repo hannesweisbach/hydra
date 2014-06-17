@@ -198,6 +198,8 @@ struct hash_table_entry {
   size_t value_length() const { return ptr.size - key_size; }
 };
 
+using server_entry = LocalRDMAObj<hash_table_entry>;
+
 std::ostream &operator<<(std::ostream &s, const hydra::hash_table_entry &e);
 std::ostream &operator<<(std::ostream &s, const hydra::node_id &id);
 std::ostream &operator<<(std::ostream &s, const hydra::routing_entry &e);

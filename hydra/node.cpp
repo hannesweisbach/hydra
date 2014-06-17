@@ -2,6 +2,7 @@
 #include <chrono>
 #include <algorithm>
 #include <iterator>
+#include <tuple>
 
 #include "node.h"
 #include "hydra/chord.h"
@@ -247,9 +248,8 @@ void node::handle_add(const put_request &msg, const qp_t &qp) {
           return;
         }
         dht([ =, r1 = std::move(r) ](hopscotch_server & hs) mutable {
-                                      server_dht::resource_entry e(
-                                          std::move(r1.first), r1.second->rkey,
-                                          size, key_size);
+  auto e =
+      std::make_tuple(std::move(r1.first), size, key_size, r1.second->rkey);
                                       hs.check_consistency();
                                       auto ret = hs.add(std::move(e));
                                       hs.check_consistency();
