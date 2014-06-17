@@ -48,7 +48,7 @@ class hopscotch_server : public server_dht {
 public:
   hopscotch_server(LocalRDMAObj<hash_table_entry> *table, size_t hop_range = 32,
                    size_t initial_size = 32)
-      : server_dht(table, initial_size), hop_range(hop_range), v(initial_size) {
+      : server_dht(table, initial_size), hop_range(hop_range) {
     assert(
         ("Number of hops must be <= the number of bits in the type of the hop "
          "mask.",
