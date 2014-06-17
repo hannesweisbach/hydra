@@ -25,25 +25,14 @@ inline uint64_t log2(const uint64_t val) {
 }
 }
 
-template <typename T> constexpr size_t sizeof_largest_type() {
-  return sizeof(T);
-}
-
-#ifndef __has_feature         // Optional of course.
-  #define __has_feature(x) 0  // Compatibility with non-clang compilers.
-#endif
-
-template <typename T1, typename T2, typename... Args>
-constexpr size_t sizeof_largest_type() {
-#if __has_feature(cxx_relaxed_constexpr)
-  constexpr size_t s1 = sizeof_largest_type<T1>();
-  constexpr size_t s2 = sizeof_largest_type<T2, Args...>();
-  return (s1 > s2) ? s1 : s2;
-#else
-  return (sizeof_largest_type<T1>() > sizeof_largest_type<T2, Args...>())
-             ? sizeof_largest_type<T1>()
-             : sizeof_largest_type<T2, Args...>();
-#endif
+/* As of libstdc++-4.9 std::max is not yet constexpr */
+template <typename... Args> constexpr size_t sizeof_largest_type() {
+  size_t max = 0;
+  for (const auto &size : { sizeof(Args)... }) {
+    if (size > max)
+      max = size;
+  }
+  return max;
 }
 
 template <size_t size> class is_power_of_two {
