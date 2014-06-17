@@ -164,24 +164,18 @@ size_t hydra::hopscotch_server::contains(const key_type &key) {
 }
 
 hydra::Return_t hydra::hopscotch_server::remove(const key_type &key) {
-  for (size_t i = home_of(key), hop = table[i].get().hop; hop;
-       i = (i + 1) % table_size, hop >>= 1) {
-    size_t distance = (i - home_of(key) + table_size) % table_size;
-    if ((hop & 1) && (distance < hop_range)) {
-      shadow_table[i].lock();
-      if (table[i].get().key_length() == key.second &&
-          memcmp(table[i].get().key(), key.first, key.second) == 0) {
-        table[home_of(key)]([=](auto && entry) { entry.clear_hop(distance); });
-        table[i]([](auto &&entry) { entry.empty(); });
-        shadow_table[i].empty();
-        used--;
-        shadow_table[i].unlock();
-        return SUCCESS;
-      }
-      shadow_table[i].unlock();
-    }
-  }
-  return NOTFOUND;
+  const size_t kv = contains(key);
+  if(kv == invalid_index())
+    return NOTFOUND;
+
+  const size_t home = home_of(key);
+  const size_t distance = (kv - home + table_size) % table_size;
+  shadow_table[home]([=](auto &&entry) { entry.clear_hop(distance); });
+  shadow_table[kv]([](auto &&entry) { entry.empty(); });
+  shadow_table[kv].unlock();
+  used--;
+
+  return SUCCESS;
 }
 
 void hydra::hopscotch_server::dump() const {

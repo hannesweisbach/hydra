@@ -55,7 +55,7 @@ public:
 #endif
     explicit resource_entry(server_entry &rdma_entry)
         : rdma_entry(rdma_entry) {}
-    value_type *key() const { return mem.get(); }
+    const value_type *key() const { return mem.get(); }
     void set(mem_type ptr, size_t size, size_t key_size, uint32_t rkey) {
       mem = std::move(ptr);
       uint32_t hop = rdma_entry.get().hop;
