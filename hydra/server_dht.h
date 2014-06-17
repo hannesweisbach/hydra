@@ -62,7 +62,7 @@ public:
       new (&rdma_entry) server_entry(mem.get(), size, key_size, rkey, hop);
     }
     operator bool() const noexcept {
-      assert(bool(mem) == bool(rdma_entry));
+      assert(bool(mem) == bool(rdma_entry.get()));
       return bool(mem);
     }
     void empty() {
