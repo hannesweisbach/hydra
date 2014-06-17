@@ -13,7 +13,7 @@ std::ostream &hydra::operator<<(std::ostream &s, const hydra::hash_table_entry &
   if (e.key() != nullptr)
     s.write(reinterpret_cast<const char *>(e.key()),
             (std::streamsize)std::min(e.key_length(), static_cast<size_t>(16)));
-  s << ") " << (void *)e.value() << " (";
+  s << ") " << e.key_length() << " " << (void *)e.value() << " (";
   if (e.value() != nullptr)
     s.write(
         reinterpret_cast<const char *>(e.value()),
