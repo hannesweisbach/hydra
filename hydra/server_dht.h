@@ -79,7 +79,6 @@ public:
       return (key_size() == other_key.second) &&
              std::equal(key(), key() + key_size(), other_key.first);
     }
-    }
     void lock() const noexcept {
 #if PER_ENTRY_LOCKS
       lock_.lock();
