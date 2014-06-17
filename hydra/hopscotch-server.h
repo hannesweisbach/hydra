@@ -9,6 +9,33 @@ class hopscotch_server : public server_dht {
   size_t home_of(const hash_table_entry &e) const {
     return home_of(std::make_pair(e.key(), e.key_size));
   }
+
+  template <typename Pred>
+  size_t find_if(size_t begin, size_t end, Pred &&predicate) const {
+    if (begin < end) {
+      auto first = std::begin(shadow_table) + begin;
+      auto last = std::begin(shadow_table) + end;
+      auto result = std::find_if(first, last, predicate);
+      if (result != last)
+        return std::distance(std::begin(shadow_table), result);
+
+      return invalid_index();
+    } else {
+      auto first = std::begin(shadow_table) + begin;
+      auto last = std::end(shadow_table);
+      auto result = std::find_if(first, last, predicate);
+      if (result != last)
+        return std::distance(std::begin(shadow_table), result);
+
+      first = std::begin(shadow_table);
+      last = std::begin(shadow_table) + begin;
+      result = std::find_if(first, last, predicate);
+      if (result != last)
+        return std::distance(std::begin(shadow_table), result);
+
+      return invalid_index();
+    }
+  }
   size_t home_of(const key_type &key) const;
   size_t next_free_index(size_t from) const;
   size_t next_movable(size_t to) const;
