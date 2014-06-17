@@ -75,8 +75,10 @@ public:
     bool has_hop(const size_t &idx) const noexcept {
       return rdma_entry.get().hop & (1 << idx);
     }
-    bool has_key(const unsigned char *const other_key) const noexcept {
-      return std::equal(key(), key() + key_size(), other_key);
+    bool has_key(const key_type &other_key) const noexcept {
+      return (key_size() == other_key.second) &&
+             std::equal(key(), key() + key_size(), other_key.first);
+    }
     }
     void lock() const noexcept {
 #if PER_ENTRY_LOCKS

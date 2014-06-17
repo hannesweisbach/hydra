@@ -159,7 +159,7 @@ size_t hydra::hopscotch_server::contains(const key_type &key) {
       return false;
 
     e.lock();
-    if (e.key_size() == size && e.has_key(key.first))
+    if (e.has_key(key))
       return true;
     e.unlock();
     return false;
