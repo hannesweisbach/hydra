@@ -89,14 +89,16 @@ void hydra::hopscotch_server::move(size_t from, size_t to) {
   shadow_table[to] = std::move(shadow_table[from]);
   size_t distance = (to - home + table_size) % table_size;
   assert(distance < hop_range);
-  /* racy */
-  table[home]([=](auto &&entry) { entry.set_hop(distance); });
+  /* racy - move/hop update */
   
   const size_t old_hops = (from - home + table_size) % table_size;
   assert(old_hops < hop_range);
-  //TODO express in terms of delete
-  table[home]([=](auto &&entry) { entry.clear_hop(old_hops); });
-  //mark from as free.
+  table[home]([=](auto &&entry) {
+    entry.set_hop(distance);
+    entry.clear_hop(old_hops);
+  });
+
+  //mark from as free. TODO: incorporate into move.
   table[from]([](auto &&entry) { entry.empty(); });
   shadow_table[from].empty();
 }
