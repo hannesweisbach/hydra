@@ -192,9 +192,8 @@ void hydra::hopscotch_server::check_consistency() const {
         (shadow_entry.key_size() != rdma_entry.get().key_size) ||
         (!rdma_entry.valid()) ||
         (rdma_entry.get().rkey == 0 && (rdma_entry.get().hop & 1))) {
-      log_info() << i;
-      log_info() << shadow_entry;
-      log_info() << rdma_entry.get();
+      std::cout << i << " " << shadow_entry << std::endl;
+      std::cout << rdma_entry.get() << std::endl;
       dump();
       std::terminate();
     }
