@@ -181,6 +181,7 @@ struct hash_table_entry {
                                                   rkey(rkey) {}
   hash_table_entry() noexcept : hash_table_entry(nullptr, 0, 0, 0, 0) {}
   bool is_empty() const { return ptr.is_empty(); }
+  operator bool() const noexcept { return !is_empty(); }
   void empty() {
     key_size = 0;
     rkey = 0;
