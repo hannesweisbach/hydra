@@ -67,7 +67,7 @@ public:
     }
     void empty() {
       mem.reset();
-      rdma_entry([](auto &&e) { e.empty(); });
+      rdma_entry = server_entry();
       assert(mem.get() == nullptr);
     }
     size_t size() const noexcept { return rdma_entry.get().ptr.size; }
