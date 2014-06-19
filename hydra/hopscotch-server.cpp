@@ -171,8 +171,9 @@ hydra::Return_t hydra::hopscotch_server::remove(const key_type &key) {
   return SUCCESS;
 }
 
-void hydra::hopscotch_server::dump() const {
-  for (size_t i = 0; i < table_size; i++) {
+void hydra::hopscotch_server::dump() const { dump(0, table_size); }
+void hydra::hopscotch_server::dump(const size_t &from, const size_t &to) const {
+  for (size_t i = from; i < to; i++) {
     auto &e = shadow_table[i];
     if (e)
       std::cout << &e << " " << std::setw(6) << i << " " << e.rdma_entry.get()

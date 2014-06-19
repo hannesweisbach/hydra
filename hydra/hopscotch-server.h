@@ -64,6 +64,7 @@ public:
   Return_t remove(const key_type& key) override;
   size_t contains(const key_type &key) override;
   size_t next_size() const override;
+  void dump(const size_t &, const size_t &) const;
   void dump() const;
   void check_consistency() const;
 };
