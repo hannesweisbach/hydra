@@ -87,13 +87,11 @@ void hydra::hopscotch_server::move(size_t from, size_t to) {
   // add(std::move(shadow_table[from]), to, home);
   shadow_table[to] = std::move(shadow_table[from]);
 
+  // mark from as free. TODO: incorporate into move.
   table[home]([=](auto &&entry) {
     entry.set_hop(distance);
     entry.clear_hop(old_hops);
   });
-
-  // mark from as free. TODO: incorporate into move.
-  shadow_table[from].empty();
 }
 
 size_t hydra::hopscotch_server::move_into(size_t to) {
