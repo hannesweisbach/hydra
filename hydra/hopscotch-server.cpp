@@ -49,25 +49,18 @@ size_t hydra::hopscotch_server::next_free_index(size_t from) const {
 
 size_t hydra::hopscotch_server::next_movable(size_t to) const {
   size_t start = (to - (hop_range - 1) + table_size) % table_size;
-  // pair: rating - index
-  auto result = std::make_pair(size_t(0), invalid_index());
-  auto better = [](const auto &rhs,
-                   const auto &lhs) { return rhs.first < lhs.first; };
 
-  /* TODO: max_element */
   for (size_t i = start; i != to; i = (i + 1) % table_size) {
+    const size_t home = home_of(table[i].get());
     const size_t distance = (to - i + table_size) % table_size;
     /* racy */
     for (size_t offset = 0; offset < distance; offset++) {
       if (shadow_table[i].has_hop(offset)) {
-        auto candidate = i + offset;
-        auto rating = (to - candidate + table_size) % table_size;
-        /* TODO: can't we stop on first hit? */
-        result = std::max(result, std::make_pair(rating, candidate), better);
+        return i + offset;
       }
     }
   }
-  return result.second;
+  return invalid_index();
 }
 
 void
