@@ -192,6 +192,8 @@ void hydra::hopscotch_server::check_consistency() const {
         (!rdma_entry.valid()) ||
         (rdma_entry.get().rkey == 0 && (rdma_entry.get().hop & 1))) {
       std::cout << i << " " << shadow_entry << std::endl;
+      std::cout << std::boolalpha << "valid: " << rdma_entry.valid()
+                << std::endl;
       std::cout << rdma_entry.get() << std::endl;
       dump();
       std::terminate();
