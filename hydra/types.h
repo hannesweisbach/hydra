@@ -26,6 +26,8 @@ constexpr keyspace_t operator"" _ID(unsigned long long id) {
 }
 }
 
+using namespace hydra::literals;
+
 struct node_info {
   keyspace_t id;
   uint64_t table_size;
@@ -70,7 +72,7 @@ struct routing_entry {
       : node(node), start(start) {}
   routing_entry(const std::string &ip, const std::string &port,
                 const keyspace_t &n, const keyspace_t &k)
-      : node(n, ip, port), start(n + (keyspace_t(1) << k)) {}
+      : node(n, ip, port), start(n + (1_ID << k)) {}
   routing_entry(const std::string &ip, const std::string &port,
                 const keyspace_t &n)
       : node(n, ip, port), start(n) {}
@@ -110,7 +112,7 @@ struct routing_table {
     table[self_index] = routing_entry(ip, port, id);
     keyspace_t::value_type k = 0;
     for (auto &&entry : *this) {
-      entry = routing_entry(ip, port, id, k++);
+      entry = routing_entry(ip, port, id, keyspace_t(k++));
     }
   }
   routing_table(const std::string &ip, const std::string &port)
@@ -129,7 +131,7 @@ struct routing_table {
 #endif
 #if 1
       //gcc fails to call this->self(), so call it explicitly
-      return node.node.id.in(this->self().node.id + 1, id - 1);
+      return node.node.id.in(this->self().node.id + 1_ID, id - 1_ID);
 #else
       return interval({ static_cast<keyspace_t>(),
                         static_cast<keyspace_t>(id - 1) })
@@ -142,7 +144,7 @@ struct routing_table {
   }
 
   bool has_id(const keyspace_t &id) const {
-    return id.in(predecessor().node.id + 1, self().node.id);
+    return id.in(predecessor().node.id + 1_ID, self().node.id);
   }
 
   routing_entry &operator[](const size_t i) {
