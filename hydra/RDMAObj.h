@@ -12,6 +12,18 @@ public:
   template <typename... Args>
   RDMAObj(Args &&... args)
       : obj(std::forward<Args>(args)...), crc(hydra::hash64(&obj)) {}
+  RDMAObj(const RDMAObj<T> &other) = default;
+  RDMAObj<T> &operator=(const RDMAObj<T> &other) = default;
+  RDMAObj(RDMAObj<T> &&other)
+      : obj(std::move(other.obj)), crc(hydra::hash64(&obj)) {
+    other.rehash();
+  }
+  RDMAObj<T> &operator=(RDMAObj<T> &&other) {
+    obj = std::move(other.obj);
+    other.rehash();
+    rehash();
+    return *this;
+  }
 
   void rehash() { crc = hydra::hash64(&obj); }
   bool valid() const { return hydra::hash64(&obj) == crc; }
@@ -32,9 +44,8 @@ template <typename T> class LocalRDMAObj : public RDMAObj<T> {
   }
 
 public:
-  template <typename... Args>
-  LocalRDMAObj(Args &&... args)
-      : RDMAObj<T>(std::forward<Args>(args)...) {}
+  using RDMAObj<T>::RDMAObj;
+  using RDMAObj<T>::operator=;
 
   template <typename F> auto operator()(F &&f) {
     return void_helper(std::forward<F>(f),
