@@ -24,7 +24,7 @@ struct keyspace_t {
   keyspace_t(keyspace_t &&) = default;
   keyspace_t &operator=(const keyspace_t &) = default;
   keyspace_t &operator=(keyspace_t &&) = default;
-  constexpr keyspace_t(value_type v) noexcept : value__(v) {}
+  constexpr explicit keyspace_t(value_type v) noexcept : value__(v) {}
 
   keyspace_t operator+(keyspace_t const &rhs) const noexcept {
     return keyspace_t(value__ + rhs.value__);
