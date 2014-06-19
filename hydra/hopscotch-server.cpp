@@ -75,23 +75,24 @@ hydra::hopscotch_server::add(std::tuple<mem_type, size_t, size_t, uint32_t> &e,
 }
 
 void hydra::hopscotch_server::move(size_t from, size_t to) {
-  //log_info() << "Moving " << from " to " << to;
+  // log_info() << "Moving " << from " to " << to;
   const size_t home = home_of(table[from].get());
-  //add(std::move(shadow_table[from]), to, home);
-  shadow_table[to] = std::move(shadow_table[from]);
-  size_t distance = (to - home + table_size) % table_size;
-  assert(distance < hop_range);
-  /* racy - move/hop update */
-  
+  const size_t distance = (to - home + table_size) % table_size;
   const size_t old_hops = (from - home + table_size) % table_size;
+
+  assert(distance < hop_range);
   assert(old_hops < hop_range);
+
+  /* racy - move/hop update */
+  // add(std::move(shadow_table[from]), to, home);
+  shadow_table[to] = std::move(shadow_table[from]);
+
   table[home]([=](auto &&entry) {
     entry.set_hop(distance);
     entry.clear_hop(old_hops);
   });
 
-  //mark from as free. TODO: incorporate into move.
-  table[from]([](auto &&entry) { entry.empty(); });
+  // mark from as free. TODO: incorporate into move.
   shadow_table[from].empty();
 }
 
