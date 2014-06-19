@@ -182,7 +182,9 @@ struct hash_table_entry {
   hash_table_entry &operator=(hash_table_entry && other) {
     ptr = std::move(other.ptr);
     key_size = other.key_size;
+    other.key_size = 0;
     rkey = other.rkey;
+    other.rkey = 0;
     return *this;
   }
   hash_table_entry() noexcept : hash_table_entry(nullptr, 0, 0, 0, 0) {}
