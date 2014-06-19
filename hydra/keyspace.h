@@ -67,3 +67,11 @@ struct keyspace_t {
   operator hydra::keyspace_t::value_type() const noexcept { return value__; }
 };
 }
+
+namespace std {
+template <> struct hash<hydra::keyspace_t> {
+  size_t operator()(const hydra::keyspace_t &id) const noexcept {
+    return id.value__;
+  }
+};
+}
