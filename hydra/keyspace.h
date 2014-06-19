@@ -2,6 +2,7 @@
 
 #include <limits>
 #include "util/utils.h"
+#include "util/uint128.h"
 
 namespace hydra {
 
