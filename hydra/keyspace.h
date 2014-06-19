@@ -63,5 +63,7 @@ struct keyspace_t {
     else
       return (*this - start) <= (end - start);
   }
+
+  operator hydra::keyspace_t::value_type() const noexcept { return value__; }
 };
 }
