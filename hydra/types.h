@@ -188,11 +188,6 @@ struct hash_table_entry {
   hash_table_entry() noexcept : hash_table_entry(nullptr, 0, 0, 0, 0) {}
   bool is_empty() const { return ptr.is_empty(); }
   operator bool() const noexcept { return !is_empty(); }
-  void empty() {
-    key_size = 0;
-    rkey = 0;
-    ptr.reset();
-  }
   bool has_key(const char *k, size_t klen) const {
     return (key_size == klen) && (memcmp(k, ptr.get(), key_size) == 0);
   }
