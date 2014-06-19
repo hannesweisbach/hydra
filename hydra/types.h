@@ -179,6 +179,12 @@ struct hash_table_entry {
                                                   key_size(key_size),
                                                   hop(hop),
                                                   rkey(rkey) {}
+  hash_table_entry &operator=(hash_table_entry && other) {
+    ptr = std::move(other.ptr);
+    key_size = other.key_size;
+    rkey = other.rkey;
+    return *this;
+  }
   hash_table_entry() noexcept : hash_table_entry(nullptr, 0, 0, 0, 0) {}
   bool is_empty() const { return ptr.is_empty(); }
   operator bool() const noexcept { return !is_empty(); }
