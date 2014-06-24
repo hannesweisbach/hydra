@@ -305,128 +305,135 @@ rdma_id_ptr createCmId(const std::string &host, const std::string &port,
   throw std::runtime_error(s.str());
 }
 
-[[deprecated]] std::shared_ptr< ::ibv_pd>
-               createProtectionDomain(std::shared_ptr< ::rdma_cm_id> id) {
-  ::ibv_pd *pd = check_nonnull(::ibv_alloc_pd(id.get()->verbs));
-  return std::shared_ptr< ::ibv_pd>(pd, ::ibv_dealloc_pd);
+completion_channel::completion_channel(const rdma_id_ptr &id)
+    : cc(check_nonnull(::ibv_create_comp_channel(id->verbs))),
+      run(std::make_unique<std::atomic_bool>(true)),
+      poller(std::bind(&completion_channel::loop, cc.get(), run.get())) {}
+completion_channel::~completion_channel() { stop(); }
+
+void completion_channel::stop() {
+  *run = false;
+  if (poller.joinable())
+    poller.join();
 }
 
-comp_channel_ptr createCompChannel(rdma_id_ptr &id) {
-  ::ibv_comp_channel *channel =
-      check_nonnull(::ibv_create_comp_channel(id->verbs));
-  return comp_channel_ptr(channel, ::ibv_destroy_comp_channel);
-}
+void completion_channel::loop(ibv_comp_channel *cc, std::atomic_bool *run) {
+  epoll_event event;
+  event.events = EPOLLIN;
+  event.data.fd = cc->fd;
 
-cq_ptr createCQ(rdma_id_ptr &id, int entries, void *context,
-                comp_channel_ptr &channel, int completion_vector) {
-  ::ibv_cq *cq = check_nonnull(::ibv_create_cq(
-      id.get()->verbs, entries, context, channel.get(), completion_vector));
-  return cq_ptr(cq, ::ibv_destroy_cq);
-}
+  hydra::util::epoll poll;
+  poll.add(cc->fd, &event);
 
-static void call_completion_handler(const ibv_wc &wc) {
-  /* wc.wr_id is a pointer to the continuation handler */
-  auto f = reinterpret_cast<std::function<void(const ibv_wc &)> *>(wc.wr_id);
-  if (f) {
-    // TODO dispatch-async: ?
-    (*f)(wc);
-  } else {
-    log_info() << wc.opcode << ": No completion handler registered";
+  while (*run) {
+    if (poll.wait(&event, 1, 1)) {
+      if (event.data.fd == cc->fd) {
+        void *user_context = nullptr;
+        struct ibv_cq *cq = nullptr;
+
+        check_zero(ibv_get_cq_event(cc, &cq, &user_context));
+        auto *ptr = reinterpret_cast<completion_queue::cq *>(user_context);
+
+        if (ptr->handle())
+          return;
+      }
+    }
   }
 }
 
-static bool recv_helper__(ibv_comp_channel *cc) {
-  int ret;
-  unsigned int n_events = 0;
-  void *user_context;
-  struct ibv_cq *cq;
-  struct ibv_wc wcs[16];
+completion_queue::completion_queue(const rdma_id_ptr &id,
+                                   const completion_channel &cc,
+                                   const int entries, const size_t completions,
+                                   const unsigned int outstanding_acks,
+                                   const int completion_vector)
+    : cq_(std::make_unique<cq>(id.get(), cc.cc.get(), entries, completions,
+                               outstanding_acks, completion_vector)) {}
+
+completion_queue::completion_queue(const rdma_id_ptr &id, const int entries,
+                                   const size_t completions,
+                                   const unsigned int outstanding_acks,
+                                   const int completion_vector)
+    : cq_(std::make_unique<cq>(id.get(), nullptr, entries, completions,
+                               outstanding_acks, completion_vector)) {}
+
+completion_queue::cq::cq(rdma_cm_id *id, ibv_comp_channel *cc,
+                         const int entries, const size_t completions,
+                         const unsigned int outstanding_acks,
+                         const int completion_vector)
+    : completions(completions), outstanding_acks(outstanding_acks), events(0),
+      cq_(check_nonnull(
+          ::ibv_create_cq(id->verbs, entries, this, cc, completion_vector))) {
+  notify();
+}
+
+completion_queue::cq::~cq() {
+  ibv_ack_cq_events(*this, events.exchange(0));
+  poll();
+}
+
+void completion_queue::cq::notify() const {
+  check_zero(ibv_req_notify_cq(*this, 0));
+}
+
+void completion_queue::cq::ack() const {
+  events++;
+  if (events > outstanding_acks)
+    ibv_ack_cq_events(*this, events.exchange(0));
+}
+
+completion_queue::cq::operator ibv_cq *() const { return cq_.get(); }
+
+bool completion_queue::cq::poll() const {
   bool flushing = false;
+  int ret;
+  std::vector<ibv_wc> wcs(completions);
 
-  /* TODO maybe use rdma_get_recv/send_comp? */
-  check_zero(ibv_get_cq_event(cc, &cq, &user_context));
-  ibv_ack_cq_events(cq, 1);
-  check_zero(ibv_req_notify_cq(cq, 0));
-
-  while ((ret = ibv_poll_cq(cq, 16, wcs))) {
-    if (ret < 0) {
+  while ((ret = ibv_poll_cq(*this, static_cast<unsigned int>(wcs.size()),
+                            wcs.data()))) {
+    if (ret < 0)
       throw_errno("ibv_poll_cq()");
-      break;
-    }
 
-    for (int i = 0; i < ret; i++) {
-      struct ibv_wc wc = wcs[i];
+    if (ret > 1024)
+      log_debug() << __func__ << " " << ret;
+
+    std::for_each(std::begin(wcs), std::begin(wcs) + ret, [&](const auto &wc) {
       if (wc.status == IBV_WC_WR_FLUSH_ERR) {
         flushing = true;
       }
 
-      if (wc.status != IBV_WC_SUCCESS) {
-        /* wc.opcode is invalid - but we need to set the an exception in the
-         * std::future */
-        call_completion_handler(wc);
-        continue;
+      auto f =
+          reinterpret_cast<std::function<void(const ibv_wc &)> *>(wc.wr_id);
+      if (f) {
+        (*f)(wc);
       }
+
+      if (wc.status != IBV_WC_SUCCESS)
+        return;
 
       switch (wc.opcode) {
       case IBV_WC_SEND:
-        [[clang::fallthrough]];
       case IBV_WC_RECV:
-        [[clang::fallthrough]];
       case IBV_WC_RDMA_READ:
-        call_completion_handler(wc);
+      case IBV_WC_RDMA_WRITE:
         break;
-      default:
+      case IBV_WC_COMP_SWAP:
+      case IBV_WC_FETCH_ADD:
+      case IBV_WC_BIND_MW:
+      case IBV_WC_RECV_RDMA_WITH_IMM:
         log_info() << "Received " << wc.opcode << " on id " << std::hex
                    << std::showbase << wc.wr_id << std::dec;
         break;
       }
-    }
+    });
   }
 
   return flushing;
 }
 
-std::future<void> rdma_handle_cq_event_async(ibv_comp_channel *cc,
-                                             async_queue_type queue,
-                                             int pipe_fd) {
-  return hydra::async(queue, [=] {
-    std::array<epoll_event, 2> events;
-    hydra::util::epoll poll;
-    events[0].events = EPOLLIN;
-    events[0].data.fd = cc->fd;
-    events[1].events = EPOLLIN;
-    events[1].data.fd = pipe_fd;
-
-    poll.add(cc->fd, &events[0]);
-    poll.add(pipe_fd, &events[1]);
-
-    bool flushing = false;
-    while (1) {
-      /* TODO: throw exeception/return if
-       * - we got IBV_WC_WR_FLUSH_ERR (i.e. QP is in error state --
-       *   rdma_disconnect() was called) and
-       * - subsequent select() timed out (we got the last event -- the queue is
-       *   drained
-       *   TODO: we don't have a timeout anymore. can we just quit? (and thus
-       *         drop flushing?)
-       * - The above doesn't work for an (empty) send queue.
-       *   -> use SRQ?
-       *   -> boolean
-       */
-      int ret = poll.wait(events.data(), events.size(), -1);
-      for (int i = 0; i < ret; i++) {
-        if (events[i].data.fd == cc->fd) {
-          flushing = recv_helper__(cc);
-        } else if (events[i].data.fd == pipe_fd) {
-          close(pipe_fd);
-          return;
-        } else {
-          log_err() << "Quit select without error, timeout and an fd set";
-          assert(false);
-        }
-      }
-    }
-  });
+bool completion_queue::cq::handle() const {
+  notify();
+  ack();
+  return poll();
 }
 
 void dereg_debug(ibv_mr *mr) { log_err() << "deregging " << mr; }

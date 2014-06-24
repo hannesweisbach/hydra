@@ -16,19 +16,6 @@
 #include "util/exception.h"
 #include "util/Logger.h"
 
-#ifdef HAVE_LIBDISPATCH
-std::future<void> rdma_handle_cq_event_async(
-    ibv_comp_channel *cc,
-    async_queue_type queue =
-        dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
-    int pipe_fd = -1);
-
-#else
-std::future<void> rdma_handle_cq_event_async(std::atomic_bool &running,
-                                             ibv_comp_channel *cc,
-                                             async_queue_type queue = 0);
-#endif
-
 std::ostream &operator<<(std::ostream &ostream, const enum ibv_wc_status& status);
 std::ostream &operator<<(std::ostream &ostream, const enum ibv_wc_opcode& opcode);
 std::ostream &operator<<(std::ostream &ostream, const enum rdma_cm_event_type& type);
@@ -41,9 +28,6 @@ std::ostream &operator<<(std::ostream &ostream, const ibv_srq_attr &attr);
 
 using mr_ptr = std::unique_ptr< ::ibv_mr, std::function<void(ibv_mr *)> >;
 using rdma_id_ptr = std::unique_ptr< ::rdma_cm_id, decltype(&rdma_destroy_ep)>;
-using comp_channel_ptr = std::unique_ptr<
-    ::ibv_comp_channel, decltype(& ::ibv_destroy_comp_channel)>;
-using cq_ptr = std::unique_ptr< ::ibv_cq, decltype(&ibv_destroy_cq)>;
 using qp_t = decltype(ibv_wc::qp_num);
 static_assert(std::is_same<qp_t, decltype(ibv_qp::qp_num)>::value,
               "QP number type must be the same in ibv_wc and ibv_qp");
@@ -60,12 +44,69 @@ ec_ptr createEventChannel();
 rdma_id_ptr createCmId(const std::string &host, const std::string &port,
                        const bool passive = false,
                        ibv_qp_init_attr *attr = nullptr);
-comp_channel_ptr createCompChannel(rdma_id_ptr &id);
-cq_ptr createCQ(rdma_id_ptr &id, int entries, void *context,
-                comp_channel_ptr &channel, int completion_vector);
 
-std::shared_ptr< ::ibv_pd>
-createProtectionDomain(std::shared_ptr< ::rdma_cm_id> id);
+class completion_queue;
+
+class completion_channel {
+  struct cc_deleter {
+    void operator()(ibv_comp_channel *cc) {
+      check_zero(::ibv_destroy_comp_channel(cc));
+    }
+  };
+  std::unique_ptr<ibv_comp_channel, cc_deleter> cc;
+  std::unique_ptr<std::atomic_bool> run;
+  std::thread poller;
+
+  static void loop(ibv_comp_channel *, std::atomic_bool *);
+
+public:
+  completion_channel(const rdma_id_ptr &id);
+  ~completion_channel();
+  void stop();
+  friend class completion_queue;
+};
+
+class completion_queue {
+  class cq {
+    struct cq_deleter {
+      void operator()(ibv_cq *cq) { check_zero(::ibv_destroy_cq(cq)); }
+    };
+
+    const size_t completions;
+    const unsigned int outstanding_acks;
+    mutable std::atomic_uint events;
+    std::unique_ptr<ibv_cq, cq_deleter> cq_;
+
+    void notify() const;
+    void ack() const;
+    bool poll() const;
+    operator ibv_cq *() const;
+
+  public:
+    cq(rdma_cm_id *id, ibv_comp_channel *cc, const int entries,
+       const size_t completions, const unsigned int outstanding_acks,
+       const int completion_vector = 0);
+    ~cq();
+
+    bool handle() const;
+
+    friend class completion_queue;
+  };
+  std::unique_ptr<cq> cq_;
+
+public:
+  completion_queue(const rdma_id_ptr &id, const completion_channel &cc,
+                   const int entries, const size_t completions = 1,
+                   const unsigned int outstanding_acks = 0,
+                   const int completion_vector = 0);
+  completion_queue(const rdma_id_ptr &id, const int entries,
+                   const size_t completions = 1,
+                   const unsigned int outstanding_acks = 0,
+                   const int completion_vector = 0);
+  operator ibv_cq *() const { return *cq_; }
+  friend class completion_channel;
+};
+
 
 template <typename T,
           typename = typename std::enable_if<!std::is_pointer<T>::value>::type>

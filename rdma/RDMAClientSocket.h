@@ -36,13 +36,10 @@ inline mr_ptr register_local_read(RDMAClientSocket &socket, void *ptr,
 #include "hydra/RDMAObj.h"
   
 class RDMAClientSocket {
+  rdma_id_ptr srq_id;
   rdma_id_ptr id;
-  std::future<void> fut_recv;
-  std::future<void> fut_send;
-  dispatch_queue_t send_queue;
-  dispatch_queue_t recv_queue;
-  int fd1;
-  int fd2;
+  completion_channel cc;
+  completion_queue cq;
 #if 0
   mutable hydra::ThreadSafeHeap<hydra::ZoneHeap<RdmaHeap<hydra::rdma::LOCAL_READ>, 256>> local_heap;
 #else
@@ -69,7 +66,7 @@ public:
                             !std::is_pointer<T>::value>::type>
   auto recv_async(const T &local, const ibv_mr *mr,
                               size_t size = sizeof(T)) {
-    return rdma_recv_async(id.get(), &local, mr, size);
+    return rdma_recv_async(srq_id.get(), &local, mr, size);
   }
 
   template <typename T>
@@ -127,7 +124,7 @@ public:
                             !std::is_pointer<T>::value>::type>
   auto recv_async() const {
     auto buffer = local_heap.malloc<T>();
-    auto future = rdma_recv_async(id, buffer);
+    auto future = rdma_recv_async(srq_id, buffer);
     return std::make_pair(std::move(future), std::move(buffer));
   }
 

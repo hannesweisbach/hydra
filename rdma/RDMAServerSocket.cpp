@@ -18,42 +18,24 @@
 RDMAServerSocket::RDMAServerSocket(const std::string &host,
                                    const std::string &port, uint32_t max_wr,
                                    int cq_entries)
-    : ec(createEventChannel()), id(createCmId(host, port, true)),
-      cc(createCompChannel(id)), cq(createCQ(id, cq_entries, nullptr, cc, 0)),
-      running(true) {
+    : ec(createEventChannel()), id(createCmId(host, port, true)), cc(id),
+      cq(id, cc, cq_entries, 256, 0), running(true) {
   assert(max_wr);
-        log_info() << "Created id " << id.get() << " " << (void*) this;
-        check_zero(rdma_migrate_id(id.get(), ec.get()));
-#if 1
-  /* TODO: throw, if id is not valid here */
-  /* on second thought, let one of the calls below fail, if id is not valid */
+  log_info() << "Created id " << id.get() << " " << (void *)this;
+
+  check_zero(rdma_migrate_id(id.get(), ec.get()));
+
   ibv_srq_init_attr srq_attr = { nullptr, { max_wr, 1, 0 } };
-  // srq_attr.attr.max_wr = max_wr;
-  // srq_attr.attr.max_sge = 1;
   if (rdma_create_srq(id.get(), nullptr, &srq_attr))
     throw_errno("rdma_create_srq");
-#endif
 
-#if 1
-  if (ibv_req_notify_cq(cq.get(), 0))
-    throw_errno("ibv_req_notify");
-#endif
-  queue = dispatch_queue_create("hydra.cq.server-queue", nullptr);
-  int fds[2];
-  pipe(fds);
-  fd1 = fds[1];
-  async_fut = rdma_handle_cq_event_async(cc.get(), queue, fds[0]);
   cm_events();
 }
 
 RDMAServerSocket::~RDMAServerSocket() {
   running = false;
-  char c;
-  write(fd1, &c, 1);
-  close(fd1);
   rdma_disconnect(id.get());
   rdma_destroy_srq(id.get());
-  dispatch_release(queue);
 }
 
 void RDMAServerSocket::disconnect(const qp_t qp_num) const {
@@ -97,23 +79,14 @@ void RDMAServerSocket::accept(client_t client_id) const {
   qp_attr.cap.max_send_sge = 1;
   qp_attr.cap.max_recv_sge = 1;
   qp_attr.cap.max_inline_data = 72;
-  qp_attr.recv_cq = cq.get();
-  qp_attr.send_cq = cq.get();
+  qp_attr.recv_cq = cq;
+  qp_attr.send_cq = cq;
   qp_attr.srq = id->srq;
-  qp_attr.sq_sig_all = 0;
+  qp_attr.sq_sig_all = 1;
 
   check_zero(rdma_create_qp(client_id.get(), NULL, &qp_attr));
 
-  log_info() << "Max inline data: " << qp_attr.cap.max_inline_data;
-  /* WTF? why did I set the srq in qp_attr then?
-   * This shit is seriously broken.
-   */
-  /* Set the new connection to use our SRQ */
-  client_id->srq = id->srq;
-
   check_zero(rdma_accept(client_id.get(), nullptr));
-
-  log_trace() << "Accepted Connection request";
 
   clients([client_id = std::move(client_id)](auto & clients) mutable {
     clients.emplace(client_id->qp->qp_num, std::move(client_id));

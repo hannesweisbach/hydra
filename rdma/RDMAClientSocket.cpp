@@ -9,45 +9,30 @@
 
 RDMAClientSocket::RDMAClientSocket(const std::string &host,
                                    const std::string &port)
-    : id([=]() {
-        ibv_qp_init_attr attr = {};
-        attr.cap.max_send_wr = 10;
-        attr.cap.max_recv_wr = 10;
-        attr.cap.max_send_sge = 1;
-        attr.cap.max_recv_sge = 1;
-        /* beware, this is a magic mofo */
-        attr.cap.max_inline_data = 72;
-        attr.sq_sig_all = 1;
-        return createCmId(host, port, false, &attr);
-      }()),
+    : srq_id(createCmId(host, port, false, nullptr)),
+      id(nullptr, [](rdma_cm_id *) {}), cc(srq_id), cq(srq_id, cc, 4, 1, 0),
       local_heap(*this), remote_heap(*this) {
-  ibv_req_notify_cq(id->recv_cq, 0);
-  ibv_req_notify_cq(id->send_cq, 0);
-// TODO: srq?
-  send_queue = dispatch_queue_create("hydra.cq.send", NULL);
-  recv_queue = dispatch_queue_create("hydra.cq.recv", NULL);
-  int fds[2];
-  pipe(fds);
-  fd1 = fds[1];
-  fut_recv =
-      rdma_handle_cq_event_async(id->recv_cq_channel, recv_queue, fds[0]);
-  pipe(fds);
-  fd2 = fds[1];
-  fut_send =
-      rdma_handle_cq_event_async(id->send_cq_channel, send_queue, fds[0]);
+
+  ibv_srq_init_attr srq_attr = { nullptr, { 4, 1, 0 } };
+  check_zero(rdma_create_srq(srq_id.get(), nullptr, &srq_attr));
+
+  ibv_qp_init_attr attr = {};
+  attr.cap.max_send_wr = 4;
+  attr.cap.max_recv_wr = 4;
+  attr.cap.max_send_sge = 1;
+  attr.cap.max_recv_sge = 1;
+  attr.recv_cq = cq;
+  attr.send_cq = cq;
+  attr.srq = srq_id->srq;
+  attr.cap.max_inline_data = 72;
+  attr.sq_sig_all = 1;
+  id = createCmId(host, port, false, &attr);
 }
 
 RDMAClientSocket::~RDMAClientSocket() {
   disconnect();
-  char c;
-  write(fd1, &c, 1);
-  write(fd2, &c, 1);
-  fut_recv.get();
-  fut_send.get();
-  dispatch_release(send_queue);
-  dispatch_release(recv_queue);
-  close(fd1);
-  close(fd2);
+  cc.stop();
+  id.reset();
 }
 
 void RDMAClientSocket::connect() const {
