@@ -131,14 +131,8 @@ void RDMAServerSocket::cm_events() const {
       switch (event->event) {
       case RDMA_CM_EVENT_CONNECT_REQUEST:
         accept(client_t(event->id, [](rdma_cm_id *id) {
-          if (id) {
-            if (id->qp) {
-              rdma_destroy_qp(id);
-              log_info() << "rdma_destroy_qp(" << (void *)id << ")";
-            }
-            rdma_destroy_id(id);
-            log_info() << "rdma_destroy_id(" << (void *)id << ")";
-          }
+          if (id)
+            rdma_destroy_ep(id);
         }));
         break;
       case RDMA_CM_EVENT_DISCONNECTED:
