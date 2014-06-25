@@ -360,7 +360,7 @@ completion_queue::cq::cq(rdma_cm_id *id, ibv_comp_channel *cc,
                          const int entries, const size_t completions,
                          const unsigned int outstanding_acks,
                          const int completion_vector)
-    : completions(completions), outstanding_acks(outstanding_acks), events(0),
+    : wcs(completions), outstanding_acks(outstanding_acks), events(0),
       cq_(check_nonnull(
           ::ibv_create_cq(id->verbs, entries, this, cc, completion_vector))) {
   notify();
@@ -386,7 +386,6 @@ completion_queue::cq::operator ibv_cq *() const { return cq_.get(); }
 bool completion_queue::cq::poll() const {
   bool flushing = false;
   int ret;
-  std::vector<ibv_wc> wcs(completions);
 
   while ((ret = ibv_poll_cq(*this, static_cast<unsigned int>(wcs.size()),
                             wcs.data()))) {

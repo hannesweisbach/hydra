@@ -6,6 +6,7 @@
 #include <sstream>
 #include <atomic>
 #include <utility>
+#include <vector>
 
 #include <sys/mman.h>
 
@@ -72,7 +73,7 @@ class completion_queue {
       void operator()(ibv_cq *cq) { check_zero(::ibv_destroy_cq(cq)); }
     };
 
-    const size_t completions;
+    mutable std::vector<ibv_wc> wcs;
     const unsigned int outstanding_acks;
     mutable std::atomic_uint events;
     std::unique_ptr<ibv_cq, cq_deleter> cq_;
