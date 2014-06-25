@@ -16,8 +16,13 @@
 
 class RDMAServerSocket {
 private:
-  using client_t =
-      std::unique_ptr<rdma_cm_id, std::function<void(rdma_cm_id *)> >;
+  struct client_id_deleter {
+    void operator()(rdma_cm_id *id) {
+      if (id)
+        rdma_destroy_ep(id);
+    }
+  };
+  using client_t = std::unique_ptr<rdma_cm_id, client_id_deleter>;
   ec_ptr ec;
   rdma_id_ptr id;
   completion_channel cc;

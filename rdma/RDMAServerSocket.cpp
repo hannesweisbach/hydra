@@ -95,55 +95,41 @@ void RDMAServerSocket::accept(client_t client_id) const {
 
 void RDMAServerSocket::cm_events() const {
   eventThread.send([=]() {
+    hydra::util::epoll poll;
+    epoll_event poll_event;
+    poll_event.events = EPOLLIN;
+    poll_event.data.fd = id->channel->fd;
+
+    poll.add(id->channel->fd, &poll_event);
+
     while (running.load()) {
-      rdma_cm_event *event;
+      rdma_cm_event *cm_event = nullptr;
 
       if (id->event) {
         rdma_ack_cm_event(id->event);
         id->event = nullptr;
       }
 
-      int fd = id->channel->fd;
-      fd_set rfds;
-      FD_ZERO(&rfds);
-      FD_SET(fd, &rfds);
-      struct timeval timeout = { 1, 0 };
-      int err = select(fd + 1, &rfds, nullptr, nullptr, &timeout);
-      if (err == 0) {
-        /* timeout - to check done */
-        continue;
-      } else if (err < 0) {
-        if (errno == EINTR)
-          continue;
-        throw_errno("select()");
-      } else {
-        if (FD_ISSET(fd, &rfds)) {
-          check_zero(rdma_get_cm_event(id->channel, &event));
-          check_zero(event->status);
+      int ret = poll.wait(&poll_event, 1, -1);
+      if (ret) {
+        if (poll_event.data.fd == id->channel->fd) {
+          check_zero(rdma_get_cm_event(id->channel, &cm_event));
+          check_zero(cm_event->status);
         } else {
-          log_err() << "Quit select without error, timeout and an fd set";
-          assert(false);
+          log_err() << "Unkown fd " << poll_event.data.fd << " set. Expected "
+                    << id->channel->fd;
+          std::terminate();
         }
       }
 
-      //log_info() << "Received " << event->event;
-
-      switch (event->event) {
-      case RDMA_CM_EVENT_CONNECT_REQUEST:
-        accept(client_t(event->id, [](rdma_cm_id *id) {
-          if (id)
-            rdma_destroy_ep(id);
-        }));
-        break;
-      case RDMA_CM_EVENT_DISCONNECTED:
-        rdma_disconnect(event->id);
-        break;
-      default:
-        break;
+      if (cm_event->event == RDMA_CM_EVENT_CONNECT_REQUEST) {
+        accept(client_t(cm_event->id));
+      } else if (cm_event->event == RDMA_CM_EVENT_DISCONNECTED) {
+        rdma_disconnect(cm_event->id);
       }
-    };
+    }
   });
-};
+}
 
 mr_ptr RDMAServerSocket::register_remote_read(void *ptr, size_t size) const {
   return mr_ptr(check_nonnull(rdma_reg_read(id.get(), ptr, size),
