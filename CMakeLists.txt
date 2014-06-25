@@ -79,6 +79,11 @@ add_subdirectory(benchmarks)
 
 add_executable(serversocket RDMATest.cpp)
 target_link_libraries(serversocket logger hydra util ${COMMON_LIBS})
+set(PROFILER ON)
+if(${PROFILER})
+  target_link_libraries(serversocket profiler)
+  add_definitions(-DPROFILER)
+endif()
 add_test(RDMAServerSocket serversocket)
 add_custom_command(TARGET serversocket POST_BUILD
     COMMAND sudo setcap cap_sys_resource+ep serversocket

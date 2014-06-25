@@ -8,6 +8,14 @@
 #include "Logger.h"
 #include "RDMAAllocator.h"
 
+#ifdef PROFILER
+#include <google/profiler.h>
+#endif
+
+#if 0
+#include <gperftools/heap-profiler.h>
+#endif
+
 int main(int argc, char *const argv[]) {
   static struct option long_options[] = {
     { "port", required_argument, 0, 'p' },
@@ -75,6 +83,17 @@ int main(int argc, char *const argv[]) {
   if(connect_remote)
     node.join(remote.first, remote.second);
 
-  sleep(10 * 3600);
+#ifdef PROFILER
+  ProfilerStart("./server.prof");
+#endif
+  //HeapProfilerStart("./server-heap.profile");
+
+#ifdef PROFILER
+    ProfilerFlush();
+#endif
+
+#ifdef PROFILER
+  ProfilerStop();
+#endif
 }
 
