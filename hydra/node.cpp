@@ -24,8 +24,8 @@ auto size2Class = [](size_t size) -> size_t {
            hydra::util::static_log2<4096>::value;
 };
 
-node::node(const std::string &ip, const std::string &port, uint32_t msg_buffers)
-    : socket(ip, port, msg_buffers), heap(48U, size2Class, socket),
+node::node(std::vector<std::string> ips, const std::string &port, uint32_t msg_buffers)
+    : socket(ips, port, msg_buffers), heap(48U, size2Class, socket),
       local_heap(socket),
       table_ptr(heap.malloc<LocalRDMAObj<hash_table_entry> >(initial_table_size)),
       dht(table_ptr.first.get(), 32U, initial_table_size),
@@ -34,7 +34,7 @@ node::node(const std::string &ip, const std::string &port, uint32_t msg_buffers)
       routing_table_(heap.malloc<LocalRDMAObj<hydra::routing_table> >()) {
 
   (*routing_table_.first)([&](auto &table) {
-    new (&table) hydra::routing_table(ip, port);
+    new (&table) hydra::routing_table(ips.front(), port);
     log_info() << table;
   });
 
@@ -74,8 +74,8 @@ node::node(const std::string &ip, const std::string &port, uint32_t msg_buffers)
            info.table_size = 8;
            info.key_extents = *table_ptr.second;
            info.routing_table = *routing_table_.second;
-           info.id = static_cast<keyspace_t::value_type>(
-               hash((ip + port).c_str(), ip.size() + port.size()));
+      info.id = keyspace_t(
+          hash((ips.front() + port).c_str(), ips.front().size() + port.size()));
 
            log_info() << "key extents mr " << info.key_extents;
            log_info() << "table extents" << info.routing_table;

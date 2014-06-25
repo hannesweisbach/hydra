@@ -18,22 +18,54 @@
 RDMAServerSocket::RDMAServerSocket(const std::string &host,
                                    const std::string &port, uint32_t max_wr,
                                    int cq_entries)
-    : ec(createEventChannel()), id(createCmId(host, port, true)), cc(id),
-      cq(id, cc, cq_entries, 256, 0), running(true) {
+    : RDMAServerSocket(std::vector<std::string>({ host }), port, max_wr,
+                       cq_entries) {}
+
+RDMAServerSocket::RDMAServerSocket(std::vector<std::string> hosts,
+                                   const std::string &port, uint32_t max_wr,
+                                   int cq_entries)
+    : ec(createEventChannel()), id(createCmId(hosts.back(), port, true)),
+      cc(id), cq(id, cc, cq_entries, 256, 0), running(true),
+      heap(52U, size2Class, *this) {
   assert(max_wr);
-  log_info() << "Created id " << id.get() << " " << (void *)this;
 
   check_zero(rdma_migrate_id(id.get(), ec.get()));
 
   ibv_srq_init_attr srq_attr = { nullptr, { max_wr, 1, 0 } };
-  if (rdma_create_srq(id.get(), nullptr, &srq_attr))
-    throw_errno("rdma_create_srq");
+  check_zero(rdma_create_srq(id.get(), nullptr, &srq_attr));
+
+  log_info() << "Created id " << id.get() << " " << (void *)this;
+  hosts.pop_back();
+
+  for (const auto &host : hosts) {
+    ibv_qp_init_attr attr = {};
+    attr.cap.max_send_wr = 4;
+    attr.cap.max_recv_wr = 4;
+    attr.cap.max_send_sge = 1;
+    attr.cap.max_recv_sge = 1;
+    attr.recv_cq = cq;
+    attr.send_cq = cq;
+    attr.srq = id->srq;
+    attr.cap.max_inline_data = 72;
+    attr.sq_sig_all = 1;
+    auto id = createCmId(host, port, true, &attr);
+
+    check_zero(rdma_migrate_id(id.get(), ec.get()));
+
+    ids.push_back(std::move(id));
+
+    log_info() << srq_attr;
+    cq_entries_ = srq_attr.attr.max_wr;
+  }
 
   cm_events();
 }
 
 RDMAServerSocket::~RDMAServerSocket() {
   running = false;
+  for (auto &&id : ids) {
+    rdma_disconnect(id.get());
+  }
   rdma_disconnect(id.get());
   rdma_destroy_srq(id.get());
 }

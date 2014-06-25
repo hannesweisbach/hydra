@@ -1,3 +1,5 @@
+#include <utility>
+
 #include <unistd.h>
 #include <getopt.h>
 
@@ -15,16 +17,15 @@ int main(int argc, char *const argv[]) {
     { 0, 0, 0, 0 }
   };
 
+  using conn_t = std::pair<std::vector<std::string>, std::string>;
 #if 1
-  std::string host("10.0.0.1");
+  conn_t host({"10.0.0.1"}, "8042");
 #else
-  std::string host("110.211.55.5");
+  conn_t host({"110.211.55.5"}, "8042");
 #endif
-  std::string port("8042");
 
-  /* connect to another node */
-  std::string remote_node;
-  std::string remote_port("8042");
+  using address_t = std::pair<std::string, std::string>;
+  address_t remote({}, "8042");
   bool connect_remote = false;
 
   int verbosity = -1;
@@ -37,10 +38,10 @@ int main(int argc, char *const argv[]) {
       break;
     switch (c) {
     case 'p':
-      port = optarg;
+      host.second = optarg;
       break;
     case 'i':
-      host = optarg;
+      host.first.push_back(optarg);
       break;
     case 'v':
       if (optarg) {
@@ -54,13 +55,13 @@ int main(int argc, char *const argv[]) {
       std::string hostport(optarg);
       size_t split = hostport.find(":");
       if (split == std::string::npos) {
-        remote_node = hostport;
+        remote.first = hostport;
       } else {
-        remote_node = hostport.substr(0, split);
-        remote_port = hostport.substr(split + 1);
+        remote.first = hostport.substr(0, split);
+        remote.second = hostport.substr(split + 1);
       }
-      log_info() << "Connection to remote node at " << remote_node << ":"
-                 << remote_port;
+      log_info() << "Connection to remote node at " << remote.first << ":"
+                 << remote.second;
     } break;
     case '?':
     default:
@@ -69,10 +70,10 @@ int main(int argc, char *const argv[]) {
   }
 
   Logger::set_severity(verbosity);
-  hydra::node node(host, port);
+  hydra::node node(host.first, host.second);
 
   if(connect_remote)
-    node.connect(remote_node, remote_port);
+    node.join(remote.first, remote.second);
 
   sleep(10 * 3600);
 }

@@ -25,6 +25,7 @@ private:
   using client_t = std::unique_ptr<rdma_cm_id, client_id_deleter>;
   ec_ptr ec;
   rdma_id_ptr id;
+  std::vector<rdma_id_ptr> ids;
   completion_channel cc;
   completion_queue cq;
   WorkerThread eventThread;
@@ -63,6 +64,8 @@ private:
   }
 
 public:
+  RDMAServerSocket(std::vector<std::string> hosts, const std::string &port,
+                   uint32_t max_wr = 32768, int cq_entries = 131071);
   RDMAServerSocket(const std::string &host, const std::string &port,
                    uint32_t max_wr = 10, int cq_entries = 10);
   ~RDMAServerSocket();
