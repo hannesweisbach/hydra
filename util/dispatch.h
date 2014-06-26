@@ -34,9 +34,9 @@ class run_queue {
       std::future<T> future;
       std::packaged_task<R(std::future<T>)> task;
 
-      wait_model(std::future<T> future,
+      wait_model(std::future<T> future_,
                  std::packaged_task<R(std::future<T>)> task)
-          : future(std::move(future)), task(std::move(task)) {
+          : future(std::move(future_)), task(std::move(task)) {
         assert(("Future is not valid.", future.valid()));
       }
 
