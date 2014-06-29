@@ -27,6 +27,10 @@ std::ostream &operator<<(std::ostream &ostream, const ibv_device &dev);
 std::ostream &operator<<(std::ostream &ostream, const ibv_srq_init_attr &attr);
 std::ostream &operator<<(std::ostream &ostream, const ibv_srq_attr &attr);
 
+struct mr_deleter {
+  void operator()(ibv_mr *mr) { ::ibv_dereg_mr(mr); }
+};
+using mr_t = std::unique_ptr< ::ibv_mr, mr_deleter>;
 using mr_ptr = std::unique_ptr< ::ibv_mr, std::function<void(ibv_mr *)> >;
 using rdma_id_ptr = std::unique_ptr< ::rdma_cm_id, decltype(&rdma_destroy_ep)>;
 using qp_t = decltype(ibv_wc::qp_num);
