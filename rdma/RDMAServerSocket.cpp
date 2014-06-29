@@ -48,11 +48,11 @@ RDMAServerSocket::RDMAServerSocket(std::vector<std::string> hosts,
     attr.srq = id->srq;
     attr.cap.max_inline_data = 72;
     attr.sq_sig_all = 1;
-    auto id = createCmId(host, port, true, &attr);
+    auto client_id = createCmId(host, port, true, &attr, id->pd);
 
-    check_zero(rdma_migrate_id(id.get(), ec.get()));
+    check_zero(rdma_migrate_id(client_id.get(), ec.get()));
 
-    ids.push_back(std::move(id));
+    ids.push_back(std::move(client_id));
 
     log_info() << srq_attr;
     cq_entries_ = srq_attr.attr.max_wr;
