@@ -48,7 +48,8 @@ ec_ptr createEventChannel();
 
 rdma_id_ptr createCmId(const std::string &host, const std::string &port,
                        const bool passive = false,
-                       ibv_qp_init_attr *attr = nullptr);
+                       ::ibv_qp_init_attr *attr = nullptr,
+                       ::ibv_pd *pd = nullptr);
 
 class completion_queue;
 

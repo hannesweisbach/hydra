@@ -261,7 +261,8 @@ static void debug_deleter (rdma_cm_id *) {
   assert(false);
 }
 rdma_id_ptr createCmId(const std::string &host, const std::string &port,
-                       const bool passive, ibv_qp_init_attr *attr) {
+                       const bool passive, ::ibv_qp_init_attr *attr,
+                       ::ibv_pd *pd) {
   std::exception_ptr exception;
 
   for (auto ai : AddrList(host, port, passive)) {
@@ -277,7 +278,7 @@ rdma_id_ptr createCmId(const std::string &host, const std::string &port,
 
     try {
       ::rdma_cm_id *id;
-      check_zero(::rdma_create_ep(&id, ai, nullptr, attr));
+      check_zero(::rdma_create_ep(&id, ai, pd, attr));
       return rdma_id_ptr(id,
 #if 1
                          ::rdma_destroy_ep
