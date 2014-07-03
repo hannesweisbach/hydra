@@ -13,6 +13,8 @@
 #include <rdma/rdma_cma.h>
 #include <rdma/rdma_verbs.h>
 
+#include "rdma/addressof.h"
+
 #include "util/concurrent.h"
 #include "util/exception.h"
 #include "util/Logger.h"
@@ -62,6 +64,17 @@ enum class ibv_access : int {
 
 inline constexpr ibv_access operator|(const ibv_access &lhs, const ibv_access &rhs) {
   return static_cast<ibv_access>(static_cast<int>(lhs) | static_cast<int>(rhs));
+}
+
+template <typename T>
+mr_t register_memory(const ibv_pd *pd, const ibv_access flags,
+                     const T &o) const {
+  using namespace hydra;
+  const void *ptr = address_of(o);
+  const size_t size = size_of(o);
+  assert(pd);
+  assert(ptr);
+  return mr_t(check_nonnull(ibv_reg_mr(pd, ptr, size, flags)));
 }
 
 class completion_queue;
