@@ -51,6 +51,19 @@ rdma_id_ptr createCmId(const std::string &host, const std::string &port,
                        ::ibv_qp_init_attr *attr = nullptr,
                        ::ibv_pd *pd = nullptr);
 
+enum class ibv_access : int {
+  LOCAL_READ = 0,
+  LOCAL_WRITE = (1 << 0),
+  REMOTE_WRITE = (1 << 1),
+  REMOTE_READ = (1 << 2),
+  REMOTE_ATOMIC = (1 << 3),
+  MW_BIND = (1 << 4),
+};
+
+inline constexpr ibv_access operator|(const ibv_access &lhs, const ibv_access &rhs) {
+  return static_cast<ibv_access>(static_cast<int>(lhs) | static_cast<int>(rhs));
+}
+
 class completion_queue;
 
 class completion_channel {
