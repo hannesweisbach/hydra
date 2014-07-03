@@ -22,10 +22,8 @@
 class RDMAClientSocket;
 
 namespace hydra {
-inline mr_ptr register_remote_read(RDMAClientSocket &socket, void *ptr,
-                                   size_t size);
-inline mr_ptr register_local_read(RDMAClientSocket &socket, void *ptr,
-                                  size_t size);
+mr_t register_memory(const RDMAClientSocket &socket, const ibv_access &flags,
+                     const void *ptr, const size_t size);
 }
 
 #include "allocators/ZoneHeap.h"
@@ -41,14 +39,18 @@ class RDMAClientSocket {
   completion_channel cc;
   completion_queue cq;
 #if 0
-  mutable hydra::ThreadSafeHeap<hydra::ZoneHeap<RdmaHeap<hydra::rdma::LOCAL_READ>, 256>> local_heap;
+  mutable hydra::ThreadSafeHeap<hydra::ZoneHeap<RdmaHeap<ibv_access::MSG>, 256>> local_heap;
 #else
   mutable hydra::ThreadSafeHeap<hydra::FreeListHeap<
-      hydra::ZoneHeap<RdmaHeap<hydra::rdma::LOCAL_READ>, 1024> > > local_heap;
+      hydra::ZoneHeap<RdmaHeap<ibv_access::MSG>, 1024> > > local_heap;
   mutable hydra::ThreadSafeHeap<hydra::ZoneHeap<
-      RdmaHeap<hydra::rdma::REMOTE_READ>, 1024 * 1024> > remote_heap;
+      RdmaHeap<ibv_access::READ>, 1024 * 1024> > remote_heap;
+  mutable hydra::ThreadSafeHeap<hydra::ZoneHeap<
+      RdmaHeap<ibv_access::READ>, 1024 * 1024 * 10> >
+  remote_heap;
 #endif
-
+#endif
+  
 public:
   RDMAClientSocket(const std::string &host, const std::string &port);
   /* TODO: optimize. maybe it is better to make uint32_t/uint16_t from strings,
@@ -59,8 +61,6 @@ public:
   ~RDMAClientSocket();
   void connect() const;
   void disconnect() const;
-  mr_ptr register_remote_read(void *ptr, size_t size) const;
-  mr_ptr register_local_read(void *ptr, size_t size) const;
   
   template <typename T, typename = typename std::enable_if<
                             !std::is_pointer<T>::value>::type>
@@ -162,15 +162,7 @@ public:
     return ::register_memory(srq_id->pd, flags, o);
   }
 
+  mr_t register_memory(const ibv_access &flags, const void *ptr,
+                       const size_t size) const;
 };
-
-namespace hydra {
-  inline mr_ptr register_remote_read(RDMAClientSocket& socket, void * ptr, size_t size) {
-    return socket.register_remote_read(ptr, size);
-  }
-  
-  inline mr_ptr register_local_read(RDMAClientSocket& socket, void * ptr, size_t size) {
-    return socket.register_local_read(ptr, size);
-  }
-}
 

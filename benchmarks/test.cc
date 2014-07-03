@@ -33,11 +33,12 @@ std::unique_ptr<void> foo() {
 #endif
 int main(int argc, char * const argv[]) {
   std::cout << "Size of std::atomic_flag: " << sizeof(std::atomic_flag) << std::endl;
-  std::cout << "Size " << sizeof(RdmaHeap<hydra::rdma::LOCAL_READ>) << " "
-            << sizeof(hydra::PerThreadHeap<RdmaHeap<hydra::rdma::LOCAL_READ> > )<< " "
-            << sizeof(hydra::LockedHeap<RdmaHeap<hydra::rdma::LOCAL_READ> >)
+  std::cout << "Size " << sizeof(RdmaHeap<ibv_access::MSG>) << " "
+            << sizeof(hydra::PerThreadHeap<RdmaHeap<ibv_access::MSG> >) << " "
+            << sizeof(hydra::LockedHeap<RdmaHeap<ibv_access::MSG> >)
             << std::endl;
-  std::unique_ptr<void, std::function<void(void *)> > p1(malloc(10), [](void *p) {
+  std::unique_ptr<void, std::function<void(void *)> > p1(malloc(10),
+                                                         [](void *p) {
     std::cout << "Dealloc" << std::endl;
     ::free(p);
   });
@@ -68,10 +69,9 @@ int main(int argc, char * const argv[]) {
     return class_;
   };
   PerThreadHeap<LockedHeap<SegregatedFitsHeap<
-      FreeListHeap<
-          ZoneHeap<RdmaHeap<hydra::rdma::REMOTE_READ>, 1024 * 1024 * 32> >,
-      ZoneHeap<RdmaHeap<hydra::rdma::REMOTE_READ>, 256> > > >
-  heap(16U, 5U, size2Class, socket);
+      FreeListHeap<ZoneHeap<RdmaHeap<ibv_access::READ>, 1024 * 1024 * 32> >,
+      ZoneHeap<RdmaHeap<ibv_access::READ>, 256> > > > heap(16U, 5U, size2Class,
+                                                           socket);
 
   log_info() << "Measurement resolution: "
              << std::chrono::duration_cast<std::chrono::nanoseconds>(

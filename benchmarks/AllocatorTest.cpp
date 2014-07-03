@@ -18,10 +18,9 @@
 #include "RDMAAllocator.h"
 
 using namespace hydra;
-using Heap_t = PerThreadHeap<LockedHeap<
-    SegregatedFitsHeap<FreeListHeap<ZoneHeap<RdmaHeap<hydra::rdma::REMOTE_READ>,
-                                             1024 * 1024> >,
-                       ZoneHeap<RdmaHeap<hydra::rdma::REMOTE_READ>, 256> > > >;
+using Heap_t = PerThreadHeap<LockedHeap<SegregatedFitsHeap<
+    FreeListHeap<ZoneHeap<RdmaHeap<ibv_access::READ>, 1024 * 1024> >,
+    ZoneHeap<RdmaHeap<ibv_access::READ>, 256> > > >;
 
 void time_allocation(Heap_t& heap, size_t count = 1024 * 1024, size_t size = 16) {
   std::hash<std::thread::id> hash;
@@ -91,10 +90,9 @@ void multi_thread_alloc(Heap_t &heap, size_t num_threads = 4,
 int main(int argc, char *const argv[]) {
   std::cout << "Size of std::atomic_flag: " << sizeof(std::atomic_flag)
             << std::endl;
-  std::cout << "Size " << sizeof(RdmaHeap<hydra::rdma::LOCAL_READ>) << " "
-            << sizeof(PerThreadHeap<RdmaHeap<hydra::rdma::LOCAL_READ> >)
-            << " "
-            << sizeof(hydra::LockedHeap<RdmaHeap<hydra::rdma::LOCAL_READ> >)
+  std::cout << "Size " << sizeof(RdmaHeap<ibv_access::MSG>) << " "
+            << sizeof(PerThreadHeap<RdmaHeap<ibv_access::MSG> >) << " "
+            << sizeof(hydra::LockedHeap<RdmaHeap<ibv_access::MSG> >)
             << std::endl;
 
   RDMAServerSocket socket("10.0.0.1", "8042");

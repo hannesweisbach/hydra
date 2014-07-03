@@ -74,16 +74,8 @@ class node;
 }
 extern hydra::node *allocation_node;
 
-namespace hydra {
-namespace rdma {
-enum Access {
-  LOCAL_READ,
-  REMOTE_READ
-};
-}
-}
-
-template <hydra::rdma::Access access = hydra::rdma::LOCAL_READ> class RdmaHeap {
+template <ibv_access access = ibv_access::READ>
+class RdmaHeap {
 public:
   enum {
     Alignment = 4096,
@@ -136,7 +128,7 @@ public:
     if (ptr == MAP_FAILED)
       throw std::bad_alloc();
     try {
-      auto mr = self_->register_remote_read(ptr, size);
+      auto mr = self_->register_memory(access, ptr, size);
       /* retain pointer before moving the unique_ptr into the deleter lambda
        * edit: we cant reset the pointer in the lambda because it may be mutable
        * thus call rdma_dereg_mr in the lambda on the raw-pointer and release
@@ -179,18 +171,16 @@ public:
 private:
   struct rdma_allocator_concept {
     virtual ~rdma_allocator_concept() = default;
-    virtual mr_ptr register_remote_read(void *ptr, size_t size) const = 0;
-    virtual mr_ptr register_local_read(void *ptr, size_t size) const = 0;
+    virtual mr_t register_memory(const ibv_access &flags, void *ptr,
+                                   size_t size) const = 0;
   };
 
   template <typename T> struct rdma_allocator_model : rdma_allocator_concept {
     T &data_;
     rdma_allocator_model(T &data) : data_(data) {}
-    mr_ptr register_remote_read(void *ptr, size_t size) const override {
-      return hydra::register_remote_read(data_, ptr, size);
-    }
-    mr_ptr register_local_read(void *ptr, size_t size) const override {
-      return hydra::register_local_read(data_, ptr, size);
+    mr_t register_memory(const ibv_access &flags, void *ptr, size_t size) const
+        override {
+      return hydra::register_memory(data_, flags, ptr, size);
     }
   };
 

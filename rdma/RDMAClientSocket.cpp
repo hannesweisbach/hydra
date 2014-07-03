@@ -7,6 +7,13 @@
 #include "RDMAClientSocket.h"
 #include "util/concurrent.h"
 
+namespace hydra {
+mr_t register_memory(const RDMAClientSocket &socket, const ibv_access &flags,
+                     const void *ptr, const size_t size) {
+  return socket.register_memory(flags, ptr, size);
+}
+}
+
 RDMAClientSocket::RDMAClientSocket(const std::string &host,
                                    const std::string &port)
     : srq_id(createCmId(host, port, false, nullptr)),
@@ -41,37 +48,8 @@ void RDMAClientSocket::connect() const {
 
 void RDMAClientSocket::disconnect() const { rdma_disconnect(id.get()); }
 
-mr_ptr RDMAClientSocket::register_remote_read(void *ptr, size_t size) const {
-  return mr_ptr(check_nonnull(rdma_reg_read(id.get(), ptr, size),
-                              "register_read: rdma_reg_read"),
-/* this is for debugging purposes only, if sometime proper resource management
- * is required, just change the #if
- */
-#if 0
-                 rdma_dereg_mr
-#else
-                [](ibv_mr *) {
-    log_err() << "invalid dereg mr";
-    assert(false);
-  }
-#endif
-                );
-}
-
-mr_ptr RDMAClientSocket::register_local_read(void *ptr, size_t size) const {
-  return mr_ptr(check_nonnull(rdma_reg_msgs(id.get(), ptr, size),
-                              "register_read: rdma_reg_read"),
-/* this is for debugging purposes only, if sometime proper resource management
- * is required, just change the #if
- */
-#if 0
-                 rdma_dereg_mr
-#else
-                [](ibv_mr *) {
-    log_err() << "invalid dereg mr";
-    assert(false);
-  }
-#endif
-                );
+mr_t RDMAClientSocket::register_memory(const ibv_access &flags, const void *ptr,
+                                       const size_t size) const {
+  return ::register_memory(srq_id->pd, flags, ptr, size);
 }
 

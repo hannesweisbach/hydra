@@ -42,9 +42,9 @@ private:
   RDMAClientSocket s;
 
   ThreadSafeHeap<SegregatedFitsHeap<
-      FreeListHeap<ZoneHeap<RdmaHeap<hydra::rdma::REMOTE_READ>, 256> >,
-      ZoneHeap<RdmaHeap<hydra::rdma::REMOTE_READ>, 256> > > heap;
-  ThreadSafeHeap<ZoneHeap<RdmaHeap<hydra::rdma::LOCAL_READ>, 256>> local_heap;
+      FreeListHeap<ZoneHeap<RdmaHeap<ibv_access::READ>, 256> >,
+      ZoneHeap<RdmaHeap<ibv_access::READ>, 256> > > heap;
+  ThreadSafeHeap<ZoneHeap<RdmaHeap<ibv_access::MSG>, 256> > local_heap;
   decltype(local_heap.malloc<msg>()) msg_buffer;
   decltype(local_heap.malloc<node_info>()) info;
 

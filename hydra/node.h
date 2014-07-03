@@ -31,9 +31,9 @@ class node {
   RDMAServerSocket socket;
 
   ThreadSafeHeap<SegregatedFitsHeap<
-      FreeListHeap<ZoneHeap<RdmaHeap<hydra::rdma::REMOTE_READ>, 256> >,
-      ZoneHeap<RdmaHeap<hydra::rdma::REMOTE_READ>, 256> > > heap;
-  ThreadSafeHeap<ZoneHeap<RdmaHeap<hydra::rdma::LOCAL_READ>, 256> > local_heap;
+      FreeListHeap<ZoneHeap<RdmaHeap<ibv_access::READ>, 256> >,
+      ZoneHeap<RdmaHeap<ibv_access::READ>, 256> > > heap;
+  ThreadSafeHeap<ZoneHeap<RdmaHeap<ibv_access::MSG>, 256> > local_heap;
   decltype(heap.malloc<LocalRDMAObj<hash_table_entry> >()) table_ptr;
 #if PER_ENTRY_LOCKS
   hopscotch_server dht;

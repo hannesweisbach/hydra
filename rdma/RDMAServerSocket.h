@@ -14,6 +14,13 @@
 #include <dispatch/dispatch.h>
 #endif
 
+class RDMAServerSocket;
+
+namespace hydra {
+mr_t register_memory(const RDMAServerSocket &socket, const ibv_access &flags,
+                     const void *ptr, const size_t size);
+}
+
 class RDMAServerSocket {
 private:
   struct client_id_deleter {
@@ -125,19 +132,10 @@ public:
 
   template <typename T>
   mr_t register_memory(const ibv_access flags, const T &o) const {
-    return register_memory(id->pd, flags, o);
+    return ::register_memory(id->pd, flags, o);
   }
 
-  mr_ptr register_remote_read(void * ptr, size_t size) const;
-  mr_ptr register_local_read(void * ptr, size_t size) const;
+  mr_t register_memory(const ibv_access &flags, const void *ptr,
+                       const size_t size) const;
 };
 
-namespace hydra {
-  inline mr_ptr register_remote_read(RDMAServerSocket& socket, void * ptr, size_t size) {
-    return socket.register_remote_read(ptr, size);
-  }
-  
-  inline mr_ptr register_local_read(RDMAServerSocket& socket, void * ptr, size_t size) {
-    return socket.register_local_read(ptr, size);
-  }
-}
