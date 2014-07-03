@@ -122,11 +122,6 @@ public:
                          std::is_pointer<T>());
   }
 
-        template <typename T>
-  [[deprecated]]  ibv_mr * regMemory(const T*ptr, size_t size = sizeof(T)) const {
-      log_trace() << id.get() << " " << (void*) this;
-      return check_nonnull(rdma_reg_read(id.get(), static_cast<void*>(const_cast<T*>(ptr)), size), "rdma_reg_read");
-  }
 
   template <typename T>
   mr_t register_memory(const ibv_access flags, const T &o) const {
