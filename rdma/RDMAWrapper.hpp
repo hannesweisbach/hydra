@@ -60,6 +60,8 @@ enum class ibv_access : int {
   REMOTE_READ = (1 << 2),
   REMOTE_ATOMIC = (1 << 3),
   MW_BIND = (1 << 4),
+  MSG = LOCAL_READ | LOCAL_WRITE,
+  READ = LOCAL_READ | LOCAL_WRITE | REMOTE_READ,
 };
 
 inline constexpr ibv_access operator|(const ibv_access &lhs, const ibv_access &rhs) {
