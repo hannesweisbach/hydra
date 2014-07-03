@@ -9,33 +9,37 @@ struct Mr {
   rkey @2 :UInt32;
 }
 
-struct DHTMessage {
+struct DHTRequest {
   union {
     put :group {
       union {
         remote :group {
-          mr @0 :Mr;
+          key @0 :Mr;
+          value @1 :Mr;
         }
         inline :group {
-          keySize @1 :UInt8;
-          size @2 :UInt8;
-          data @3 :Data;
+          keySize @2 :UInt8;
+          size @3 :UInt8;
+          data @4 :Data;
         }
       }
     }
     del :group {
       union {
         remote :group {
-          mr @4 :Mr;
+          mr @5 :Mr;
         }
         inline :group {
-          size @5 :UInt8;
-          key  @6 :Data;
+          size @6 :UInt8;
+          key  @7 :Data;
         }
       }
     }
-    ack :group {
-      success @7 :Bool;
-    }
+  }
+}
+
+struct DHTResponse {
+  ack :group {
+    success @0 :Bool;
   }
 }
