@@ -12,26 +12,23 @@ void bench_map(RDMAServerSocket &socket, size_t measurements, size_t max_size, s
     size_t max = std::numeric_limits<size_t>::min();
     for (size_t measurement = 0; measurement < measurements; measurement++) {
 
-      char ptr[size];
+      std::vector<char> dummy_data(size);
 
       auto start = std::chrono::high_resolution_clock::now();
 
 #if ALLOC_ONLY
-      ibv_mr *mr = socket.regMemory(ptr, size);
+      auto mr = socket.register_memory(
+          ibv_access::LOCAL_WRITE | ibv_access::REMOTE_READ, dummy_data);
 #else
       {
-        ibv_mr *mr = socket.regMemory(ptr, size);
-        rdma_dereg_mr(mr);
+        auto mr = socket.register_memory(
+            ibv_access::LOCAL_WRITE | ibv_access::REMOTE_READ, dummy_data);
       }
 #endif
 
       auto end = std::chrono::high_resolution_clock::now();
       size_t current = std::chrono::duration_cast<std::chrono::nanoseconds>(
           end - start).count();
-
-#if ALLOC_ONLY
-      rdma_dereg_mr(mr);
-#endif
 
       if (current < min)
         min = current;
