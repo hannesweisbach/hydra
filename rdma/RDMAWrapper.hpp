@@ -70,7 +70,7 @@ inline constexpr ibv_access operator|(const ibv_access &lhs, const ibv_access &r
 
 template <typename T>
 mr_t register_memory(ibv_pd *pd, const ibv_access flags, const T &o) {
-  using namespace hydra;
+  using namespace hydra::rdma;
   const void *ptr = address_of(o);
   const size_t size = size_of(o);
   assert(pd);
