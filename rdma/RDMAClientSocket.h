@@ -156,6 +156,12 @@ public:
     if (!o.first->valid())
       throw std::runtime_error("Could not validate remote object");
   }
+
+  template <typename T>
+  mr_t register_memory(const ibv_access flags, const T &o) const {
+    return ::register_memory(srq_id->pd, flags, o);
+  }
+
 };
 
 namespace hydra {
