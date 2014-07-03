@@ -122,6 +122,13 @@ void sendImmediate(::rdma_cm_id *id, const T &o) {
                             nullptr, IBV_SEND_INLINE));
 }
 
+template <typename T,
+          typename = typename std::enable_if<std::is_pointer<T>::value>::type>
+void sendImmediate(::rdma_cm_id *id, const T &o, size_t size) {
+  check_zero(rdma_post_send(id, nullptr, static_cast<void *>(const_cast<T>(o)),
+                            size, nullptr, IBV_SEND_INLINE));
+}
+
 template <typename RDMAFunctor, typename Continuation>
 auto rdma_continuation(RDMAFunctor &&functor, Continuation &&continuation)
     -> std::future<std::result_of<Continuation> > {
