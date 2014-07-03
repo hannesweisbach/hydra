@@ -67,14 +67,13 @@ inline constexpr ibv_access operator|(const ibv_access &lhs, const ibv_access &r
 }
 
 template <typename T>
-mr_t register_memory(const ibv_pd *pd, const ibv_access flags,
-                     const T &o) const {
+mr_t register_memory(ibv_pd *pd, const ibv_access flags, const T &o) {
   using namespace hydra;
   const void *ptr = address_of(o);
   const size_t size = size_of(o);
   assert(pd);
   assert(ptr);
-  return mr_t(check_nonnull(ibv_reg_mr(pd, ptr, size, flags)));
+  return mr_t(check_nonnull(ibv_reg_mr(pd, ptr, size, static_cast<int>(flags))));
 }
 
 class completion_queue;
