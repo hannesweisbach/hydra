@@ -1,12 +1,11 @@
 #include <random>
 #include <sstream>
+#include <vector>
 
+#if 0
 #include "hydra/client.h"
 #include "hydra/hash.h"
-
 #include "util/Logger.h"
-
-#include "google/profiler.h"
 
 void load_keys(hydra::client &client, const size_t max_keys,
                size_t value_length) {
@@ -53,7 +52,81 @@ void load_keys(hydra::client &client, const size_t max_keys,
   for (auto &&request : requests) {
     request.result.get();
     //log_info() << "Finished " << i++;
+}
+#else
+
+#include "rdma/RDMAClientSocket.h"
+#include "protocol/message.h"
+
+static void load_keys(RDMAClientSocket &socket, const size_t max_keys,
+                      size_t value_length) {
+  std::mt19937_64 generator;
+  std::uniform_int_distribution<unsigned char> distribution(' ', '~');
+
+  struct data {
+    rdma_ptr<unsigned char> key;
+    rdma_ptr<unsigned char> value;
+    size_t key_length;
+    size_t value_length;
+    std::pair<std::future<qp_t>, rdma_ptr<kj::FixedArray<capnp::word, 9> > >
+    result;
+    data(rdma_ptr<unsigned char> key, rdma_ptr<unsigned char> value,
+         const size_t key_length, const size_t value_length)
+        : key(std::move(key)), value(std::move(value)), key_length(key_length),
+          value_length(value_length) {}
+  };
+
+  std::vector<data> requests;
+  requests.reserve(max_keys);
+
+  for (size_t i = 0; i < max_keys; i++) {
+    std::ostringstream ss;
+    ss << std::setw(4) << i;
+
+    const size_t key_length = ss.str().size();
+
+    requests.emplace_back(socket.malloc<unsigned char>(key_length),
+                          socket.malloc<unsigned char>(value_length),
+                          key_length, value_length);
+
+    data &data = requests.back();
+    memcpy(data.key.first.get(), ss.str().c_str(), key_length);
+    unsigned char *value = data.value.first.get();
+    for (size_t byte = 0; byte < value_length; byte++) {
+      value[byte] = distribution(generator);
+    }
   }
+
+  auto start = std::chrono::high_resolution_clock::now();
+
+  for (auto &&request : requests) {
+    ::capnp::MallocMessageBuilder message;
+    hydra::protocol::DHTRequest::Builder msg =
+        message.initRoot<hydra::protocol::DHTRequest>();
+
+    auto put = msg.initPut();
+    auto remote = put.initRemote();
+    auto key = remote.initKey();
+    key.setAddr(reinterpret_cast<uint64_t>(request.key.first.get()));
+    key.setSize(request.key_length);
+    key.setRkey(request.key.second->rkey);
+    auto value = remote.initValue();
+    value.setAddr(reinterpret_cast<uint64_t>(request.value.first.get()));
+    value.setSize(request.value_length);
+    value.setRkey(request.value.second->rkey);
+
+    request.result = socket.recv_async<kj::FixedArray<capnp::word, 9> >();
+
+    kj::Array<capnp::word> serialized = messageToFlatArray(message);
+    socket.sendImmediate(serialized);
+  }
+
+#if 1
+  size_t i = 0;
+  for (auto &&request : requests) {
+    request.result.first.get();
+  }
+#endif
 
   auto end = std::chrono::high_resolution_clock::now();
   auto duration = end - start;
@@ -76,13 +149,15 @@ void load_keys(hydra::client &client, const size_t max_keys,
   }
 
 }
+#endif
 
 int main() {
   const size_t max_keys = 1024;
 
-  hydra::client client("10.1", "8042");
+  //hydra::client client("10.1", "8042");
+  RDMAClientSocket socket("10.1", "8042");
+  socket.connect();
 
-  ProfilerStart("./load.prof");
-  load_keys(client, max_keys, 64);
-  ProfilerStop();
+  //load_keys(client, max_keys, 64);
+  load_keys(socket, max_keys, 64);
 }
