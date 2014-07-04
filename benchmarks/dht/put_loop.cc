@@ -3,26 +3,8 @@
 #include <atomic>
 #include <thread>
 
-#include <capnp/message.h>
-#include <capnp/serialize.h>
-#include "dht.capnp.h"
-
-#include "hydra/client.h"
-#include "hydra/hash.h"
-
-#include "util/Logger.h"
-
-namespace hydra {
-namespace rdma {
-template <> const void *address_of(const kj::Array<capnp::word> &o) {
-  return o.begin();
-}
-
-template <> size_t size_of(const kj::Array<capnp::word> &o) {
-  return o.size() * sizeof(capnp::word);
-}
-}
-}
+#include "rdma/RDMAClientSocket.h"
+#include "protocol/message.h"
 
 struct data {
   rdma_ptr<unsigned char> key;
