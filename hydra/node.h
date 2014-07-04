@@ -5,14 +5,15 @@
 #include <memory>
 #include <mutex>
 #include <unordered_map>
+#include <vector>
 
 #include "util/uint128.h"
 #include "rdma/RDMAWrapper.hpp"
 #include "rdma/RDMAServerSocket.h"
 #include "rdma/RDMAClientSocket.h"
 #include "hydra/hopscotch-server.h"
-#include "hydra/messages.h"
 #include "hydra/types.h"
+#include "protocol/message.h"
 
 #include "util/concurrent.h"
 #include "util/WorkerThread.h"
@@ -30,10 +31,10 @@ namespace hydra {
 class node {
   RDMAServerSocket socket;
 
-  ThreadSafeHeap<SegregatedFitsHeap<
+  mutable ThreadSafeHeap<SegregatedFitsHeap<
       FreeListHeap<ZoneHeap<RdmaHeap<ibv_access::READ>, 256> >,
       ZoneHeap<RdmaHeap<ibv_access::READ>, 256> > > heap;
-  ThreadSafeHeap<ZoneHeap<RdmaHeap<ibv_access::MSG>, 256> > local_heap;
+  mutable ThreadSafeHeap<ZoneHeap<RdmaHeap<ibv_access::MSG>, 256> > local_heap;
   decltype(heap.malloc<LocalRDMAObj<hash_table_entry> >()) table_ptr;
 #if PER_ENTRY_LOCKS
   hopscotch_server dht;
@@ -41,21 +42,32 @@ class node {
   monitor<hopscotch_server> dht;
 #endif
 
-  decltype(local_heap.malloc<msg>()) msg_buffer;
+  using request_t = kj::FixedArray<capnp::word, 9>;
+  std::vector<request_t> request_buffers;
+  mr_t buffers_mr;
+
   /* occupy threads for blocking work, so libdispatch doesn't choke */
   WorkerThread messageThread;
 
   monitor<decltype(heap.malloc<LocalRDMAObj<node_info>>())> info;
   decltype(heap.malloc<LocalRDMAObj<routing_table>>()) routing_table_;
 
-  void post_recv(const msg& m, const ibv_mr* mr);
-  void recv(const msg &msg, const qp_t &qp);
+  void post_recv(const request_t &);
+  void recv(const request_t &, const qp_t &qp);
   void send(const uint64_t id);
-  void ack(const qp_t &qp, const response &msg) const;
+  void ack(const qp_t &qp, const bool) const;
+  void reply(const qp_t &qp, ::capnp::MessageBuilder &reply) const;
 
-  void handle_add(const put_request &msg, const qp_t &qp);
-  void handle_del(const remove_request &msg, const qp_t &qp);
-  void notify_all(const msg& m);
+  bool handle_add(rdma_ptr<unsigned char> kv, const size_t size,
+                  const size_t key_size);
+  void handle_add(const protocol::DHTRequest::Put::Inline::Reader &reader,
+                  const qp_t &qp);
+  void handle_add(const protocol::DHTRequest::Put::Remote::Reader &reader,
+                  const qp_t &);
+  void handle_del(const protocol::DHTRequest::Del::Remote::Reader &reader,
+                  const qp_t &qp) const;
+  void handle_del(const protocol::DHTRequest::Del::Inline::Reader &reader,
+                  const qp_t &qp) const;
 
   /* call when joining the network - already running node ip */
   void init_routing_table(const hydra::passive& remote);

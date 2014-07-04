@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <iterator>
 #include <tuple>
+#include <exception>
 
 #include "node.h"
 #include "hydra/chord.h"
@@ -26,48 +27,29 @@ auto size2Class = [](size_t size) -> size_t {
 
 node::node(std::vector<std::string> ips, const std::string &port, uint32_t msg_buffers)
     : socket(ips, port, msg_buffers), heap(48U, size2Class, socket),
-      local_heap(socket),
-      table_ptr(heap.malloc<LocalRDMAObj<hash_table_entry> >(initial_table_size)),
+      local_heap(socket), 
+      table_ptr(
+          heap.malloc<LocalRDMAObj<hash_table_entry> >(initial_table_size)),
       dht(table_ptr.first.get(), 32U, initial_table_size),
-      msg_buffer(local_heap.malloc<msg>(msg_buffers)),
       info(heap.malloc<LocalRDMAObj<node_info> >()),
-      routing_table_(heap.malloc<LocalRDMAObj<hydra::routing_table> >()) {
-
+      routing_table_(heap.malloc<LocalRDMAObj<hydra::routing_table> >()),
+      request_buffers(msg_buffers),
+      buffers_mr(socket.register_memory(
+          ibv_access::REMOTE_READ | ibv_access::LOCAL_WRITE, request_buffers)) {
   (*routing_table_.first)([&](auto &table) {
     new (&table) hydra::routing_table(ips.front(), port);
     log_info() << table;
   });
 
   log_info() << "valid: " << routing_table_.first->valid();
-#if 0
-  std::thread t([&,n = hash(ip)]() {
-    size_t k = 0;
-    log_info() << "Starting mod loop";
-    std::chrono::nanoseconds diff(0);
-    while (1) {
-      auto start = std::chrono::high_resolution_clock::now();
-      (*routing_table.first)([&](auto &table) {
-        size_t i = k % table.table.size();
-#if 0
-        table.table[0] = routing_entry(n, k);
+
+#if 1
+  for (int msg_index = 0; msg_index < msg_buffers; msg_index++) {
+    post_recv(request_buffers.at(msg_index));
+  }
 #else
         table.table[0].interval.range.first = k;
 #endif
-      });
-      auto end = std::chrono::high_resolution_clock::now();
-      diff += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
-      k++;
-      if ((k & 0xfffff) == 0) {
-        log_info() << "mod " << k << " " << diff.count() / 0xfffff;
-        diff = std::chrono::nanoseconds(0);
-      }
-    }
-  });
-  t.detach();
-#endif
-  for (size_t i = 0; i < msg_buffers; i++) {
-    post_recv(msg_buffer.first.get()[i], msg_buffer.second);
-  }
 
   info([&](auto &rdma_obj) {
          (*rdma_obj.first)([&](auto &info) {
@@ -88,48 +70,58 @@ node::node(std::vector<std::string> ips, const std::string &port, uint32_t msg_b
 //  hydra::client test(ip, port);
 }
 
-void node::notify_all(const msg &m) {
-  return socket([=](rdma_cm_id *id) { sendImmediate(id, m); });
+void node::post_recv(const request_t &request) {
+  auto future = socket.recv_async(request, buffers_mr.get());
+  messageThread.send([ = , &request, future = std::move(future) ]() mutable {
+    auto qp = future.get();
+    try {
+      recv(request, qp);
+    }
+    catch (std::exception &e) {
+      std::cout << e.what() << std::endl;
+    }
+    catch (...) {
+      std::cout << "caught unknown thingy." << std::endl;
+      std::terminate();
+    }
+    post_recv(request);
+  });
 }
 
-void node::post_recv(const msg &m, const ibv_mr *mr) {
-  auto future = socket.recv_async(m, mr);
-  messageThread.send([=,&m, future=std::move(future)]()mutable{
-  auto qp = future.get();
-  recv(m, qp);
-  post_recv(m, mr);
-});
-}
+void node::recv(const request_t &request, const qp_t &qp) {
+  auto message = capnp::FlatArrayMessageReader(request);
+  auto dht_request = message.getRoot<protocol::DHTRequest>();
 
-void node::recv(const msg &req, const qp_t &qp) {
-  log_info() << req;
+  switch (dht_request.which()) {
+  case protocol::DHTRequest::PUT: {
+    auto put = dht_request.getPut();
+    if (put.isRemote()) {
+      handle_add(put.getRemote(), qp);
+    } else {
+      handle_add(put.getInline(), qp);
+    }
 
-  assert(req.type() == msg::mtype::request || req.type() == msg::mtype::notification);
+  } break;
+  case protocol::DHTRequest::DEL: {
+    auto del = dht_request.getDel();
+    if (del.isRemote()) {
+      handle_del(del.getRemote(), qp);
+    } else {
+      handle_del(del.getInline(), qp);
+    }
+  } break;
+  case protocol::DHTRequest::INIT: {
+    ::capnp::MallocMessageBuilder response;
+    hydra::protocol::DHTResponse::Builder msg =
+        response.initRoot<hydra::protocol::DHTResponse>();
 
-  switch (req.subtype()) {
-  case msg::msubtype::put:
-    handle_add(static_cast<const put_request &>(req), qp);
-    break;
-  case msg::msubtype::del:
-    handle_del(static_cast<const remove_request &>(req), qp);
-    break;
-  case msg::msubtype::init: {
-    auto request = static_cast<const init_request &>(req);
     info([&](const auto &info) {
-      init_response m(request, info.second);
-      log_info() << m;
-      socket(qp, [=](rdma_cm_id *id) { sendImmediate(id, m); });
+      auto mr = msg.initInit().initInfo();
+      mr.setAddr(reinterpret_cast<uintptr_t>(info.second->addr));
+      mr.setSize(info.second->length);
+      mr.setRkey(info.second->rkey);
     });
-  } break;
-  case msg::msubtype::predecessor: {
-    auto notification = static_cast<const notification_predecessor &>(req);
-    (*routing_table_.first)([&](auto &table) {
-      table.predecessor().node = notification.predecessor();
-    });
-  } break;
-  case msg::msubtype::routing: {
-    auto notification = static_cast<const notification_update &>(req);
-    update_routing_table(notification.node(), notification.index());
+    reply(qp, response);
   } break;
   }
 }
@@ -215,113 +207,167 @@ void node::update_routing_table(const hydra::node_id &s, const size_t i) {
   });
 }
 
-void node::send(const uint64_t id) {
-  log_trace() << "signalled send with id " << id << " completed.";
+void node::handle_add(const protocol::DHTRequest::Put::Inline::Reader &reader,
+                      const qp_t &qp) {
+  auto data = reader.getData();
+
+  auto mem = heap.malloc<unsigned char>(reader.getSize());
+  auto key = mem.first.get();
+  
+  memcpy(key, data.begin(), reader.getSize());
+
+  ack(qp, handle_add(std::move(mem), reader.getSize(), reader.getKeySize()));
 }
 
-void node::handle_add(const put_request &msg, const qp_t &qp) {
-  const size_t key_size = msg.key().size;
-  const size_t val_size = msg.value().size;
-  const size_t size = key_size + val_size;
+void node::handle_add(const protocol::DHTRequest::Put::Remote::Reader &reader,
+                      const qp_t &qp) {
+  auto key_reader = reader.getKey();
+  auto val_reader = reader.getValue();
+  const size_t key_size = key_reader.getSize();
+  const size_t value_size = val_reader.getSize();
+  const size_t size = key_size + value_size;
 
   auto mem = heap.malloc<unsigned char>(size);
   auto key = mem.first.get();
   auto value = key + key_size;
   auto mr = mem.second;
 
-  auto fut = socket(qp, [=](rdma_cm_id *id) {
-    rdma_read_async__(id, value, val_size, mr, msg.value().addr,
-                      msg.value().rkey).get();
-    return rdma_read_async__(id, key, key_size, mr, msg.key().addr,
-                             msg.key().rkey);
+  assert(key);
+
+  auto fut = socket(qp, [=, &key_reader, &val_reader](rdma_cm_id *id) {
+    rdma_read_async__(id, value, value_size, mr, val_reader.getAddr(),
+                      val_reader.getRkey());
+    return rdma_read_async__(id, key, key_size, mr, key_reader.getAddr(),
+                             key_reader.getRkey());
   });
-  hydra::then(
-      std::move(fut),
-      [ =, r = std::move(mem) ](auto s__) mutable {
-        s__.get();
-        if (!routing_table_.first->get().has_id(
-                 static_cast<hydra::keyspace_t::value_type>(
-                     hash(r.first.get(), key_size)))) {
-          log_err() << "Not responsible for key "
-                    << hash(r.first.get(), key_size);
-          this->ack(qp, put_response(msg, false));
-          return;
-        }
+  hydra::then(std::move(fut), [ =, mem = std::move(mem) ](auto s__) mutable {
+    s__.get();
+    ack(qp, handle_add(std::move(mem), size, key_size));
+  });
+}
+
+bool node::handle_add(rdma_ptr<unsigned char> kv, const size_t size,
+                      const size_t key_size) {
+
+  if (!routing_table_.first->get().has_id(
+           hydra::keyspace_t(hash(kv.first.get(), key_size)))) {
+    log_err() << "Not responsible for key " << hash(kv.first.get(), key_size);
+    return false;
+  }
 
 #if PER_ENTRY_LOCKS
   hopscotch_server &hs = dht;
 #else
-        dht([ =, r1 = std::move(r) ](hopscotch_server & hs) mutable {
+  return dht(
+      [ =, kv = std::move(kv) ](hopscotch_server & hs) mutable {
 #endif
 
   auto e =
-      std::make_tuple(std::move(r1.first), size, key_size, r1.second->rkey);
-                                      hs.check_consistency();
-                                      auto ret = hs.add(std::move(e));
-                                      hs.check_consistency();
-                                      if (ret == hydra::NEED_RESIZE) {
-                                        info([&](auto &rdma_obj) {
-                                               size_t new_size = hs.next_size();
-           auto new_table = heap.malloc<LocalRDMAObj<hash_table_entry> >(new_size);
-                                               hs.resize(new_table.first.get(),
-                                                         new_size);
-                                               hs.check_consistency();
-                                               (*rdma_obj.first)([&](
-                                                   auto &info) {
-                                                 info.table_size = new_size;
-                                                 info.key_extents =
-                                                     *new_table.second;
-                                               });
-                                               std::swap(table_ptr, new_table);
-         });
-                                        ret = hs.add(std::move(e));
-                                        hs.check_consistency();
-                                        this->ack(qp, put_response(msg, ret == hydra::SUCCESS));
-#if 1
-                                        return;
-#else
-                                        notification_resize m(table_ptr.second);
-                                        notify_all(m).get();
-#endif
-                                      }
-                                      // TODO: ack/nack according to return
-                                      // value
-                                      this->ack(qp, put_response(msg, ret == hydra::SUCCESS));
-                                    });
+      std::make_tuple(std::move(kv.first), size, key_size, kv.second->rkey);
+
+  // hs.check_consistency();
+  auto ret = hs.add(e);
+  // hs.check_consistency();
+  if (ret == hydra::NEED_RESIZE) {
+    hs.dump();
+    std::cout << "key: " << std::get<0>(e).get();
+    info([&](auto &rdma_obj) {
+      size_t new_size = hs.next_size();
+      log_info() << "Allocating " << new_size
+                 << " entries: " << new_size * sizeof(hash_table_entry);
+      auto new_table = heap.malloc<LocalRDMAObj<hash_table_entry> >(new_size);
+      hs.resize(new_table.first.get(), new_size);
+      hs.check_consistency();
+      (*rdma_obj.first)([&](auto &info) {
+        info.table_size = new_size;
+        info.key_extents = *new_table.second;
       });
+      std::swap(table_ptr, new_table);
+    });
+    std::terminate();
+    ret = hs.add(e);
+    hs.check_consistency();
+    assert(ret != hydra::NEED_RESIZE);
+    return ret == hydra::SUCCESS;
+#if 0
+    notification_resize m(table_ptr.second);
+    notify_all(m).get();
+#endif
+  }
+  return ret == hydra::SUCCESS;
+});
 }
 
-void node::handle_del(const remove_request &msg, const qp_t &qp) {
-  const size_t size = msg.key().size;
+void node::handle_del(const protocol::DHTRequest::Del::Inline::Reader &reader,
+                      const qp_t &qp) const {
+  auto data = reader.getKey();
+
+  auto mem = heap.malloc<unsigned char>(reader.getSize());
+  auto key = mem.first.get();
+  
+  memcpy(key, data.begin(), reader.getSize());
+
+  auto ret =
+      dht([ =, &reader, mem = std::move(mem) ](hopscotch_server & s) mutable {
+                                                server_dht::key_type key =
+                                                    std::make_pair(
+                                                        mem.first.get(),
+                                                        reader.getSize());
+                                                s.check_consistency();
+                                                auto ret = s.remove(key);
+                                                s.check_consistency();
+                                                return ret;
+                                              });
+  ack(qp, ret == hydra::SUCCESS);
+}
+
+
+void node::handle_del(const protocol::DHTRequest::Del::Remote::Reader &reader,
+                      const qp_t &qp) const {
+  auto mr = reader.getMr();
+  
+  const size_t size = mr.getSize();
 
   auto mem = local_heap.malloc<unsigned char>(size);
   auto key = mem.first.get();
-  auto mr = mem.second;
-  log_info() << mem.second;
+  auto local_mr = mem.second;
 
-  auto fut = socket(qp, [=](rdma_cm_id *id) {
-    return rdma_read_async__(id, key, size, mr, msg.key().addr,
-                             msg.key().rkey);
+  auto fut = socket(qp, [=, &mr](rdma_cm_id *id) {
+    return rdma_read_async__(id, key, size, local_mr, mr.getAddr(),
+                             mr.getRkey());
   });
-
-  hydra::then(std::move(fut), [ =, r = std::move(mem) ](auto s) mutable {
-    s.get();
-    dht([ =, r1 = std::move(r) ](hopscotch_server & s) mutable {
-                                  server_dht::key_type key =
-                                      std::make_pair(r1.first.get(), size);
-                                  s.check_consistency();
-                                  s.remove(key);
-                                  s.check_consistency();
-                                  // s.dump();
-                                  // TODO: ack/nack according to return
-                                  // value
-                                  this->ack(qp, remove_response(msg, true));
-                                });
+  hydra::then(std::move(fut),
+              [ =, mem = std::move(mem) ](auto && future) mutable {
+    future.get();
+    auto ret = dht([ =, mem = std::move(mem) ](hopscotch_server & s) mutable {
+                                                server_dht::key_type key =
+                                                    std::make_pair(
+                                                        mem.first.get(), size);
+                                                s.check_consistency();
+                                                auto ret = s.remove(key);
+                                                s.check_consistency();
+                                                return ret;
+                                              });
+    ack(qp, ret == hydra::SUCCESS);
   });
 }
 
-void node::ack(const qp_t &qp, const response &r) const {
-  socket(qp, [=](rdma_cm_id *id) { sendImmediate(id, r); });
+void node::ack(const qp_t &qp, const bool success) const {
+  ::capnp::MallocMessageBuilder response;
+  hydra::protocol::DHTResponse::Builder msg =
+      response.initRoot<hydra::protocol::DHTResponse>();
+
+  msg.initAck().setSuccess(success);
+  reply(qp, response);
+}
+
+void node::reply(const qp_t &qp, ::capnp::MessageBuilder &reply) const {
+  kj::Array<capnp::word> serialized = messageToFlatArray(reply);
+
+  return socket(qp, [&](rdma_cm_id *id) {
+    sendImmediate(id, serialized.begin(),
+                  serialized.size() * sizeof(capnp::word));
+  });
 }
 
 double node::load() const {
