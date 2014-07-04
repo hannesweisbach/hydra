@@ -35,11 +35,15 @@ struct DHTRequest {
         }
       }
     }
+    init @8 :Void;
   }
 }
 
 struct DHTResponse {
   ack :group {
     success @0 :Bool;
+  }
+  init :group {
+    info @1 :Mr;
   }
 }
