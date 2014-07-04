@@ -40,10 +40,12 @@ struct DHTRequest {
 }
 
 struct DHTResponse {
-  ack :group {
-    success @0 :Bool;
-  }
-  init :group {
-    info @1 :Mr;
+  union {
+    ack :group {
+      success @0 :Bool;
+    }
+    init :group {
+      info @1 :Mr;
+    }
   }
 }
