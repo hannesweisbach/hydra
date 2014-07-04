@@ -32,8 +32,7 @@ int main() {
 
   std::cout << (int)reader.which() << std::endl;
 
-  switch (reader.which()) {
-  case hydra::protocol::DHTRequest::PUT: {
+  if (reader.which() == hydra::protocol::DHTRequest::PUT) {
     auto put = reader.getPut();
     if (put.isRemote()) {
       auto remote = put.getRemote();
@@ -50,10 +49,9 @@ int main() {
     } else {
       std::cout << "inline" << std::endl;
     }
-  } break;
-  case hydra::protocol::DHTRequest::DEL:
-    std::cout << "del req" << std::endl;
-    break;
+  } else {
+    std::cout << "unhandled message type " << static_cast<int>(reader.which())
+              << std::endl;
   }
 }
 
