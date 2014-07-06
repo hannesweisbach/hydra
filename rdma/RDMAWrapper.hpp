@@ -156,7 +156,8 @@ void sendImmediate(::rdma_cm_id *id, const T &o) {
 template <typename T,
           typename = typename std::enable_if<std::is_pointer<T>::value>::type>
 void sendImmediate(::rdma_cm_id *id, const T &o, size_t size) {
-  check_zero(rdma_post_send(id, nullptr, static_cast<void *>(const_cast<T>(o)),
+  check_zero(rdma_post_send(id, nullptr,
+                            const_cast<void *>(static_cast<const void *>(o)),
                             size, nullptr, IBV_SEND_INLINE));
 }
 
