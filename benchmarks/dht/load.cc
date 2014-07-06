@@ -100,24 +100,10 @@ static void load_keys(RDMAClientSocket &socket, const size_t max_keys,
   auto start = std::chrono::high_resolution_clock::now();
 
   for (auto &&request : requests) {
-    ::capnp::MallocMessageBuilder message;
-    hydra::protocol::DHTRequest::Builder msg =
-        message.initRoot<hydra::protocol::DHTRequest>();
-
-    auto put = msg.initPut();
-    auto remote = put.initRemote();
-    auto key = remote.initKey();
-    key.setAddr(reinterpret_cast<uint64_t>(request.key.first.get()));
-    key.setSize(request.key_length);
-    key.setRkey(request.key.second->rkey);
-    auto value = remote.initValue();
-    value.setAddr(reinterpret_cast<uint64_t>(request.value.first.get()));
-    value.setSize(request.value_length);
-    value.setRkey(request.value.second->rkey);
-
     request.result = socket.recv_async<kj::FixedArray<capnp::word, 9> >();
 
-    kj::Array<capnp::word> serialized = messageToFlatArray(message);
+    auto serialized = put_message(request.key, request.key_length,
+                                  request.value, request.value_length);
     socket.sendImmediate(serialized);
   }
 

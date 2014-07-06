@@ -216,7 +216,9 @@ void node::handle_add(const protocol::DHTRequest::Put::Inline::Reader &reader,
   
   memcpy(key, data.begin(), reader.getSize());
 
-  ack(qp, handle_add(std::move(mem), reader.getSize(), reader.getKeySize()));
+  auto success =
+      handle_add(std::move(mem), reader.getSize(), reader.getKeySize());
+  reply(qp, ack_message(success));
 }
 
 void node::handle_add(const protocol::DHTRequest::Put::Remote::Reader &reader,
@@ -242,7 +244,8 @@ void node::handle_add(const protocol::DHTRequest::Put::Remote::Reader &reader,
   });
   hydra::then(std::move(fut), [ =, mem = std::move(mem) ](auto s__) mutable {
     s__.get();
-    ack(qp, handle_add(std::move(mem), size, key_size));
+    auto success = handle_add(std::move(mem), size, key_size);
+    reply(qp, ack_message(success));
   });
 }
 
@@ -318,7 +321,7 @@ void node::handle_del(const protocol::DHTRequest::Del::Inline::Reader &reader,
                                                 s.check_consistency();
                                                 return ret;
                                               });
-  ack(qp, ret == hydra::SUCCESS);
+  reply(qp, ack_message(ret == hydra::SUCCESS));
 }
 
 
@@ -348,17 +351,8 @@ void node::handle_del(const protocol::DHTRequest::Del::Remote::Reader &reader,
                                                 s.check_consistency();
                                                 return ret;
                                               });
-    ack(qp, ret == hydra::SUCCESS);
+    reply(qp, ack_message(ret == hydra::SUCCESS));
   });
-}
-
-void node::ack(const qp_t &qp, const bool success) const {
-  ::capnp::MallocMessageBuilder response;
-  hydra::protocol::DHTResponse::Builder msg =
-      response.initRoot<hydra::protocol::DHTResponse>();
-
-  msg.initAck().setSuccess(success);
-  reply(qp, response);
 }
 
 void node::reply(const qp_t &qp, ::capnp::MessageBuilder &reply) const {
@@ -367,6 +361,13 @@ void node::reply(const qp_t &qp, ::capnp::MessageBuilder &reply) const {
   return socket(qp, [&](rdma_cm_id *id) {
     sendImmediate(id, serialized.begin(),
                   serialized.size() * sizeof(capnp::word));
+  });
+}
+
+void node::reply(const qp_t &qp,
+                 const ::kj::Array< ::capnp::word> &reply) const {
+  return socket(qp, [&](rdma_cm_id *id) {
+    sendImmediate(id, std::begin(reply), reply.size() * sizeof(capnp::word));
   });
 }
 

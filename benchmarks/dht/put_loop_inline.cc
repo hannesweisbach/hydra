@@ -13,23 +13,9 @@ struct data {
 };
 
 static void send(RDMAClientSocket &socket, data &request) {
-  ::capnp::MallocMessageBuilder message;
-  hydra::protocol::DHTRequest::Builder msg =
-      message.initRoot<hydra::protocol::DHTRequest>();
-
-  auto put = msg.initPut();
-  auto shortmsg = put.initInline();
-
-  const uint8_t size = static_cast<uint8_t>(request.kv.size());
-  shortmsg.setKeySize(request.key_size);
-  shortmsg.setSize(size);
-  auto key_data = shortmsg.initData(size);
-  memcpy(key_data.begin(), request.kv.data(), size);
-
   auto result = socket.recv_async<kj::FixedArray<capnp::word, 9> >();
 
-  kj::Array<capnp::word> serialized = messageToFlatArray(message);
-  socket.sendImmediate(serialized);
+  socket.sendImmediate(put_message_inline(request.kv, request.key_size));
   result.first.get();
 
   auto reply = capnp::FlatArrayMessageReader(*result.second.first);

@@ -55,8 +55,8 @@ class node {
   void post_recv(const request_t &);
   void recv(const request_t &, const qp_t &qp);
   void send(const uint64_t id);
-  void ack(const qp_t &qp, const bool) const;
   void reply(const qp_t &qp, ::capnp::MessageBuilder &reply) const;
+  void reply(const qp_t &qp, const ::kj::Array< ::capnp::word> &reply) const;
 
   bool handle_add(rdma_ptr<unsigned char> kv, const size_t size,
                   const size_t key_size);

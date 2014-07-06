@@ -12,11 +12,9 @@ value_ptr;
 hydra::node_info get_info(const RDMAClientSocket &socket) {
   auto init = socket.recv_async<kj::FixedArray<capnp::word, 9> >();
 
-  ::capnp::MallocMessageBuilder request;
-  request.initRoot<hydra::protocol::DHTRequest>().setInit();
-  kj::Array<capnp::word> serialized = messageToFlatArray(request);
+  kj::Array<capnp::word> serialized = init_message();
 
-  socket.sendImmediate(serialized.begin(),
+  socket.sendImmediate(std::begin(serialized),
                        serialized.size() * sizeof(capnp::word));
 
   init.first.get(); // block.
