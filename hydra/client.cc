@@ -4,6 +4,33 @@
 
 #include "util/Logger.h"
 
+#include "hydra/protocol/message.h"
+
+namespace hydra {
+hydra::node_info get_info(const RDMAClientSocket &socket) {
+  auto init = socket.recv_async<kj::FixedArray<capnp::word, 9> >();
+
+  kj::Array<capnp::word> serialized = init_message();
+
+  socket.sendImmediate(std::begin(serialized),
+                       serialized.size() * sizeof(capnp::word));
+
+  init.first.get(); // block.
+
+  auto reply = capnp::FlatArrayMessageReader(*init.second.first);
+  auto reader = reply.getRoot<hydra::protocol::DHTResponse>();
+
+  assert(reader.which() == hydra::protocol::DHTResponse::INIT);
+
+  auto mr = reader.getInit().getInfo();
+  assert(mr.getSize() >= sizeof(hydra::node_info));
+  auto info = socket.read<hydra::node_info>(mr.getAddr(), mr.getRkey());
+  info.first.get(); // block
+
+  return *info.second.first;
+}
+}
+
 hydra::client::client(const std::string &ip, const std::string &port)
     : root_node(ip, port) {}
 

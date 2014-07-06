@@ -10,7 +10,11 @@
 
 #include "rdma/RDMAClientSocket.h"
 
+
 namespace hydra {
+
+hydra::node_info get_info(const RDMAClientSocket &socket);
+
 class client {
 public:
   typedef std::unique_ptr<unsigned char, std::function<void(unsigned char *)> >

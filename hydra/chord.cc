@@ -1,7 +1,6 @@
 #include "hydra/chord.h"
 #include "hydra/types.h"
-#include "hydra/protocol/message.h"
-#include "rdma/RDMAClientSocket.h"
+#include "hydra/client.h"
 
 namespace hydra {
 namespace chord {
@@ -13,24 +12,11 @@ static routing_table find_table(routing_table table, const keyspace_t &id) {
     RDMAClientSocket socket(re.ip, re.port);
     socket.connect();
 
-    auto init = socket.recv_async<kj::FixedArray<capnp::word, 9> >();
-    socket.sendImmediate(init_message());
-
-    init.first.get(); // block.
-
-    auto reply = capnp::FlatArrayMessageReader(*init.second.first);
-    auto reader = reply.getRoot<hydra::protocol::DHTResponse>();
-
-    assert(reader.which() == hydra::protocol::DHTResponse::INIT);
-
-    auto mr = reader.getInit().getInfo();
-    assert(mr.getSize() >= sizeof(hydra::node_info));
-    auto info = socket.read<hydra::node_info>(mr.getAddr(), mr.getRkey());
-    info.first.get(); // block
+    const hydra::node_info info = hydra::get_info(socket);
 
     auto table_ = socket.read<RDMAObj<routing_table> >(
-        reinterpret_cast<uintptr_t>(info.second.first->routing_table.addr),
-        info.second.first->routing_table.rkey);
+        reinterpret_cast<uintptr_t>(info.routing_table.addr),
+        info.routing_table.rkey);
     table_.first.get();
     table = table_.second.first->get();
   }
