@@ -7,12 +7,11 @@
 #include <unistd.h>
 #include <assert.h>
 
-#include <rdma/rdma_cma.h>
-#include <rdma/rdma_verbs.h>
-
 #include "Logger.h"
 #include "utils.h"
 #include "hydra/client.h"
+#include "rdma/RDMAClientSocket.h"
+#include "hydra/protocol/message.h"
 
 std::unique_ptr<unsigned char[]> get_random_string(size_t length) {
   static std::mt19937_64 generator;
@@ -129,24 +128,20 @@ bool test_wrong_add(hydra::client &c) {
   RDMAClientSocket socket(table.self().node.ip, table.self().node.port);
   socket.connect();
 
-  auto response = socket.recv_async<put_response>();
-
   auto key_mr = socket.malloc<unsigned char>(key_size);
   auto val_mr = socket.malloc<unsigned char>(val_size);
 
   std::memcpy(key_mr.first.get(), key.get(), key_size);
   std::memcpy(val_mr.first.get(), value.get(), val_size);
 
-  put_request request = {
-    { key_mr.first.get(), key_size, key_mr.second->rkey },
-    { val_mr.first.get(), val_size, val_mr.second->rkey }
-  };
+  auto result = socket.recv_async<kj::FixedArray<capnp::word, 9> >();
+  socket.sendImmediate(put_message(key_mr, key_size, val_mr, val_size));
+  result.first.get();
 
-  socket.sendImmediate(request);
+  auto reply = capnp::FlatArrayMessageReader(*result.second.first);
+  auto reader = reply.getRoot<hydra::protocol::DHTResponse>();
 
-  response.first.get(); // block.
-
-  return !response.second.first->value();
+  return !reader.getAck().getSuccess();
 }
 
 #if 0
