@@ -86,11 +86,9 @@ bool remove(const RDMAClientSocket &socket,
 hydra::client::client(const std::string &ip, const std::string &port)
     : root_node(ip, port) {}
 
-hydra::node_id hydra::client::responsible_node(const unsigned char *key,
-                                               const size_t length) const {
-  return chord::successor(
-      root_node.table(),
-      static_cast<hydra::keyspace_t::value_type>(hydra::hash(key, length)));
+hydra::node_id
+hydra::client::responsible_node(const std::vector<unsigned char> &key) const {
+  return chord::successor(root_node.table(), keyspace_t(hydra::hash(key)));
 }
 
 hydra::node_info hydra::client::get_info(const RDMAClientSocket& socket) const {
@@ -154,7 +152,7 @@ hydra::client::add(const std::vector<unsigned char> &key,
   std::promise<bool> promise;
 #endif
     auto start = std::chrono::high_resolution_clock::now();
-    const auto nodeid = responsible_node(key.data(), key.size());
+    const auto nodeid = responsible_node(key);
     auto end = std::chrono::high_resolution_clock::now();
     // log_info() << "Blocked for "
     //           << std::chrono::duration_cast<std::chrono::microseconds>(
@@ -174,7 +172,7 @@ hydra::client::add(const std::vector<unsigned char> &key,
 std::future<bool>
 hydra::client::remove(const std::vector<unsigned char> &key) const {
   return hydra::async([=]() {
-    const auto nodeid = responsible_node(key.data(), key.size());
+    const auto nodeid = responsible_node(key);
     const RDMAClientSocket socket(nodeid.ip, nodeid.port);
     socket.connect();
 
@@ -194,7 +192,7 @@ hydra::client::remove(const std::vector<unsigned char> &key) const {
 }
 
 bool hydra::client::contains(const std::vector<unsigned char> &key) const {
-  const auto nodeid = responsible_node(key.data(), key.size());
+  const auto nodeid = responsible_node(key);
   const RDMAClientSocket socket(nodeid.ip, nodeid.port);
   socket.connect();
   const auto entry = find_entry(socket, key.data(), key.size());
@@ -207,7 +205,7 @@ bool hydra::client::contains(const std::vector<unsigned char> &key) const {
  */
 hydra::client::value_ptr
 hydra::client::get(const std::vector<unsigned char> &key) const {
-  const auto nodeid = responsible_node(key.data(), key.size());
+  const auto nodeid = responsible_node(key);
   // TODO: guard socket connect/disconnect
   const RDMAClientSocket socket(nodeid.ip, nodeid.port);
   socket.connect();

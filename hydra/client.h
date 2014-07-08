@@ -39,7 +39,7 @@ public:
 
 private:
   passive root_node;
-  node_id responsible_node(const unsigned char *key, const size_t size) const;
+  node_id responsible_node(const std::vector<unsigned char> &key) const;
   node_info get_info(const RDMAClientSocket &socket) const;
   std::pair<value_ptr, const size_t>
   find_entry(const RDMAClientSocket &socket, const unsigned char *key,
