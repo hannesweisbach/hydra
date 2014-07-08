@@ -91,18 +91,8 @@ hydra::client::responsible_node(const std::vector<unsigned char> &key) const {
   return chord::successor(root_node.table(), keyspace_t(hydra::hash(key)));
 }
 
-hydra::node_info hydra::client::get_info(const RDMAClientSocket& socket) const {
-  auto init = socket.recv_async<mr_response>();
-  socket.sendImmediate(init_request());
-
-  init.first.get(); //block.
-  auto mr = init.second.first->value();
-  assert(mr.size >= sizeof(hydra::node_info));
-  auto info = socket.read<hydra::node_info>(mr.addr, mr.rkey);
-  info.first.get(); //block
-
-  //TODO return unique_ptr
-  return *info.second.first;
+hydra::node_info hydra::client::get_info(const RDMAClientSocket &socket) const {
+  return ::hydra::get_info(socket);
 }
 
 std::pair<hydra::client::value_ptr, const size_t>
