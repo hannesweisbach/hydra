@@ -30,15 +30,11 @@ hydra::node_info get_info(const RDMAClientSocket &socket) {
   return *info.second.first;
 }
 
-bool add(const RDMAClientSocket &socket, const std::vector<unsigned char> &kv,
-         const size_t &key_size) {
+static bool add(const RDMAClientSocket &socket,
+                const rdma_ptr<unsigned char> &kv, const size_t &size,
+                const size_t &key_size) {
   auto response = socket.recv_async<kj::FixedArray<capnp::word, 9> >();
-
-  auto kv_mr = socket.malloc<unsigned char>(kv.size());
-
-  memcpy(kv_mr.first.get(), kv.data(), kv.size());
-
-  auto put = put_message(kv_mr, kv.size(), key_size);
+  auto put = put_message(kv, size, key_size);
 
   socket.sendImmediate(put);
 
@@ -50,6 +46,23 @@ bool add(const RDMAClientSocket &socket, const std::vector<unsigned char> &kv,
   return reader.getAck().getSuccess();
 }
 
+bool add(const RDMAClientSocket &socket, const std::vector<unsigned char> &kv,
+         const size_t &key_size) {
+  auto kv_mr = socket.malloc<unsigned char>(kv.size());
+
+  memcpy(kv_mr.first.get(), kv.data(), kv.size());
+  return add(socket, kv_mr, kv.size(), key_size);
+}
+
+bool add(const RDMAClientSocket &socket, const std::vector<unsigned char> &key,
+         const std::vector<unsigned char> &value) {
+  const size_t size = key.size() + value.size();
+  auto kv_mr = socket.malloc<unsigned char>(size);
+
+  memcpy(kv_mr.first.get(), key.data(), key.size());
+  memcpy(kv_mr.first.get() + key.size(), value.data(), value.size());
+  return add(socket, kv_mr, size, key.size());
+}
 }
 
 hydra::client::client(const std::string &ip, const std::string &port)
