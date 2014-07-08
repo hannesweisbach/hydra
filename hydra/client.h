@@ -19,6 +19,8 @@ bool add(const RDMAClientSocket &socket, const std::vector<unsigned char> &kv,
          const size_t &key_size);
 bool add(const RDMAClientSocket &socket, const std::vector<unsigned char> &key,
          const std::vector<unsigned char> &value);
+bool remove(const RDMAClientSocket &socket,
+            const std::vector<unsigned char> &key);
 
 class client {
 public:
