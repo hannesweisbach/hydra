@@ -29,6 +29,27 @@ hydra::node_info get_info(const RDMAClientSocket &socket) {
 
   return *info.second.first;
 }
+
+bool add(const RDMAClientSocket &socket, const std::vector<unsigned char> &kv,
+         const size_t &key_size) {
+  auto response = socket.recv_async<kj::FixedArray<capnp::word, 9> >();
+
+  auto kv_mr = socket.malloc<unsigned char>(kv.size());
+
+  memcpy(kv_mr.first.get(), kv.data(), kv.size());
+
+  auto put = put_message(kv_mr, kv.size(), key_size);
+
+  socket.sendImmediate(put);
+
+  response.first.get();
+
+  auto message = capnp::FlatArrayMessageReader(*response.second.first);
+  auto reader = message.getRoot<hydra::protocol::DHTResponse>();
+  assert(reader.which() == hydra::protocol::DHTResponse::ACK);
+  return reader.getAck().getSuccess();
+}
+
 }
 
 hydra::client::client(const std::string &ip, const std::string &port)

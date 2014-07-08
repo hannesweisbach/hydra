@@ -14,8 +14,8 @@ struct DHTRequest {
     put :group {
       union {
         remote :group {
-          key @0 :Mr;
-          value @1 :Mr;
+          kv @0 :Mr;
+          keySize @1 :UInt32;
         }
         inline :group {
           keySize @2 :UInt8;

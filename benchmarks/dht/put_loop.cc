@@ -7,21 +7,18 @@
 #include "protocol/message.h"
 
 struct data {
-  rdma_ptr<unsigned char> key;
-  rdma_ptr<unsigned char> value;
+  rdma_ptr<unsigned char> kv;
+  size_t length;
   size_t key_length;
-  size_t value_length;
-  data(rdma_ptr<unsigned char> key, rdma_ptr<unsigned char> value,
-       const size_t key_length, const size_t value_length)
-      : key(std::move(key)), value(std::move(value)), key_length(key_length),
-        value_length(value_length) {}
+  data(rdma_ptr<unsigned char> kv, const size_t length, const size_t key_length)
+      : kv(std::move(kv)), length(length), key_length(key_length) {}
 };
 
 static void send(RDMAClientSocket &socket, data &request) {
   auto result = socket.recv_async<kj::FixedArray<capnp::word, 9> >();
 
-  socket.sendImmediate(put_message(request.key, request.key_length,
-                                   request.value, request.value_length));
+  socket.sendImmediate(
+      put_message(request.kv, request.length, request.key_length));
   result.first.get();
 
   auto reply = capnp::FlatArrayMessageReader(*result.second.first);
@@ -47,13 +44,13 @@ static void load_keys(const std::string &host, const std::string &port,
 
     const size_t key_length = ss.str().size();
 
-    requests.emplace_back(socket.malloc<unsigned char>(key_length),
-                          socket.malloc<unsigned char>(value_length),
-                          key_length, value_length);
+    const size_t length = key_length + value_length;
+    requests.emplace_back(socket.malloc<unsigned char>(length), length,
+                          key_length);
 
     data &data = requests.back();
-    memcpy(data.key.first.get(), ss.str().c_str(), key_length);
-    unsigned char *value = data.value.first.get();
+    memcpy(data.kv.first.get(), ss.str().c_str(), key_length);
+    unsigned char *value = data.kv.first.get() + key_length;
     for (size_t byte = 0; byte < value_length; byte++) {
       value[byte] = distribution(generator);
     }

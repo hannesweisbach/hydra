@@ -19,25 +19,21 @@ template <> size_t size_of(const kj::Array<capnp::word> &o);
 kj::Array<capnp::word> init_message();
 kj::Array<capnp::word> ack_message(const bool);
 
-  template <typename T>
-kj::Array<capnp::word>
-put_message(const rdma_ptr<T> &key, const size_t &key_size,
-            const rdma_ptr<T> &value, const size_t &value_size) {
+template <typename T>
+kj::Array<capnp::word> put_message(const rdma_ptr<T> &kv, const size_t &size,
+                                   const size_t &key_size) {
   assert(key_size <= std::numeric_limits<uint32_t>::max());
-  assert(value_size <= std::numeric_limits<uint32_t>::max());
+  assert(size <= std::numeric_limits<uint32_t>::max());
   ::capnp::MallocMessageBuilder message;
   hydra::protocol::DHTRequest::Builder msg =
       message.initRoot<hydra::protocol::DHTRequest>();
 
   auto remote = msg.initPut().initRemote();
-  auto key_mr = remote.initKey();
-  key_mr.setAddr(reinterpret_cast<uint64_t>(key.first.get()));
-  key_mr.setSize(static_cast<uint32_t>(key_size));
-  key_mr.setRkey(key.second->rkey);
-  auto value_mr = remote.initValue();
-  value_mr.setAddr(reinterpret_cast<uint64_t>(value.first.get()));
-  value_mr.setSize(static_cast<uint32_t>(value_size));
-  value_mr.setRkey(value.second->rkey);
+  auto kv_mr = remote.initKv();
+  kv_mr.setAddr(reinterpret_cast<uint64_t>(kv.first.get()));
+  kv_mr.setSize(static_cast<uint32_t>(size));
+  kv_mr.setRkey(kv.second->rkey);
+  remote.setKeySize(static_cast<uint32_t>(key_size));
 
   return messageToFlatArray(message);
 }

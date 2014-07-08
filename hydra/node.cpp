@@ -223,24 +223,19 @@ void node::handle_add(const protocol::DHTRequest::Put::Inline::Reader &reader,
 
 void node::handle_add(const protocol::DHTRequest::Put::Remote::Reader &reader,
                       const qp_t &qp) {
-  auto key_reader = reader.getKey();
-  auto val_reader = reader.getValue();
-  const size_t key_size = key_reader.getSize();
-  const size_t value_size = val_reader.getSize();
-  const size_t size = key_size + value_size;
+  auto kv_reader = reader.getKv();
+  const size_t size = kv_reader.getSize();
+  const size_t key_size = reader.getKeySize();
 
   auto mem = heap.malloc<unsigned char>(size);
   auto key = mem.first.get();
-  auto value = key + key_size;
   auto mr = mem.second;
 
   assert(key);
 
-  auto fut = socket(qp, [=, &key_reader, &val_reader](rdma_cm_id *id) {
-    rdma_read_async__(id, value, value_size, mr, val_reader.getAddr(),
-                      val_reader.getRkey());
-    return rdma_read_async__(id, key, key_size, mr, key_reader.getAddr(),
-                             key_reader.getRkey());
+  auto fut = socket(qp, [=, &kv_reader](rdma_cm_id *id) {
+    return rdma_read_async__(id, key, size, mr, kv_reader.getAddr(),
+                             kv_reader.getRkey());
   });
   hydra::then(std::move(fut), [ =, mem = std::move(mem) ](auto s__) mutable {
     s__.get();

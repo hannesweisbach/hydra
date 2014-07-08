@@ -4,6 +4,7 @@
 #include <memory>
 #include <functional>
 #include <utility>
+#include <vector>
 
 #include "hydra/passive.h"
 #include "hydra/types.h"
@@ -14,6 +15,8 @@
 namespace hydra {
 
 hydra::node_info get_info(const RDMAClientSocket &socket);
+bool add(const RDMAClientSocket &socket, const std::vector<unsigned char> &kv,
+         const size_t &key_size);
 
 class client {
 public:

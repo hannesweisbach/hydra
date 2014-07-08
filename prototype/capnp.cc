@@ -12,17 +12,14 @@ int main() {
 
   auto put = msg.initPut();
   auto remote = put.initRemote();
-  auto key = remote.initKey();
-  key.setAddr(0xdeadbabe);
-  key.setSize(0x900d515e);
-  key.setRkey(0xbeef);
-  auto value = remote.initValue();
-  value.setAddr(0xdeaddabf);
-  value.setSize(0x900d515f);
-  value.setRkey(0xbef0);
+  auto kv = remote.initKv();
+  kv.setAddr(0xdeadbabe);
+  kv.setSize(0x900d515e);
+  kv.setRkey(0xbeef);
+  remote.setKeySize(0x900d515f);
 
   auto send = messageToFlatArray(mbuilder);
-  
+
   kj::FixedArray<capnp::word, 9> req;
   size_t copy_size = std::min(send.size(), req.size());
   memcpy(req.begin(), send.begin(), copy_size * sizeof(capnp::word));
@@ -38,14 +35,9 @@ int main() {
       auto remote = put.getRemote();
       std::cout << std::hex;
       std::cout << "remote" << std::endl;
-      auto key_reader = remote.getKey();
-      std::cout << "key: " << key_reader.getAddr() << " "
-                << key_reader.getSize() << " " << key_reader.getRkey()
-                << std::endl;
-      auto val_reader = remote.getValue();
-      std::cout << "val: " << val_reader.getAddr() << " "
-                << val_reader.getSize() << " " << val_reader.getRkey()
-                << std::endl;
+      auto kv_reader = remote.getKv();
+      std::cout << "kvr: " << kv_reader.getAddr() << " " << kv_reader.getSize()
+                << " " << kv_reader.getRkey() << std::endl;
     } else {
       std::cout << "inline" << std::endl;
     }

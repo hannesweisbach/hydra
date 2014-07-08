@@ -64,16 +64,14 @@ static void load_keys(RDMAClientSocket &socket, const size_t max_keys,
   std::uniform_int_distribution<unsigned char> distribution(' ', '~');
 
   struct data {
-    rdma_ptr<unsigned char> key;
-    rdma_ptr<unsigned char> value;
+    rdma_ptr<unsigned char> kv;
     size_t key_length;
-    size_t value_length;
+    size_t length;
     std::pair<std::future<qp_t>, rdma_ptr<kj::FixedArray<capnp::word, 9> > >
     result;
-    data(rdma_ptr<unsigned char> key, rdma_ptr<unsigned char> value,
-         const size_t key_length, const size_t value_length)
-        : key(std::move(key)), value(std::move(value)), key_length(key_length),
-          value_length(value_length) {}
+    data(rdma_ptr<unsigned char> kv, const size_t length,
+         const size_t key_length)
+        : kv(std::move(kv)), key_length(key_length), length(length) {}
   };
 
   std::vector<data> requests;
@@ -84,14 +82,13 @@ static void load_keys(RDMAClientSocket &socket, const size_t max_keys,
     ss << std::setw(4) << i;
 
     const size_t key_length = ss.str().size();
-
-    requests.emplace_back(socket.malloc<unsigned char>(key_length),
-                          socket.malloc<unsigned char>(value_length),
-                          key_length, value_length);
+    const size_t length = key_length + value_length;
+    requests.emplace_back(socket.malloc<unsigned char>(length), length,
+                          key_length);
 
     data &data = requests.back();
-    memcpy(data.key.first.get(), ss.str().c_str(), key_length);
-    unsigned char *value = data.value.first.get();
+    memcpy(data.kv.first.get(), ss.str().c_str(), key_length);
+    unsigned char *value = data.kv.first.get() + key_length;
     for (size_t byte = 0; byte < value_length; byte++) {
       value[byte] = distribution(generator);
     }
@@ -102,8 +99,8 @@ static void load_keys(RDMAClientSocket &socket, const size_t max_keys,
   for (auto &&request : requests) {
     request.result = socket.recv_async<kj::FixedArray<capnp::word, 9> >();
 
-    auto serialized = put_message(request.key, request.key_length,
-                                  request.value, request.value_length);
+    auto serialized =
+        put_message(request.kv, request.length, request.key_length);
     socket.sendImmediate(serialized);
   }
 

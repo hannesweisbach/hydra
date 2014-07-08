@@ -128,14 +128,14 @@ bool test_wrong_add(hydra::client &c) {
   RDMAClientSocket socket(table.self().node.ip, table.self().node.port);
   socket.connect();
 
-  auto key_mr = socket.malloc<unsigned char>(key_size);
-  auto val_mr = socket.malloc<unsigned char>(val_size);
+  const size_t size = key_size + val_size;
+  auto kv_mr = socket.malloc<unsigned char>(size);
 
-  std::memcpy(key_mr.first.get(), key.get(), key_size);
-  std::memcpy(val_mr.first.get(), value.get(), val_size);
+  std::memcpy(kv_mr.first.get(), key.get(), key_size);
+  std::memcpy(kv_mr.first.get() + key_size, value.get(), val_size);
 
   auto result = socket.recv_async<kj::FixedArray<capnp::word, 9> >();
-  socket.sendImmediate(put_message(key_mr, key_size, val_mr, val_size));
+  socket.sendImmediate(put_message(kv_mr, size, key_size));
   result.first.get();
 
   auto reply = capnp::FlatArrayMessageReader(*result.second.first);
