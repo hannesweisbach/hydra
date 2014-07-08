@@ -127,49 +127,45 @@ hydra::client::find_entry(const RDMAClientSocket &socket,
 
 hydra::routing_table hydra::client::table() const { return root_node.table(); }
 
-std::future<bool> hydra::client::add(const unsigned char *key, const size_t key_length,
-                        const unsigned char *value, const size_t value_length) const {
+std::future<bool>
+hydra::client::add(const std::vector<unsigned char> &key,
+                   const std::vector<unsigned char> &value) const {
+#if 1
   return hydra::async([=]() {
-    const auto nodeid = responsible_node(key, key_length);
+#else
+  std::promise<bool> promise;
+#endif
+    auto start = std::chrono::high_resolution_clock::now();
+    const auto nodeid = responsible_node(key.data(), key.size());
+    auto end = std::chrono::high_resolution_clock::now();
+    // log_info() << "Blocked for "
+    //           << std::chrono::duration_cast<std::chrono::microseconds>(
+    //                  end - start).count();
     const RDMAClientSocket socket(nodeid.ip, nodeid.port);
     socket.connect();
-    auto response = socket.recv_async<put_response>();
-
-    auto key_mr = socket.malloc<unsigned char>(key_length);
-    auto val_mr = socket.malloc<unsigned char>(value_length);
-
-    memcpy(key_mr.first.get(), key, key_length);
-    memcpy(val_mr.first.get(), value, value_length);
-
-    put_request request = {
-      { key_mr.first.get(), key_length, key_mr.second->rkey },
-      { val_mr.first.get(), value_length, val_mr.second->rkey }
-    };
-
-    socket.sendImmediate(request);
-
-    log_info() << request;
-
-    /* The blocking time depends on the remote node. TODO: Benchmark. */
-    response.first.get(); // block.
-
-    return response.second.first->value();
+    bool success = ::hydra::add(socket, key, value);
+#if 1
+    return success;
   });
+#else
+  promise.set_value(success);
+  return promise.get_future();
+#endif
 }
 
-std::future<bool> hydra::client::remove(const unsigned char *key,
-                                        const size_t key_length) const {
+std::future<bool>
+hydra::client::remove(const std::vector<unsigned char> &key) const {
   return hydra::async([=]() {
-    const auto nodeid = responsible_node(key, key_length);
+    const auto nodeid = responsible_node(key.data(), key.size());
     const RDMAClientSocket socket(nodeid.ip, nodeid.port);
     socket.connect();
 
     auto response = socket.recv_async<remove_response>();
 
-    auto key_mr = socket.malloc<unsigned char>(key_length);
-    memcpy(key_mr.first.get(), key, key_length);
+    auto key_mr = socket.malloc<unsigned char>(key.size());
+    memcpy(key_mr.first.get(), key.data(), key.size());
 
-    remove_request request = { { key_mr.first.get(), key_length,
+    remove_request request = { { key_mr.first.get(), key.size(),
                                  key_mr.second->rkey } };
 
     socket.sendImmediate(request);
@@ -179,12 +175,11 @@ std::future<bool> hydra::client::remove(const unsigned char *key,
   });
 }
 
-bool hydra::client::contains(const unsigned char *key,
-                             const size_t key_length) const {
-  const auto nodeid = responsible_node(key, key_length);
+bool hydra::client::contains(const std::vector<unsigned char> &key) const {
+  const auto nodeid = responsible_node(key.data(), key.size());
   const RDMAClientSocket socket(nodeid.ip, nodeid.port);
   socket.connect();
-  const auto entry = find_entry(socket, key, key_length);
+  const auto entry = find_entry(socket, key.data(), key.size());
   return entry.first.get() != nullptr;
 }
 
@@ -192,13 +187,14 @@ bool hydra::client::contains(const unsigned char *key,
  * or { char[], size, unqiue_ptr<ibv_mr> }
  * this should also play nice with read.
  */
-hydra::client::value_ptr hydra::client::get(const unsigned char *key,
-                                            const size_t key_length) const {
-  const auto nodeid = responsible_node(key, key_length);
+hydra::client::value_ptr
+hydra::client::get(const std::vector<unsigned char> &key) const {
+  const auto nodeid = responsible_node(key.data(), key.size());
   // TODO: guard socket connect/disconnect
   const RDMAClientSocket socket(nodeid.ip, nodeid.port);
   socket.connect();
-  auto entry = find_entry(socket, key, key_length);
+  const size_t key_size = key.size();
+  auto entry = find_entry(socket, key.data(), key_size);
 
   if (entry.first.get() == nullptr) {
     return std::move(entry.first);
@@ -206,7 +202,7 @@ hydra::client::value_ptr hydra::client::get(const unsigned char *key,
     value_ptr result([=, &entry]() {
                        const size_t length = entry.second;
                        void *p = check_nonnull(::malloc(length));
-                       memcpy(p, entry.first.get() + key_length, length);
+                       memcpy(p, entry.first.get() + key_size, length);
                        return reinterpret_cast<unsigned char *>(p);
                      }(),
                      std::function<void(unsigned char *)>(free));

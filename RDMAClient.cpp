@@ -2,6 +2,7 @@
 #include <chrono>
 #include <random>
 #include <cstring>
+#include <vector>
 
 #include <getopt.h>
 #include <unistd.h>
@@ -13,99 +14,100 @@
 #include "rdma/RDMAClientSocket.h"
 #include "hydra/protocol/message.h"
 
-std::unique_ptr<unsigned char[]> get_random_string(size_t length) {
+std::vector<unsigned char> get_random_string(size_t length) {
   static std::mt19937_64 generator;
   static std::uniform_int_distribution<unsigned char> distribution(' ', '~');
 
-  std::unique_ptr<unsigned char[]> random(new unsigned char[length]);
-  for(size_t i = 0; i < length; i++)
-    random[i] = distribution(generator);
+  std::vector<unsigned char> kv;
+  kv.reserve(length);
+  std::generate_n(std::back_inserter(kv), length,
+                  std::bind(distribution, generator));
 
-  return random;
+  return kv;
 }
 
-bool test_add(hydra::client& c) {
+bool test_add(hydra::client &c) {
   const size_t key_size = 16;
   const size_t val_size = 243;
-  std::unique_ptr<unsigned char[]> key(get_random_string(key_size));
-  std::unique_ptr<unsigned char[]> value(get_random_string(val_size));
+  auto key = get_random_string(key_size);
+  auto value = get_random_string(val_size);
 
-  log_hexdump_ptr(key.get(), key_size);
+  log_hexdump_ptr(key.data(), key.size());
 
-  return c.add(key.get(), key_size, value.get(), val_size).get();
+  return c.add(key, value).get();
 }
 
 bool test_add_contains(hydra::client& c) {
   const size_t key_size = 16;
   const size_t val_size = 243;
-  std::unique_ptr<unsigned char[]> key(get_random_string(key_size));
-  std::unique_ptr<unsigned char[]> value(get_random_string(val_size));
+  auto key = get_random_string(key_size);
+  auto value = get_random_string(val_size);
 
-  log_hexdump_ptr(key.get(), key_size);
-  
-  assert(c.add(key.get(), key_size, value.get(), val_size).get());
-  return c.contains(key.get(), key_size);
+  log_hexdump_ptr(key.data(), key.size());
+
+  assert(c.add(key, value).get());
+  return c.contains(key);
 }
 
-bool test_add_get(hydra::client& c) {
+bool test_add_get(hydra::client &c) {
   const size_t key_size = 16;
   const size_t val_size = 243;
-  std::unique_ptr<unsigned char[]> key(get_random_string(key_size));
-  std::unique_ptr<unsigned char[]> value(get_random_string(val_size));
+  auto key = get_random_string(key_size);
+  auto value = get_random_string(val_size);
 
-  assert(c.add(key.get(), key_size, value.get(), val_size).get());
-  hydra::client::value_ptr p = c.get(key.get(), key_size);
+  assert(c.add(key, value).get());
+
+  hydra::client::value_ptr p = c.get(key);
   assert(p.get() != nullptr);
-  return memcmp(p.get(), value.get(), val_size) == 0;
+  return std::equal(std::begin(value), std::end(value), p.get());
 }
 
-bool test_double_add(hydra::client& c) {
+bool test_double_add(hydra::client &c) {
   const size_t key_size = 16;
   const size_t val_size = 16;
-  std::unique_ptr<unsigned char[]> key(get_random_string(key_size));
-  std::unique_ptr<unsigned char[]> value(get_random_string(val_size));
+  auto key = get_random_string(key_size);
+  auto value = get_random_string(val_size);
 
-  
   /* add key/value pair, check contains and get */
-  c.add(key.get(), key_size, value.get(), val_size).get();
-  assert(c.contains(key.get(), key_size));
-  hydra::client::value_ptr p = c.get(key.get(), key_size);
+  assert(c.add(key, value).get());
+  assert(c.contains(key));
+  hydra::client::value_ptr p = c.get(key);
   assert(p.get() != nullptr);
-  assert(memcmp(p.get(), value.get(), val_size) == 0);
-   
-  //std::this_thread::sleep_for(std::chrono::seconds(1));
-  
+  assert(std::equal(std::begin(value), std::end(value), p.get()));
+
+  // std::this_thread::sleep_for(std::chrono::seconds(1));
+
   /* add another value w/ same key, check contains and get */
   value = get_random_string(val_size);
-  c.add(key.get(), key_size, value.get(), val_size).get();
-  assert(c.contains(key.get(), key_size));
-  p = c.get(key.get(), key_size);
+  assert(c.add(key, value).get());
+  assert(c.contains(key));
+  p = c.get(key);
   assert(p.get() != nullptr);
-  return memcmp(p.get(), value.get(), val_size) == 0;
+  return std::equal(std::begin(value), std::end(value), p.get());
 }
 
-bool test_add_remove(hydra::client& c) {
+bool test_add_remove(hydra::client &c) {
   const size_t key_size = 16;
   const size_t val_size = 243;
-  std::unique_ptr<unsigned char[]> key(get_random_string(key_size));
-  std::unique_ptr<unsigned char[]> value(get_random_string(val_size));
+  auto key = get_random_string(key_size);
+  auto value = get_random_string(val_size);
 
-  assert(c.add(key.get(), key_size, value.get(), val_size).get());
-  assert(c.contains(key.get(), key_size));
-  hydra::client::value_ptr p = c.get(key.get(), key_size);
+  assert(c.add(key, value).get());
+  assert(c.contains(key));
+  hydra::client::value_ptr p = c.get(key);
   assert(p.get() != nullptr);
-  assert(memcmp(p.get(), value.get(), val_size) == 0);
+  assert(std::equal(std::begin(value), std::end(value), p.get()));
 
-  assert(c.remove(key.get(), key_size).get());
+  assert(c.remove(key).get());
 
-  return !c.contains(key.get(), key_size);
+  return !c.contains(key);
 }
 
 auto find_key_in(const size_t key_size, const hydra::keyspace_t &start,
                  const hydra::keyspace_t &end) {
   for (;;) {
     auto key = get_random_string(key_size);
-    if (hydra::keyspace_t(hydra::hash(key.get(), key_size)).in(start, end))
+    if (hydra::keyspace_t(hydra::hash(key.data(), key.size())).in(start, end))
       return key;
   }
 }
@@ -116,13 +118,12 @@ bool test_wrong_add(hydra::client &c) {
     log_info() << "Could not perform test. Node is responsible for everything.";
     return true;
   }
-  hydra::keyspace_t start = table.self().node.id + 1;
+  hydra::keyspace_t start = table.self().node.id + hydra::keyspace_t(1);
   hydra::keyspace_t end = table.predecessor().node.id;
-
 
   const size_t key_size = 16;
   const size_t val_size = 16;
-  std::unique_ptr<unsigned char[]> value(get_random_string(val_size));
+  auto value = get_random_string(val_size);
   auto key = find_key_in(key_size, start, end);
 
   RDMAClientSocket socket(table.self().node.ip, table.self().node.port);
@@ -131,8 +132,8 @@ bool test_wrong_add(hydra::client &c) {
   const size_t size = key_size + val_size;
   auto kv_mr = socket.malloc<unsigned char>(size);
 
-  std::memcpy(kv_mr.first.get(), key.get(), key_size);
-  std::memcpy(kv_mr.first.get() + key_size, value.get(), val_size);
+  std::memcpy(kv_mr.first.get(), key.data(), key.size());
+  std::memcpy(kv_mr.first.get() + key_size, value.data(), value.size());
 
   auto result = socket.recv_async<kj::FixedArray<capnp::word, 9> >();
   socket.sendImmediate(put_message(kv_mr, size, key_size));
