@@ -27,7 +27,7 @@ struct DHTRequest {
     del :group {
       union {
         remote :group {
-          mr @5 :Mr;
+          key @5 :Mr;
         }
         inline :group {
           size @6 :UInt8;
