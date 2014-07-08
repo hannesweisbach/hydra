@@ -322,7 +322,7 @@ void node::handle_del(const protocol::DHTRequest::Del::Inline::Reader &reader,
 
 void node::handle_del(const protocol::DHTRequest::Del::Remote::Reader &reader,
                       const qp_t &qp) const {
-  auto mr = reader.getMr();
+  auto mr = reader.getKey();
   
   const size_t size = mr.getSize();
 

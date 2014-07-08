@@ -60,3 +60,18 @@ kj::Array<capnp::word> put_message_inline(const T &o, const size_t &key_size) {
   return messageToFlatArray(message);
 }
 
+template <typename T>
+kj::Array<capnp::word> del_message(const rdma_ptr<T> &key,
+                                   const size_t &key_size) {
+  ::capnp::MallocMessageBuilder message;
+  hydra::protocol::DHTRequest::Builder msg =
+      message.initRoot<hydra::protocol::DHTRequest>();
+
+  auto remote = msg.initDel().initRemote();
+  auto key_mr = remote.initKey();
+  key_mr.setAddr(reinterpret_cast<uint64_t>(key.first.get()));
+  key_mr.setSize(static_cast<uint32_t>(key_size));
+  key_mr.setRkey(key.second->rkey);
+
+  return messageToFlatArray(message);
+}
