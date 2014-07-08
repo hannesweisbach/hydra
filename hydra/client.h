@@ -40,8 +40,8 @@ private:
   node_id responsible_node(const std::vector<unsigned char> &key) const;
   node_info get_info(const RDMAClientSocket &socket) const;
   std::pair<value_ptr, const size_t>
-  find_entry(const RDMAClientSocket &socket, const unsigned char *key,
-             const size_t key_length) const;
+  find_entry(const RDMAClientSocket &socket,
+             const std::vector<unsigned char> &key) const;
 };
 }
 

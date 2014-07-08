@@ -107,22 +107,21 @@ hydra::node_info hydra::client::get_info(const RDMAClientSocket& socket) const {
 
 std::pair<hydra::client::value_ptr, const size_t>
 hydra::client::find_entry(const RDMAClientSocket &socket,
-                          const unsigned char *key,
-                          const size_t key_length) const {
+                          const std::vector<unsigned char> &key) const {
   const hydra::node_info info = get_info(socket);
   const size_t table_size = info.table_size;
   const RDMAObj<hash_table_entry> *remote_table =
       static_cast<const RDMAObj<hash_table_entry> *>(info.key_extents.addr);
   const uint32_t rkey = info.key_extents.rkey;
 
-  const size_t index = hash(key, key_length) % table_size;
+  const size_t index = hash(key) % table_size;
 
   auto mem = socket.from(&remote_table[index], info.key_extents.rkey);
   auto &entry = mem.first->get();
 
   for (size_t hop = entry.hop, d = 1; hop; hop >>= 1, d++) {
     if ((hop & 1) && !entry.is_empty() &&
-        (key_length == entry.key_length())) {
+        (key.size() == entry.key_length())) {
       auto data = socket.malloc<unsigned char>(entry.ptr.size);
       uint64_t crc = 0;
       do {
@@ -130,7 +129,7 @@ hydra::client::find_entry(const RDMAClientSocket &socket,
                     entry.ptr.size).get();
         crc = hash64(data.first.get(), entry.ptr.size);
       } while (entry.ptr.crc != crc);
-      if (memcmp(data.first.get(), key, key_length) == 0) {
+      if (std::equal(std::begin(key), std::end(key), data.first.get())) {
         return {std::move(data.first), entry.value_length()};
       }
     }
@@ -195,7 +194,7 @@ bool hydra::client::contains(const std::vector<unsigned char> &key) const {
   const auto nodeid = responsible_node(key);
   const RDMAClientSocket socket(nodeid.ip, nodeid.port);
   socket.connect();
-  const auto entry = find_entry(socket, key.data(), key.size());
+  const auto entry = find_entry(socket, key);
   return entry.first.get() != nullptr;
 }
 
@@ -210,7 +209,7 @@ hydra::client::get(const std::vector<unsigned char> &key) const {
   const RDMAClientSocket socket(nodeid.ip, nodeid.port);
   socket.connect();
   const size_t key_size = key.size();
-  auto entry = find_entry(socket, key.data(), key_size);
+  auto entry = find_entry(socket, key);
 
   if (entry.first.get() == nullptr) {
     return std::move(entry.first);
