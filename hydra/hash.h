@@ -5,6 +5,7 @@
 #include <limits>
 #include <string>
 #include <ostream>
+#include <vector>
 
 #include <city.h>
 
@@ -56,6 +57,11 @@ template <>
 inline hydra::keyspace_t::value_type hash<std::string>(const std::string &s,
                                                        size_t) {
   return hash(s.c_str(), s.size());
+}
+
+template <typename T>
+inline hydra::keyspace_t::value_type hash(const std::vector<T> &v) {
+  return hash(std::begin(v), v.size() * sizeof(T));
 }
 }
 
