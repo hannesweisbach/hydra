@@ -24,15 +24,14 @@ auto size2Class = [](size_t size) -> size_t {
 };
 
 hydra::passive::passive(const std::string &host, const std::string &port)
-    : s(host, port), heap(48U, size2Class, s), local_heap(s),
+    : RDMAClientSocket(host, port), heap(48U, size2Class, *this), local_heap(*this),
       msg_buffer(local_heap.malloc<msg>(2)),
       info(local_heap.malloc<node_info>()) {
   log_info() << "Starting client to " << host << ":" << port;
   post_recv(msg_buffer.first.get()[0], msg_buffer.second);
   post_recv(msg_buffer.first.get()[1], msg_buffer.second);
 
-  s.connect();
-
+  connect();
 
   init_request request;
   auto future = request.set_completion<const mr &>([&](auto &&mr) {
@@ -40,7 +39,7 @@ hydra::passive::passive(const std::string &host, const std::string &port)
     this->update_info();
   });
 
-  s.sendImmediate(request);
+  sendImmediate(request);
   future.wait();
 }
 
@@ -88,7 +87,7 @@ void print_distribution(std::unordered_map<uint64_t, uint64_t> &distribution) {
 
 void hydra::passive::update_info() {
   log_info() << "remote mr: " << remote;
-  s.read(info.first.get(), info.second,
+  read(info.first.get(), info.second,
          reinterpret_cast<node_info *>(remote.addr), remote.rkey).get();
 }
 
@@ -145,7 +144,7 @@ void hydra::passive::recv(const msg &r) {
 }
   
 hydra::routing_table hydra::passive::table() const {
-  auto table = s.read<RDMAObj<routing_table> >(
+  auto table = read<RDMAObj<routing_table> >(
       reinterpret_cast<uintptr_t>(info.first->routing_table.addr),
       info.first->routing_table.rkey);
   table.first.get();
@@ -154,15 +153,15 @@ hydra::routing_table hydra::passive::table() const {
 
 void hydra::passive::update_predecessor(const hydra::node_id &pred) const {
   notification_predecessor m(pred);
-  s.sendImmediate(m);
+  sendImmediate(m);
 }
 
 void hydra::passive::send(const msg& m) const {
-  s.sendImmediate(m);
+  sendImmediate(m);
 }
 
 bool hydra::passive::has_id(const keyspace_t &id) const {
-  auto table = s.read<RDMAObj<routing_table> >(
+  auto table = read<RDMAObj<routing_table> >(
       reinterpret_cast<uintptr_t>(info.first->routing_table.addr),
       info.first->routing_table.rkey);
   table.first.get();

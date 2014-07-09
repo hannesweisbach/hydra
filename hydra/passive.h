@@ -19,11 +19,9 @@
 #include "RDMAAllocator.h"
 
 namespace hydra {
-class passive {
+class passive : public virtual RDMAClientSocket {
 public:
   passive(const std::string &host, const std::string &port);
-  passive(passive &&);
-  passive &operator=(passive &&);
   std::future<void> post_recv(const msg &msg, const ibv_mr *mr);
   void recv(const msg& msg);
 
@@ -39,7 +37,6 @@ public:
 private:
 
   void update_info();
-  RDMAClientSocket s;
 
   ThreadSafeHeap<SegregatedFitsHeap<
       FreeListHeap<ZoneHeap<RdmaHeap<ibv_access::READ>, 256> >,
