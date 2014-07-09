@@ -1,5 +1,6 @@
-@0x9f917e549d92b283;
+@0x9c34900a20422afd;
 
+using import "chord.capnp".Node;
 using Cxx = import "/capnp/c++.capnp";
 $Cxx.namespace("hydra::protocol");
 
@@ -11,31 +12,33 @@ struct Mr {
 
 struct DHTRequest {
   union {
-    put :group {
-      union {
-        remote :group {
-          kv @0 :Mr;
-          keySize @1 :UInt32;
-        }
-        inline :group {
-          keySize @2 :UInt8;
-          size @3 :UInt8;
-          data @4 :Data;
-        }
+    put :union {
+      remote :group {
+        kv @0 :Mr;
+        keySize @1 :UInt32;
+      }
+      inline :group {
+        keySize @2 :UInt8;
+        size @3 :UInt8;
+        data @4 :Data;
       }
     }
-    del :group {
-      union {
-        remote :group {
-          key @5 :Mr;
-        }
-        inline :group {
-          size @6 :UInt8;
-          key  @7 :Data;
-        }
+    del :union {
+      remote :group {
+        key @5 :Mr;
+      }
+      inline :group {
+        size @6 :UInt8;
+        key  @7 :Data;
       }
     }
     init @8 :Void;
+    predecessor : group {
+      node @9 :Node;
+    }
+    update :group {
+      node @10 :Node;
+    }
   }
 }
 
