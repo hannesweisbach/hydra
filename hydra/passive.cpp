@@ -6,6 +6,7 @@
 
 #include "hash.h"
 #include "passive.h"
+#include "client.h"
 #include "messages.h"
 #include "util/Logger.h"
 #include "util/concurrent.h"
@@ -91,62 +92,10 @@ void hydra::passive::update_info() {
          reinterpret_cast<node_info *>(remote.addr), remote.rkey).get();
 }
 
-void hydra::passive::recv(const msg &r) {
-  log_info() << r;
-
-  switch (r.type()) {
-  case msg::mtype::response:
-    // TODO: This is only required to avoid deadlock when destructing this
-    // object from the completion.
-    hydra::async([=]() { static_cast<const response &>(r).complete_(); });
-    break;
-  case msg::mtype::notification:
-    switch (r.subtype()) {
-    case msg::msubtype::resize: {
-      update_info();
-#if 0
-      std::thread t([&]() {
-        std::unordered_map<uint64_t, uint64_t> distribution;
-        size_t old_fail = 0;
-        size_t fails = 0;
-        size_t loads = 0;
-        log_info() << "Starting mod test";
-        while (1) {
-          auto table = s.read<RDMAObj<routing_table> >(
-              reinterpret_cast<uintptr_t>(info.first->routing_table.addr),
-              info.first->routing_table.rkey);
-          loads++;
-          table.first.get();
-
-          if (!table.second.first->valid()) {
-            fails++;
-          } else {
-            distribution[fails - old_fail]++;
-            old_fail = fails;
-          }
-          if ((loads & 0xffff) == 0) {
-            log_info() << "loads: " << loads << " fails: " << fails
-                       << " ratio: " << (float)fails / loads;
-            print_distribution(distribution);
-          }
-        }
-      });
-      t.detach();
-#endif
-    } break;
-    default:
-      break;
-    }
-    break;
-  default:
-    assert(false);
-  }
-}
-  
 hydra::routing_table hydra::passive::table() const {
+  auto routing_mr = hydra::get_info(*this).routing_table;
   auto table = read<RDMAObj<routing_table> >(
-      reinterpret_cast<uintptr_t>(info.first->routing_table.addr),
-      info.first->routing_table.rkey);
+      reinterpret_cast<uintptr_t>(routing_mr.addr), routing_mr.rkey);
   table.first.get();
   return table.second.first->get();
 }
