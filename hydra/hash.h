@@ -61,7 +61,7 @@ inline hydra::keyspace_t::value_type hash<std::string>(const std::string &s,
 
 template <typename T>
 inline hydra::keyspace_t::value_type hash(const std::vector<T> &v) {
-  return hash(std::begin(v), v.size() * sizeof(T));
+  return hash(v.data(), v.size() * sizeof(T));
 }
 }
 
