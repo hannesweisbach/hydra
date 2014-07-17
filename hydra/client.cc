@@ -162,18 +162,7 @@ hydra::client::remove(const std::vector<unsigned char> &key) const {
     const RDMAClientSocket socket(nodeid.ip, nodeid.port);
     socket.connect();
 
-    auto response = socket.recv_async<remove_response>();
-
-    auto key_mr = socket.malloc<unsigned char>(key.size());
-    memcpy(key_mr.first.get(), key.data(), key.size());
-
-    remove_request request = { { key_mr.first.get(), key.size(),
-                                 key_mr.second->rkey } };
-
-    socket.send(request);
-
-    response.first.get();
-    return response.second.first->value();
+    return ::hydra::remove(socket, key);
   });
 }
 
