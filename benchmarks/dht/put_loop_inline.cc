@@ -15,7 +15,7 @@ struct data {
 static void send(RDMAClientSocket &socket, data &request) {
   auto result = socket.recv_async<kj::FixedArray<capnp::word, 9> >();
 
-  socket.sendImmediate(put_message_inline(request.kv, request.key_size));
+  socket.send(put_message_inline(request.kv, request.key_size));
   result.first.get();
 
   auto reply = capnp::FlatArrayMessageReader(*result.second.first);

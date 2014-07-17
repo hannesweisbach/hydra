@@ -101,7 +101,7 @@ static void load_keys(RDMAClientSocket &socket, const size_t max_keys,
 
     auto serialized =
         put_message(request.kv, request.length, request.key_length);
-    socket.sendImmediate(serialized);
+    socket.send(serialized);
   }
 
 #if 1

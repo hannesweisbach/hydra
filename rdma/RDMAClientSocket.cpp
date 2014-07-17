@@ -1,6 +1,4 @@
 #include <rdma/rdma_cma.h>
-#include <netdb.h>
-#include <unistd.h>
 
 #include "Logger.h"
 #include "RDMAWrapper.hpp"
@@ -31,9 +29,21 @@ RDMAClientSocket::RDMAClientSocket(const std::string &host,
   attr.recv_cq = cq;
   attr.send_cq = cq;
   attr.srq = srq_id->srq;
-  attr.cap.max_inline_data = 72;
   attr.sq_sig_all = 1;
-  id = createCmId(host, port, false, &attr);
+
+  for (max_inline_data = 1;; max_inline_data = attr.cap.max_inline_data + 1) {
+    attr.cap.max_inline_data = max_inline_data;
+
+    try {
+      id = createCmId(host, port, false, &attr);
+    }
+    catch (...) {
+      --max_inline_data;
+      attr.cap.max_inline_data = max_inline_data;
+      id = createCmId(host, port, false, &attr);
+      break;
+    }
+  }
 }
 
 RDMAClientSocket::~RDMAClientSocket() {

@@ -136,7 +136,7 @@ bool test_wrong_add(hydra::client &c) {
   std::memcpy(kv_mr.first.get() + key_size, value.data(), value.size());
 
   auto result = socket.recv_async<kj::FixedArray<capnp::word, 9> >();
-  socket.sendImmediate(put_message(kv_mr, size, key_size));
+  socket.send(put_message(kv_mr, size, key_size));
   result.first.get();
 
   auto reply = capnp::FlatArrayMessageReader(*result.second.first);

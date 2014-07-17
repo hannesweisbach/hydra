@@ -32,7 +32,6 @@ public:
   routing_table table() const;
   void update_predecessor(const hydra::node_id &pred) const;
   bool has_id(const keyspace_t &id) const;
-  void send(const msg&) const;
 
 private:
 

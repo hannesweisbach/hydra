@@ -39,7 +39,7 @@ hydra::passive::passive(const std::string &host, const std::string &port)
     this->update_info();
   });
 
-  sendImmediate(request);
+  send(request);
   future.wait();
 }
 
@@ -153,11 +153,7 @@ hydra::routing_table hydra::passive::table() const {
 
 void hydra::passive::update_predecessor(const hydra::node_id &pred) const {
   notification_predecessor m(pred);
-  sendImmediate(m);
-}
-
-void hydra::passive::send(const msg& m) const {
-  sendImmediate(m);
+  send(m);
 }
 
 bool hydra::passive::has_id(const keyspace_t &id) const {

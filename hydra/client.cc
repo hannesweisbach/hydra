@@ -10,10 +10,7 @@ namespace hydra {
 hydra::node_info get_info(const RDMAClientSocket &socket) {
   auto init = socket.recv_async<kj::FixedArray<capnp::word, 9> >();
 
-  kj::Array<capnp::word> serialized = init_message();
-
-  socket.sendImmediate(std::begin(serialized),
-                       serialized.size() * sizeof(capnp::word));
+  socket.send(init_message());
 
   init.first.get(); // block.
 
@@ -36,7 +33,7 @@ static bool add(const RDMAClientSocket &socket,
   auto response = socket.recv_async<kj::FixedArray<capnp::word, 9> >();
   auto put = put_message(kv, size, key_size);
 
-  socket.sendImmediate(put);
+  socket.send(put);
 
   response.first.get();
 
@@ -72,7 +69,7 @@ bool remove(const RDMAClientSocket &socket,
 
   auto response = socket.recv_async<kj::FixedArray<capnp::word, 9> >();
   auto del = del_message(key_mr, key.size());
-  socket.sendImmediate(del);
+  socket.send(del);
 
   response.first.get();
 
@@ -173,7 +170,7 @@ hydra::client::remove(const std::vector<unsigned char> &key) const {
     remove_request request = { { key_mr.first.get(), key.size(),
                                  key_mr.second->rkey } };
 
-    socket.sendImmediate(request);
+    socket.send(request);
 
     response.first.get();
     return response.second.first->value();

@@ -179,7 +179,7 @@ void node::update_others() const {
       hydra::async([=]() {
         RDMAClientSocket socket(p.ip, p.port);
         socket.connect();
-        socket.sendImmediate(
+        socket.send(
             notification_update(routing_table_.first->get().self().node, i));
       });
     }
@@ -199,7 +199,7 @@ void node::update_routing_table(const hydra::node_id &s, const size_t i) {
         hydra::async([=]() {
           RDMAClientSocket socket(pred.ip, pred.port);
           socket.connect();
-          socket.sendImmediate(notification_update(s, i));
+          socket.send(notification_update(s, i));
         });
       }
       log_info() << table;

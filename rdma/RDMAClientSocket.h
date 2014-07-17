@@ -32,7 +32,8 @@ mr_t register_memory(const RDMAClientSocket &socket, const ibv_access &flags,
 #include "allocators/SegregatedFitsHeap.h"
 #include "RDMAAllocator.h"
 #include "hydra/RDMAObj.h"
-  
+#include "rdma/addressof.h"
+
 class RDMAClientSocket {
   rdma_id_ptr srq_id;
   rdma_id_ptr id;
@@ -50,7 +51,8 @@ class RDMAClientSocket {
   remote_heap;
 #endif
 #endif
-  
+  uint32_t max_inline_data;
+
 public:
   RDMAClientSocket(const std::string &host, const std::string &port);
   /* TODO: optimize. maybe it is better to make uint32_t/uint16_t from strings,
@@ -81,19 +83,24 @@ public:
     return remote_heap.malloc<T>(n_elems);
   }
 
-  template <typename T> void sendImmediate(const T &o) const {
-    if (rdma_post_send(id.get(), nullptr,
-                       static_cast<void *>(const_cast<T *>(&o)), sizeof(T),
-                       nullptr, IBV_SEND_INLINE))
-      log_error() << "rdma_post_send " << strerror(errno);
   }
-  
-  template <typename T> void sendImmediate(const T* o, size_t size) const {
-    hexdump(o, size);
-    if (rdma_post_send(id.get(), nullptr,
-                       static_cast<void *>(const_cast<T *>(o)), size,
-                       nullptr, IBV_SEND_INLINE))
-      log_error() << "rdma_post_send " << strerror(errno);
+
+  template <typename T>
+  auto send(const T &local, const ibv_mr *mr = nullptr) const {
+    using namespace hydra::rdma;
+    const void *ptr = address_of(local);
+    const size_t size = size_of(local);
+    int flags = 0;
+    if (size <= max_inline_data) {
+      flags |= IBV_SEND_INLINE;
+    } else if (mr == nullptr) {
+      std::ostringstream ss;
+      ss << "Message of " << size << " bytes to large to send inline (max "
+         << max_inline_data << ")";
+      throw std::runtime_error(ss.str());
+    }
+    check_zero(rdma_post_send(id.get(), nullptr, ptr, size,
+                              const_cast<ibv_mr *>(mr), flags));
   }
 
   template <typename T>
