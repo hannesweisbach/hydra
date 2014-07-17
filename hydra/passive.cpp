@@ -26,52 +26,10 @@ auto size2Class = [](size_t size) -> size_t {
 
 hydra::passive::passive(const std::string &host, const std::string &port)
     : RDMAClientSocket(host, port), heap(48U, size2Class, *this), local_heap(*this),
-      msg_buffer(local_heap.malloc<msg>(2)),
       info(local_heap.malloc<node_info>()) {
   log_info() << "Starting client to " << host << ":" << port;
-  post_recv(msg_buffer.first.get()[0], msg_buffer.second);
-  post_recv(msg_buffer.first.get()[1], msg_buffer.second);
 
   connect();
-
-  init_request request;
-  auto future = request.set_completion<const mr &>([&](auto &&mr) {
-    remote = mr;
-    this->update_info();
-  });
-
-  send(request);
-  future.wait();
-}
-
-hydra::passive::passive(hydra::passive &&other)
-    : s(std::move(other.s)), heap(std::move(other.heap)),
-      local_heap(std::move(other.local_heap)),
-      msg_buffer(std::move(other.msg_buffer)), info(std::move(other.info)) {}
-
-hydra::passive &hydra::passive::operator=(hydra::passive &&other) {
-  std::swap(s, other.s);
-  std::swap(heap, other.heap);
-  std::swap(local_heap, other.local_heap);
-  std::swap(msg_buffer, other.msg_buffer);
-  std::swap(info, other.info);
-
-  return *this;
-}
-
-std::future<void> hydra::passive::post_recv(const msg &m,
-                                           const ibv_mr *mr) {
-  auto fut = s.recv_async(m, mr);
-#if 0
-  return hydra::then(std::move(fut), [=,&m](auto m_) mutable {
-    m_.get(); // check for exception
-#else
-  return messageThread.send([this, &m, mr, future=std::move(fut)]()mutable{
-#endif
-  future.get();
-  recv(m);
-  post_recv(m, mr);
-});
 }
 
 #if 0

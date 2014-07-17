@@ -22,8 +22,6 @@ namespace hydra {
 class passive : public virtual RDMAClientSocket {
 public:
   passive(const std::string &host, const std::string &port);
-  std::future<void> post_recv(const msg &msg, const ibv_mr *mr);
-  void recv(const msg& msg);
 
 #if 0
   routing_entry predecessor(const __uint128_t &id) const;
@@ -41,10 +39,7 @@ private:
       FreeListHeap<ZoneHeap<RdmaHeap<ibv_access::READ>, 256> >,
       ZoneHeap<RdmaHeap<ibv_access::READ>, 256> > > heap;
   ThreadSafeHeap<ZoneHeap<RdmaHeap<ibv_access::MSG>, 256> > local_heap;
-  decltype(local_heap.malloc<msg>()) msg_buffer;
   decltype(local_heap.malloc<node_info>()) info;
-
-  WorkerThread messageThread;
 
   mr remote;
 };
