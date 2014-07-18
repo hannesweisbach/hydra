@@ -26,3 +26,34 @@ kj::Array<capnp::word> ack_message(const bool success) {
   msg.initAck().setSuccess(success);
   return messageToFlatArray(response);
 }
+
+static void init_node(const hydra::node_id &node,
+                      hydra::protocol::Node::Builder &n) {
+  auto ip = n.initIp(sizeof(node.ip));
+  auto port = n.initPort(sizeof(node.port));
+  auto id = n.initId(sizeof(node.id));
+
+  memcpy(std::begin(ip), node.ip, sizeof(node.ip));
+  memcpy(std::begin(port), node.port, sizeof(node.port));
+  memcpy(std::begin(id), &node.id, sizeof(node.id));
+}
+
+kj::Array<capnp::word> predecessor_message(const hydra::node_id &node) {
+  ::capnp::MallocMessageBuilder response;
+
+  auto n = response.initRoot<hydra::protocol::DHTRequest>()
+               .initPredecessor()
+               .initNode();
+  init_node(node, n);
+  return messageToFlatArray(response);
+}
+
+kj::Array<capnp::word> update_message(const hydra::node_id &node) {
+  ::capnp::MallocMessageBuilder response;
+
+  auto n =
+      response.initRoot<hydra::protocol::DHTRequest>().initUpdate().initNode();
+  init_node(node, n);
+  return messageToFlatArray(response);
+
+}
