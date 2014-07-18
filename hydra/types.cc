@@ -46,3 +46,16 @@ std::ostream &operator<<(std::ostream &s, const hydra::routing_table &t) {
 }
 }
 
+std::ostream &operator<<(std::ostream &s, const mr &mr) {
+  s << "mr {" << std::endl;
+  {
+    indent_guard guard(s);
+    s << indent << "uint64_t addr = " << std::hex << std::showbase
+      << std::setfill('0') << std::setw(12) << mr.addr << std::dec << std::endl;
+    s << indent << "uint32_t size = " << mr.size << std::endl;
+    s << indent << "uint32_t rkey = " << mr.rkey << std::endl;
+  }
+  s << indent << "};";
+  return s;
+}
+

@@ -66,21 +66,6 @@
     ptr += sizeof(member);                                                     \
   } while (0)
 
-struct mr {
-  uint64_t addr;
-  uint32_t size;
-  uint32_t rkey;
-  mr() = default;
-  mr(ibv_mr *mr) noexcept : addr(reinterpret_cast<uint64_t>(mr->addr)),
-                            size(static_cast<uint32_t>(mr->length)),
-                            rkey(mr->rkey) {}
-  template <typename T>
-  mr(const T *const p, size_t size, uint32_t rkey) noexcept
-      : addr(reinterpret_cast<uint64_t>(p)),
-        size(static_cast<uint32_t>(size)),
-        rkey(rkey) {}
-};
-
 struct resize_data {
   struct mr infopage;
 };
@@ -414,5 +399,4 @@ class notification_update : public msg {
 };
 
 std::ostream &operator<<(std::ostream &s, const msg &m);
-std::ostream &operator<<(std::ostream &s, const mr &mr);
 
