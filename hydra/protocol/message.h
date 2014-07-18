@@ -20,7 +20,7 @@ template <> size_t size_of(const kj::Array<capnp::word> &o);
 kj::Array<capnp::word> init_message();
 kj::Array<capnp::word> ack_message(const bool);
 kj::Array<capnp::word> predecessor_message(const hydra::node_id &);
-kj::Array<capnp::word> update_message(const hydra::node_id &);
+kj::Array<capnp::word> update_message(const hydra::node_id &, const size_t &);
 
 template <typename T>
 kj::Array<capnp::word> put_message(const rdma_ptr<T> &kv, const size_t &size,

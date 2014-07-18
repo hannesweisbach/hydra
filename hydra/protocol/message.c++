@@ -48,11 +48,13 @@ kj::Array<capnp::word> predecessor_message(const hydra::node_id &node) {
   return messageToFlatArray(response);
 }
 
-kj::Array<capnp::word> update_message(const hydra::node_id &node) {
+kj::Array<capnp::word> update_message(const hydra::node_id &node,
+                                      const size_t &index) {
   ::capnp::MallocMessageBuilder response;
 
-  auto n =
-      response.initRoot<hydra::protocol::DHTRequest>().initUpdate().initNode();
+  auto update = response.initRoot<hydra::protocol::DHTRequest>().initUpdate();
+  update.setIndex(index);
+  auto n = update.initNode();
   init_node(node, n);
   return messageToFlatArray(response);
 
