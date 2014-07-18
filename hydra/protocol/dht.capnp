@@ -1,8 +1,13 @@
 @0x9c34900a20422afd;
 
-using import "chord.capnp".Node;
 using Cxx = import "/capnp/c++.capnp";
 $Cxx.namespace("hydra::protocol");
+
+struct Node {
+  ip @0 :Text;
+  port @1 :Text;
+  id @2 :Data;
+}
 
 struct Mr {
   addr @0 :UInt64;
