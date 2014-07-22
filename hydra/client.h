@@ -26,7 +26,7 @@ public:
            const std::vector<unsigned char> &value) const;
   bool remove(const std::vector<unsigned char> &key) const;
   bool contains(const std::vector<unsigned char> &key) const;
-  value_ptr get(const std::vector<unsigned char> &key) const;
+  std::vector<unsigned char> get(const std::vector<unsigned char> &key) const;
   routing_table table() const;
 
 private:

@@ -57,9 +57,9 @@ bool test_add_get(hydra::client &c) {
 
   assert(c.add(key, value));
 
-  hydra::client::value_ptr p = c.get(key);
-  assert(p.get() != nullptr);
-  return std::equal(std::begin(value), std::end(value), p.get());
+  auto val = c.get(key);
+  assert(!val.empty());
+  return std::equal(std::begin(value), std::end(value), val.data());
 }
 
 bool test_double_add(hydra::client &c) {
@@ -71,9 +71,9 @@ bool test_double_add(hydra::client &c) {
   /* add key/value pair, check contains and get */
   assert(c.add(key, value));
   assert(c.contains(key));
-  hydra::client::value_ptr p = c.get(key);
-  assert(p.get() != nullptr);
-  assert(std::equal(std::begin(value), std::end(value), p.get()));
+  auto val = c.get(key);
+  assert(!val.empty());
+  assert(std::equal(std::begin(value), std::end(value), val.data()));
 
   // std::this_thread::sleep_for(std::chrono::seconds(1));
 
@@ -81,9 +81,9 @@ bool test_double_add(hydra::client &c) {
   value = get_random_string(val_size);
   assert(c.add(key, value));
   assert(c.contains(key));
-  p = c.get(key);
-  assert(p.get() != nullptr);
-  return std::equal(std::begin(value), std::end(value), p.get());
+  val = c.get(key);
+  assert(!val.empty());
+  return std::equal(std::begin(value), std::end(value), val.data());
 }
 
 bool test_add_remove(hydra::client &c) {
@@ -94,9 +94,9 @@ bool test_add_remove(hydra::client &c) {
 
   assert(c.add(key, value));
   assert(c.contains(key));
-  hydra::client::value_ptr p = c.get(key);
-  assert(p.get() != nullptr);
-  assert(std::equal(std::begin(value), std::end(value), p.get()));
+  auto val = c.get(key);
+  assert(!val.empty());
+  assert(std::equal(std::begin(value), std::end(value), val.data()));
 
   assert(c.remove(key));
 

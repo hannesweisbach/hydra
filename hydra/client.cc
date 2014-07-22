@@ -103,30 +103,10 @@ bool hydra::client::contains(const std::vector<unsigned char> &key) const {
   return dht.contains(key);
 }
 
-/* alloc: return managed array or std::unique_ptr<char[]>
- * or { char[], size, unqiue_ptr<ibv_mr> }
- * this should also play nice with read.
- */
-hydra::client::value_ptr
+std::vector<unsigned char>
 hydra::client::get(const std::vector<unsigned char> &key) const {
   const auto nodeid = responsible_node(key);
-  // TODO: guard socket connect/disconnect
-  const RDMAClientSocket socket(nodeid.ip, nodeid.port);
-  socket.connect();
-  const size_t key_size = key.size();
-  auto entry = find_entry(socket, key);
-
-  if (entry.first.get() == nullptr) {
-    return std::move(entry.first);
-  } else {
-    value_ptr result([=, &entry]() {
-                       const size_t length = entry.second;
-                       void *p = check_nonnull(::malloc(length));
-                       memcpy(p, entry.first.get() + key_size, length);
-                       return reinterpret_cast<unsigned char *>(p);
-                     }(),
-                     std::function<void(unsigned char *)>(free));
-    return result;
-  }
+  const hydra::passive dht(nodeid.ip, nodeid.port);
+  return dht.get(key);
 }
 
