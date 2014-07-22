@@ -24,7 +24,7 @@ auto size2Class = [](size_t size) -> size_t {
 };
 
 hydra::passive::passive(const std::string &host, const std::string &port)
-    : RDMAClientSocket(host, port),
+    : RDMAClientSocket(host, port), buffer(std::make_unique<buffer_t>()),
       buffer_mr(register_memory(ibv_access::MSG, *buffer)),
       heap(48U, size2Class, *this), local_heap(*this),
       info(local_heap.malloc<node_info>()) {

@@ -38,8 +38,9 @@ public:
 private:
   void update_info();
 
-  std::unique_ptr<kj::FixedArray<
-      capnp::word, ((256 + 40) / sizeof(capnp::word) + 1)> > buffer;
+  using buffer_t =
+      kj::FixedArray<capnp::word, ((256 + 40) / sizeof(capnp::word) + 1)>;
+  std::unique_ptr<buffer_t> buffer;
   mr_t buffer_mr;
 
   ThreadSafeHeap<SegregatedFitsHeap<
