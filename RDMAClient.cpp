@@ -98,7 +98,7 @@ bool test_add_remove(hydra::client &c) {
   assert(p.get() != nullptr);
   assert(std::equal(std::begin(value), std::end(value), p.get()));
 
-  assert(c.remove(key).get());
+  assert(c.remove(key));
 
   return !c.contains(key);
 }

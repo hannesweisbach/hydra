@@ -143,15 +143,12 @@ bool hydra::client::add(const std::vector<unsigned char> &key,
   return dht.put(kv, key.size());
 }
 
-std::future<bool>
-hydra::client::remove(const std::vector<unsigned char> &key) const {
-  return hydra::async([=]() {
-    const auto nodeid = responsible_node(key);
-    const RDMAClientSocket socket(nodeid.ip, nodeid.port);
-    socket.connect();
+bool hydra::client::remove(const std::vector<unsigned char> &key) const {
+  const auto nodeid = responsible_node(key);
+  const RDMAClientSocket socket(nodeid.ip, nodeid.port);
+  socket.connect();
 
-    return ::hydra::remove(socket, key);
-  });
+  return ::hydra::remove(socket, key);
 }
 
 bool hydra::client::contains(const std::vector<unsigned char> &key) const {
