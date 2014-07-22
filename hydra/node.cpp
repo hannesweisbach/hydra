@@ -146,7 +146,7 @@ void node::init_routing_table(const hydra::passive& remote) {
     //table.successor().predecessor = me;
     auto succ = table.successor().node;
     hydra::passive successor_node(succ.ip, succ.port);
-    successor_node.send(notification_predecessor(table.self().node));
+    successor_node.send(predecessor_message(table.self().node));
 
     std::transform(std::begin(table) + 1, std::end(table), std::begin(table),
                    std::begin(table) + 1,
@@ -179,8 +179,7 @@ void node::update_others() const {
       hydra::async([=]() {
         RDMAClientSocket socket(p.ip, p.port);
         socket.connect();
-        socket.send(
-            notification_update(routing_table_.first->get().self().node, i));
+        socket.send(update_message(routing_table_.first->get().self().node, i));
       });
     }
     // p.update_finger_table(id, i + 1);
@@ -199,7 +198,7 @@ void node::update_routing_table(const hydra::node_id &s, const size_t i) {
         hydra::async([=]() {
           RDMAClientSocket socket(pred.ip, pred.port);
           socket.connect();
-          socket.send(notification_update(s, i));
+          socket.send(update_message(s, i));
         });
       }
       log_info() << table;
