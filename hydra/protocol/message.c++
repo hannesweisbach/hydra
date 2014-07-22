@@ -59,3 +59,23 @@ kj::Array<capnp::word> update_message(const hydra::node_id &node,
   return messageToFlatArray(response);
 
 }
+
+kj::Array<capnp::word> chord_request() {
+  ::capnp::MallocMessageBuilder request;
+  request.initRoot<hydra::protocol::DHTRequest>().setChord();
+  return messageToFlatArray(request);
+}
+
+kj::Array<capnp::word>
+chord_response(const rdma_ptr<LocalRDMAObj<hydra::routing_table> > &table) {
+  ::capnp::MallocMessageBuilder message;
+  auto msg = message.initRoot<hydra::protocol::DHTResponse>();
+
+  auto remote = msg.initChord().initTable();
+  remote.setAddr(reinterpret_cast<uintptr_t>(table.first.get()));
+  remote.setSize(sizeof(LocalRDMAObj<hydra::routing_table>));
+  remote.setRkey(table.second->rkey);
+
+  return messageToFlatArray(message);
+}
+
