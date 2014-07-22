@@ -116,8 +116,9 @@ hydra::passive::find_entry(const std::vector<unsigned char> &key) const {
         crc = hash64(data.first.get(), entry.ptr.size);
       } while (entry.ptr.crc != crc);
       if (std::equal(std::begin(key), std::end(key), data.first.get())) {
-        value.insert(std::end(value), data.first.get(),
-                     data.first.get() + entry.value_length());
+        value.insert(std::end(value), data.first.get() + entry.key_length(),
+                     data.first.get() + entry.key_length() +
+                         entry.value_length());
         return value;
       }
     }
