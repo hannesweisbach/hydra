@@ -26,58 +26,6 @@ hydra::node_info get_info(const RDMAClientSocket &socket) {
 
   return *info.second.first;
 }
-
-static bool add(const RDMAClientSocket &socket,
-                const rdma_ptr<unsigned char> &kv, const size_t &size,
-                const size_t &key_size) {
-  auto response = socket.recv_async<kj::FixedArray<capnp::word, 9> >();
-  auto put = put_message(kv, size, key_size);
-
-  socket.send(put);
-
-  response.first.get();
-
-  auto message = capnp::FlatArrayMessageReader(*response.second.first);
-  auto reader = message.getRoot<hydra::protocol::DHTResponse>();
-  assert(reader.which() == hydra::protocol::DHTResponse::ACK);
-  return reader.getAck().getSuccess();
-}
-
-bool add(const RDMAClientSocket &socket, const std::vector<unsigned char> &kv,
-         const size_t &key_size) {
-  auto kv_mr = socket.malloc<unsigned char>(kv.size());
-
-  memcpy(kv_mr.first.get(), kv.data(), kv.size());
-  return add(socket, kv_mr, kv.size(), key_size);
-}
-
-bool add(const RDMAClientSocket &socket, const std::vector<unsigned char> &key,
-         const std::vector<unsigned char> &value) {
-  const size_t size = key.size() + value.size();
-  auto kv_mr = socket.malloc<unsigned char>(size);
-
-  memcpy(kv_mr.first.get(), key.data(), key.size());
-  memcpy(kv_mr.first.get() + key.size(), value.data(), value.size());
-  return add(socket, kv_mr, size, key.size());
-}
-
-bool remove(const RDMAClientSocket &socket,
-            const std::vector<unsigned char> &key) {
-  auto key_mr = socket.malloc<unsigned char>(key.size());
-
-  memcpy(key_mr.first.get(), key.data(), key.size());
-
-  auto response = socket.recv_async<kj::FixedArray<capnp::word, 9> >();
-  auto del = del_message(key_mr, key.size());
-  socket.send(del);
-
-  response.first.get();
-
-  auto message = capnp::FlatArrayMessageReader(*response.second.first);
-  auto reader = message.getRoot<hydra::protocol::DHTResponse>();
-  assert(reader.which() == hydra::protocol::DHTResponse::ACK);
-  return reader.getAck().getSuccess();
-}
 }
 
 hydra::client::client(const std::string &ip, const std::string &port)
