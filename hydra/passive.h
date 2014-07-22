@@ -4,11 +4,12 @@
 #include <atomic>
 #include <memory>
 #include <functional>
+#include <vector>
 
 #include "rdma/RDMAWrapper.hpp"
 #include "rdma/RDMAClientSocket.h"
 #include "types.h"
-#include "messages.h"
+#include "hydra/protocol/message.h"
 
 #include "util/WorkerThread.h"
 
@@ -31,9 +32,15 @@ public:
   void update_predecessor(const hydra::node_id &pred) const;
   bool has_id(const keyspace_t &id) const;
 
-private:
+  bool put(const std::vector<unsigned char> &kv, const size_t &key_size) const;
+  bool remove(const std::vector<unsigned char> &key) const;
 
+private:
   void update_info();
+
+  std::unique_ptr<kj::FixedArray<
+      capnp::word, ((256 + 40) / sizeof(capnp::word) + 1)> > buffer;
+  mr_t buffer_mr;
 
   ThreadSafeHeap<SegregatedFitsHeap<
       FreeListHeap<ZoneHeap<RdmaHeap<ibv_access::READ>, 256> >,

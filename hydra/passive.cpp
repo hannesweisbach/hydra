@@ -7,7 +7,6 @@
 #include "hash.h"
 #include "passive.h"
 #include "client.h"
-#include "messages.h"
 #include "util/Logger.h"
 #include "util/concurrent.h"
 
@@ -25,11 +24,72 @@ auto size2Class = [](size_t size) -> size_t {
 };
 
 hydra::passive::passive(const std::string &host, const std::string &port)
-    : RDMAClientSocket(host, port), heap(48U, size2Class, *this), local_heap(*this),
+    : RDMAClientSocket(host, port),
+      buffer_mr(register_memory(ibv_access::MSG, *buffer)),
+      heap(48U, size2Class, *this), local_heap(*this),
       info(local_heap.malloc<node_info>()) {
   log_info() << "Starting client to " << host << ":" << port;
 
   connect();
+}
+
+bool hydra::passive::put(const std::vector<unsigned char> &kv,
+                         const size_t &key_size) const {
+  using namespace hydra::rdma;
+  auto response = recv_async<kj::FixedArray<capnp::word, 9> >();
+
+  if (kv.size() < 256) {
+    auto put = put_message_inline(kv, key_size);
+    memcpy(std::begin(*buffer), std::begin(put),
+           std::min(buffer->size(), size_of(put)));
+    send(*buffer, buffer_mr.get());
+
+    response.first.get();
+  } else {
+    auto kv_mr = malloc<unsigned char>(kv.size());
+    memcpy(kv_mr.first.get(), kv.data(), kv.size());
+
+    auto put = put_message(kv_mr, kv.size(), key_size);
+    memcpy(std::begin(*buffer), std::begin(put),
+           std::min(buffer->size(), size_of(put)));
+    send(*buffer, buffer_mr.get());
+
+    response.first.get(); // stay in scope for kv_mr
+  }
+
+  auto message = capnp::FlatArrayMessageReader(*response.second.first);
+  auto reader = message.getRoot<hydra::protocol::DHTResponse>();
+  assert(reader.which() == hydra::protocol::DHTResponse::ACK);
+  return reader.getAck().getSuccess();
+}
+
+bool hydra::passive::remove(const std::vector<unsigned char> &key) const {
+  using namespace hydra::rdma;
+  auto response = recv_async<kj::FixedArray<capnp::word, 9> >();
+
+  if (key.size() < 256) {
+    auto del = del_message_inline(key);
+    memcpy(std::begin(*buffer), std::begin(del),
+           std::min(buffer->size(), size_of(del)));
+    send(*buffer, buffer_mr.get());
+
+    response.first.get();
+  } else {
+    auto key_mr = malloc<unsigned char>(key.size());
+    memcpy(key_mr.first.get(), key.data(), key.size());
+
+    auto del = del_message(key_mr, key.size());
+    memcpy(std::begin(*buffer), std::begin(del),
+           std::min(buffer->size(), size_of(del)));
+    send(*buffer, buffer_mr.get());
+
+    response.first.get(); // stay in scope for key_mr
+  }
+
+  auto message = capnp::FlatArrayMessageReader(*response.second.first);
+  auto reader = message.getRoot<hydra::protocol::DHTResponse>();
+  assert(reader.which() == hydra::protocol::DHTResponse::ACK);
+  return reader.getAck().getSuccess();
 }
 
 #if 0
