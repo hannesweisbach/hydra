@@ -143,9 +143,10 @@ hydra::client::add(const std::vector<unsigned char> &key,
     // log_info() << "Blocked for "
     //           << std::chrono::duration_cast<std::chrono::microseconds>(
     //                  end - start).count();
-    const RDMAClientSocket socket(nodeid.ip, nodeid.port);
-    socket.connect();
-    bool success = ::hydra::add(socket, key, value);
+  const hydra::passive dht(nodeid.ip, nodeid.port);
+  std::vector<unsigned char> kv(key);
+  kv.insert(std::end(kv), std::begin(value), std::end(value));
+  bool success = dht.put(kv, key.size());
 #if 1
     return success;
   });
