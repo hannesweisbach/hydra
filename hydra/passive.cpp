@@ -41,7 +41,7 @@ bool hydra::passive::put(const std::vector<unsigned char> &kv,
   if (kv.size() < 256) {
     auto put = put_message_inline(kv, key_size);
     memcpy(std::begin(*buffer), std::begin(put),
-           std::min(buffer->size(), size_of(put)));
+           std::min(buffer->size() * sizeof(capnp::word), size_of(put)));
     send(*buffer, buffer_mr.get());
 
     response.first.get();
@@ -51,7 +51,7 @@ bool hydra::passive::put(const std::vector<unsigned char> &kv,
 
     auto put = put_message(kv_mr, kv.size(), key_size);
     memcpy(std::begin(*buffer), std::begin(put),
-           std::min(buffer->size(), size_of(put)));
+           std::min(buffer->size() * sizeof(capnp::word), size_of(put)));
     send(*buffer, buffer_mr.get());
 
     response.first.get(); // stay in scope for kv_mr
@@ -70,7 +70,7 @@ bool hydra::passive::remove(const std::vector<unsigned char> &key) const {
   if (key.size() < 256) {
     auto del = del_message_inline(key);
     memcpy(std::begin(*buffer), std::begin(del),
-           std::min(buffer->size(), size_of(del)));
+           std::min(buffer->size() * sizeof(capnp::word), size_of(del)));
     send(*buffer, buffer_mr.get());
 
     response.first.get();
@@ -80,7 +80,7 @@ bool hydra::passive::remove(const std::vector<unsigned char> &key) const {
 
     auto del = del_message(key_mr, key.size());
     memcpy(std::begin(*buffer), std::begin(del),
-           std::min(buffer->size(), size_of(del)));
+           std::min(buffer->size() * sizeof(capnp::word), size_of(del)));
     send(*buffer, buffer_mr.get());
 
     response.first.get(); // stay in scope for key_mr
