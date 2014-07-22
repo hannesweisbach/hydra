@@ -127,7 +127,7 @@ void node::recv(const request_t &request, const qp_t &qp) {
 }
 
 void node::join(const std::string& ip, const std::string& port) {
-  hydra::passive remote(ip, port);
+  hydra::chord::node remote(ip, port);
   init_routing_table(remote);
   update_others();
 #if 0
@@ -135,11 +135,11 @@ void node::join(const std::string& ip, const std::string& port) {
 #endif
 }
 
-void node::init_routing_table(const hydra::passive& remote) {
+void node::init_routing_table(const hydra::chord::node& remote) {
   (*routing_table_.first)([&](auto &table) {
-    table.successor().node = chord::successor(remote.table(), table.successor().start);
+    table.successor().node = remote.successor(table.successor().start);
 
-    auto pred = chord::predecessor(remote.table(), table.successor().start);
+    auto pred = remote.predecessor(table.successor().start);
 
     table.predecessor().node = pred;
 
@@ -156,7 +156,7 @@ void node::init_routing_table(const hydra::passive& remote) {
       } else {
         // n'.find_successor(elem.interval.start);
         //elem.node = successor(remote, elem.start).node;
-        auto succ = chord::successor(remote.table(), elem.start);
+        auto succ = remote.successor(elem.start);
         if (!table.self().node.id.in(elem.start, succ.id))
           elem.node = succ;
       }
@@ -170,9 +170,12 @@ void node::init_routing_table(const hydra::passive& remote) {
 void node::update_others() const {
   const size_t max = std::numeric_limits<hydra::keyspace_t::value_type>::digits;
   for (size_t i = 0; i < max; i++) {
-    keyspace_t id_ = routing_table_.first->get().self().node.id -
-                     static_cast<hydra::keyspace_t::value_type>(1 << i) + 1;
-    auto p = chord::predecessor(routing_table_.first->get(), id_);
+    keyspace_t id_ =
+        routing_table_.first->get().self().node.id -
+        keyspace_t(static_cast<hydra::keyspace_t::value_type>(1 << i) + 1);
+    auto re = routing_table_.first->get().preceding_node(id_);
+    hydra::chord::node node(re.node.ip, re.node.port);
+    auto p = node.predecessor(id_);
     // send message to p
     // send self().node and i+1
     if (p.id != routing_table_.first->get().self().node.id) {

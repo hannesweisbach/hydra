@@ -13,6 +13,7 @@
 #include "rdma/RDMAClientSocket.h"
 #include "hydra/hopscotch-server.h"
 #include "hydra/types.h"
+#include "hydra/chord.h"
 #include "protocol/message.h"
 
 #include "util/concurrent.h"
