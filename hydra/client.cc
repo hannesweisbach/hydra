@@ -129,31 +129,18 @@ hydra::client::find_entry(const RDMAClientSocket &socket,
 
 hydra::routing_table hydra::client::table() const { return root_node.table(); }
 
-std::future<bool>
-hydra::client::add(const std::vector<unsigned char> &key,
-                   const std::vector<unsigned char> &value) const {
-#if 1
-  return hydra::async([=]() {
-#else
-  std::promise<bool> promise;
-#endif
-    auto start = std::chrono::high_resolution_clock::now();
-    const auto nodeid = responsible_node(key);
-    auto end = std::chrono::high_resolution_clock::now();
-    // log_info() << "Blocked for "
-    //           << std::chrono::duration_cast<std::chrono::microseconds>(
-    //                  end - start).count();
+bool hydra::client::add(const std::vector<unsigned char> &key,
+                        const std::vector<unsigned char> &value) const {
+  auto start = std::chrono::high_resolution_clock::now();
+  const auto nodeid = responsible_node(key);
+  auto end = std::chrono::high_resolution_clock::now();
+  // log_info() << "Blocked for "
+  //           << std::chrono::duration_cast<std::chrono::microseconds>(
+  //                  end - start).count();
   const hydra::passive dht(nodeid.ip, nodeid.port);
   std::vector<unsigned char> kv(key);
   kv.insert(std::end(kv), std::begin(value), std::end(value));
-  bool success = dht.put(kv, key.size());
-#if 1
-    return success;
-  });
-#else
-  promise.set_value(success);
-  return promise.get_future();
-#endif
+  return dht.put(kv, key.size());
 }
 
 std::future<bool>

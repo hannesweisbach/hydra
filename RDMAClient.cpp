@@ -34,7 +34,7 @@ bool test_add(hydra::client &c) {
 
   log_hexdump_ptr(key.data(), key.size());
 
-  return c.add(key, value).get();
+  return c.add(key, value);
 }
 
 bool test_add_contains(hydra::client& c) {
@@ -45,7 +45,7 @@ bool test_add_contains(hydra::client& c) {
 
   log_hexdump_ptr(key.data(), key.size());
 
-  assert(c.add(key, value).get());
+  assert(c.add(key, value));
   return c.contains(key);
 }
 
@@ -55,7 +55,7 @@ bool test_add_get(hydra::client &c) {
   auto key = get_random_string(key_size);
   auto value = get_random_string(val_size);
 
-  assert(c.add(key, value).get());
+  assert(c.add(key, value));
 
   hydra::client::value_ptr p = c.get(key);
   assert(p.get() != nullptr);
@@ -69,7 +69,7 @@ bool test_double_add(hydra::client &c) {
   auto value = get_random_string(val_size);
 
   /* add key/value pair, check contains and get */
-  assert(c.add(key, value).get());
+  assert(c.add(key, value));
   assert(c.contains(key));
   hydra::client::value_ptr p = c.get(key);
   assert(p.get() != nullptr);
@@ -79,7 +79,7 @@ bool test_double_add(hydra::client &c) {
 
   /* add another value w/ same key, check contains and get */
   value = get_random_string(val_size);
-  assert(c.add(key, value).get());
+  assert(c.add(key, value));
   assert(c.contains(key));
   p = c.get(key);
   assert(p.get() != nullptr);
@@ -92,7 +92,7 @@ bool test_add_remove(hydra::client &c) {
   auto key = get_random_string(key_size);
   auto value = get_random_string(val_size);
 
-  assert(c.add(key, value).get());
+  assert(c.add(key, value));
   assert(c.contains(key));
   hydra::client::value_ptr p = c.get(key);
   assert(p.get() != nullptr);
@@ -155,7 +155,7 @@ bool test_grow(hydra::client& c) {
   size_t old_size = c.size();
   for(size_t i = 0; i < old_size + 1; i++) {
     std::unique_ptr<unsigned char[]> key(get_random_string(key_size));
-    c.add(key.get(), key_size, value.get(), val_size).get();
+    c.add(key.get(), key_size, value.get(), val_size);
     assert(c.contains(key.get(), key_size));
     //std::this_thread::sleep_for(std::chrono::seconds(1));
   }

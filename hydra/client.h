@@ -28,8 +28,8 @@ public:
   value_ptr;
 
   client(const std::string &ip, const std::string &port);
-  std::future<bool> add(const std::vector<unsigned char> &key,
-                        const std::vector<unsigned char> &value) const;
+  bool add(const std::vector<unsigned char> &key,
+           const std::vector<unsigned char> &value) const;
   std::future<bool> remove(const std::vector<unsigned char> &key) const;
   bool contains(const std::vector<unsigned char> &key) const;
   value_ptr get(const std::vector<unsigned char> &key) const;
