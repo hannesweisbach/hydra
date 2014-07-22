@@ -34,9 +34,13 @@ public:
 
   bool put(const std::vector<unsigned char> &kv, const size_t &key_size) const;
   bool remove(const std::vector<unsigned char> &key) const;
+  bool contains(const std::vector<unsigned char> &key) const;
+  std::vector<unsigned char> get(const std::vector<unsigned char> &key) const;
 
 private:
   void update_info();
+  std::vector<unsigned char>
+  find_entry(const std::vector<unsigned char> &key) const;
 
   using buffer_t =
       kj::FixedArray<capnp::word, ((256 + 40) / sizeof(capnp::word) + 1)>;

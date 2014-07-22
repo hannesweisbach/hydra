@@ -92,6 +92,51 @@ bool hydra::passive::remove(const std::vector<unsigned char> &key) const {
   return reader.getAck().getSuccess();
 }
 
+std::vector<unsigned char>
+hydra::passive::find_entry(const std::vector<unsigned char> &key) const {
+  std::vector<unsigned char> value;
+  const hydra::node_info info = ::hydra::get_info(*this);
+  const size_t table_size = info.table_size;
+  const RDMAObj<hash_table_entry> *remote_table =
+      static_cast<const RDMAObj<hash_table_entry> *>(info.key_extents.addr);
+  const uint32_t rkey = info.key_extents.rkey;
+
+  const size_t index = hash(key) % table_size;
+
+  auto mem = from(&remote_table[index], info.key_extents.rkey);
+  auto &entry = mem.first->get();
+
+  for (size_t hop = entry.hop, d = 1; hop; hop >>= 1, d++) {
+    if ((hop & 1) && !entry.is_empty() && (key.size() == entry.key_length())) {
+      auto data = malloc<unsigned char>(entry.ptr.size);
+      uint64_t crc = 0;
+      do {
+        read(data.first.get(), data.second, entry.key(), entry.rkey,
+             entry.ptr.size).get();
+        crc = hash64(data.first.get(), entry.ptr.size);
+      } while (entry.ptr.crc != crc);
+      if (std::equal(std::begin(key), std::end(key), data.first.get())) {
+        value.insert(std::end(value), data.first.get(),
+                     data.first.get() + entry.value_length());
+        return value;
+      }
+    }
+    const size_t next_index = (index + d) % table_size;
+    reload(mem, &remote_table[next_index], rkey);
+  }
+
+  return value;
+}
+
+bool hydra::passive::contains(const std::vector<unsigned char> &key) const {
+  return !find_entry(key).empty();
+}
+
+std::vector<unsigned char>
+hydra::passive::get(const std::vector<unsigned char> &key) const {
+  return find_entry(key);
+}
+
 #if 0
 void print_distribution(std::unordered_map<uint64_t, uint64_t> &distribution) {
   std::vector<std::pair<uint64_t, uint64_t> > v(std::begin(distribution),
