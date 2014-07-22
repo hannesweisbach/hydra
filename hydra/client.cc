@@ -99,10 +99,8 @@ bool hydra::client::remove(const std::vector<unsigned char> &key) const {
 
 bool hydra::client::contains(const std::vector<unsigned char> &key) const {
   const auto nodeid = responsible_node(key);
-  const RDMAClientSocket socket(nodeid.ip, nodeid.port);
-  socket.connect();
-  const auto entry = find_entry(socket, key);
-  return entry.first.get() != nullptr;
+  const hydra::passive dht(nodeid.ip, nodeid.port);
+  return dht.contains(key);
 }
 
 /* alloc: return managed array or std::unique_ptr<char[]>
