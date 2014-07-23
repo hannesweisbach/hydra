@@ -9,12 +9,15 @@ node::node(const std::string &host, const std::string &port)
     : RDMAClientSocket(host, port) {
   connect();
 
-  auto response = recv_async<kj::FixedArray<capnp::word, 9> >();
+  kj::FixedArray<capnp::word, 9> response;
+  auto mr = register_memory(ibv_access::MSG, response);
+
+  auto future = recv_async(response, mr.get());
 
   send(chord_request());
-  response.first.get();
+  future.get();
 
-  auto message = capnp::FlatArrayMessageReader(*response.second.first);
+  auto message = capnp::FlatArrayMessageReader(response);
   auto reader = message.getRoot<protocol::DHTResponse>();
   assert(reader.which() == hydra::protocol::DHTResponse::CHORD);
   auto t = reader.getChord().getTable();
