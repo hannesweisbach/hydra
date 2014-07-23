@@ -1,8 +1,7 @@
 #pragma once
 
-#include "hash.h"
-#include "rdma/RDMAWrapper.hpp"
 #include <stdint.h>
+#include "hydra/hash.h"
 
 template <typename T> class RDMAObj {
 protected:
