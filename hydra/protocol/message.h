@@ -26,6 +26,28 @@ kj::Array<capnp::word>
 chord_response(const rdma_ptr<LocalRDMAObj<hydra::routing_table> > &);
 
 template <typename T>
+kj::Array<capnp::word> put_message(const T &kv, const size_t &key_size,
+                                   const uint32_t rkey) {
+  using namespace hydra::rdma;
+  const size_t size = size_of(kv);
+  const void *ptr = address_of(kv);
+  assert(key_size <= std::numeric_limits<uint32_t>::max());
+  assert(size <= std::numeric_limits<uint32_t>::max());
+  ::capnp::MallocMessageBuilder message;
+  hydra::protocol::DHTRequest::Builder msg =
+      message.initRoot<hydra::protocol::DHTRequest>();
+
+  auto remote = msg.initPut().initRemote();
+  auto kv_mr = remote.initKv();
+  kv_mr.setAddr(reinterpret_cast<uint64_t>(ptr));
+  kv_mr.setSize(static_cast<uint32_t>(size));
+  kv_mr.setRkey(rkey);
+  remote.setKeySize(static_cast<uint32_t>(key_size));
+
+  return messageToFlatArray(message);
+}
+
+template <typename T>
 kj::Array<capnp::word> put_message(const rdma_ptr<T> &kv, const size_t &size,
                                    const size_t &key_size) {
   assert(key_size <= std::numeric_limits<uint32_t>::max());
