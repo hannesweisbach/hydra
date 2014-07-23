@@ -31,8 +31,9 @@ node::node(const std::string &host, const std::string &port)
 }
 
 hydra::routing_table node::load_table() const {
-  hydra::rdma::load(*this, table, local_table_mr.get(), table_mr.addr, table_mr.rkey);
-  return table.get();
+  hydra::rdma::load(*this, *table, local_table_mr.get(), table_mr.addr,
+                    table_mr.rkey);
+  return (*table).get();
 }
 
 hydra::routing_table node::find_table(const keyspace_t &id) const {
