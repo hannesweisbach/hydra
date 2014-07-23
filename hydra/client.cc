@@ -1,5 +1,5 @@
 #include "hydra/client.h"
-#include "hydra/chord.h"
+#include "hydra/passive.h"
 #include "hydra/hash.h"
 
 #include "util/Logger.h"
@@ -29,18 +29,16 @@ hydra::node_info get_info(const RDMAClientSocket &socket) {
 }
 
 hydra::client::client(const std::string &ip, const std::string &port)
-    : root_node(ip, port) {}
+    : root(ip, port) {}
 
 hydra::node_id
 hydra::client::responsible_node(const std::vector<unsigned char> &key) const {
-  return chord::successor(root_node.table(), keyspace_t(hydra::hash(key)));
+  return root.successor(keyspace_t(hydra::hash(key)));
 }
 
 hydra::node_info hydra::client::get_info(const RDMAClientSocket &socket) const {
   return ::hydra::get_info(socket);
 }
-
-hydra::routing_table hydra::client::table() const { return root_node.table(); }
 
 bool hydra::client::add(const std::vector<unsigned char> &key,
                         const std::vector<unsigned char> &value) const {

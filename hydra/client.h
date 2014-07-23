@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-#include "hydra/passive.h"
+#include "hydra/chord.h"
 #include "hydra/types.h"
 
 #include "rdma/RDMAClientSocket.h"
@@ -24,10 +24,9 @@ public:
   bool remove(const std::vector<unsigned char> &key) const;
   bool contains(const std::vector<unsigned char> &key) const;
   std::vector<unsigned char> get(const std::vector<unsigned char> &key) const;
-  routing_table table() const;
 
 private:
-  passive root_node;
+  chord::node root;
   node_id responsible_node(const std::vector<unsigned char> &key) const;
   node_info get_info(const RDMAClientSocket &socket) const;
 };
