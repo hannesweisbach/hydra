@@ -64,10 +64,6 @@ public:
   void connect() const;
   void disconnect() const;
   
-  template <typename T> auto malloc(const size_t n_elems = 1) const {
-    return remote_heap.malloc<T>(n_elems);
-  }
-
   }
 
   template <typename T>
