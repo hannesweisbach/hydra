@@ -9,6 +9,7 @@ namespace hydra {
 namespace chord {
 node::node(const std::string &host, const std::string &port)
     : RDMAClientSocket(host, port),
+      table(std::make_unique<RDMAObj<hydra::routing_table> >()),
       local_table_mr(register_memory(ibv_access::MSG, table)) {
   connect();
 
