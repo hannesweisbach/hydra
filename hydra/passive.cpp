@@ -31,6 +31,23 @@ hydra::passive::passive(const std::string &host, const std::string &port)
   log_info() << "Starting client to " << host << ":" << port;
 
   connect();
+
+  auto init = recv_async<kj::FixedArray<capnp::word, 9> >();
+  send(init_message());
+
+  init.first.get(); // block.
+
+  auto reply = capnp::FlatArrayMessageReader(*init.second.first);
+  auto reader = reply.getRoot<hydra::protocol::DHTResponse>();
+
+  assert(reader.which() == hydra::protocol::DHTResponse::INIT);
+
+  auto mr = reader.getInit().getInfo();
+  assert(mr.getSize() >= sizeof(hydra::node_info));
+
+  remote.addr = mr.getAddr();
+  remote.size = mr.getSize();
+  remote.rkey = mr.getRkey();
 }
 
 bool hydra::passive::put(const std::vector<unsigned char> &kv,
