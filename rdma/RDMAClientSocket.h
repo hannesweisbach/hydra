@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 #include <atomic>
-#include <typeinfo>
 
 #include <rdma/rdma_cma.h>
 #include <rdma/rdma_verbs.h>
@@ -13,19 +12,8 @@
 #include <dispatch/dispatch.h>
 #endif
 
-#include "RDMAWrapper.hpp"
+#include "rdma/RDMAWrapper.hpp"
 #include "util/exception.h"
-#include "util/Logger.h"
-#include "hydra/types.h"
-#include "util/demangle.h"
-
-class RDMAClientSocket;
-
-namespace hydra {
-mr_t register_memory(const RDMAClientSocket &socket, const ibv_access &flags,
-                     const void *ptr, const size_t size);
-}
-#include "rdma/addressof.h"
 
 class RDMAClientSocket {
   rdma_id_ptr srq_id;
@@ -46,8 +34,6 @@ public:
   void connect() const;
   void disconnect() const;
   
-  }
-
   template <typename T>
   auto send(const T &local, const ibv_mr *mr = nullptr) const {
     using namespace hydra::rdma;
@@ -76,14 +62,10 @@ public:
 
   template <typename T, typename U>
   auto read(T *local, ibv_mr *mr, U *remote, uint32_t rkey,
-                        size_t n_elems = 1) const {
+            size_t n_elems = 1) const {
     static_assert(std::is_same<typename std::remove_cv<T>::type,
                                typename std::remove_cv<U>::type>::value,
                   "Need same types.");
-    log_debug() << "Reading from " << (void *)remote << " (" << rkey << ") to "
-                << (void *)local << " " << mr << " (" << n_elems << " "
-                << hydra::util::demangle(typeid(T).name()) << ", "
-                << n_elems * sizeof(T) << " bytes)";
     return rdma_read_async__(id.get(), local, n_elems * sizeof(T), mr,
                              reinterpret_cast<uintptr_t>(remote), rkey);
   }
@@ -105,4 +87,9 @@ public:
   mr_t register_memory(const ibv_access &flags, const void *ptr,
                        const size_t size) const;
 };
+
+namespace hydra {
+mr_t register_memory(const RDMAClientSocket &socket, const ibv_access &flags,
+                     const void *ptr, const size_t size);
+}
 
