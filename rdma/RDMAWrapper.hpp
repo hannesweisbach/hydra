@@ -284,12 +284,3 @@ std::future<qp_t> rdma_read_async__(rdma_cm_id *id, T *local, size_t size,
   return async_rdma_operation(functor);
 }
 
-/*keep*/
-template <typename T>
-[[deprecated]] std::future<T *> rdma_read_async(std::shared_ptr<rdma_cm_id> &id,
-                                                T *local, uint64_t remote,
-                                                uint32_t rkey,
-                                                size_t size = sizeof(T)) {
-  return rdma_read_async__(id.get(), local, remote, rkey, size);
-}
-

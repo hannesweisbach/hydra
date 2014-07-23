@@ -85,16 +85,6 @@ public:
   }
 
   template <typename T>
-  void read(T *local, uint64_t remote, uint32_t rkey,
-                           size_t size = sizeof(T)) const {
-
-    log_trace() << "Reading remote @" << std::hex << std::showbase << remote
-                << std::dec << " (" << size << ") " << rkey << " into local "
-                << (void *)local;
-    rdma_read_async(id, local, remote, rkey, size).get();
-  }
-
-  template <typename T>
   void read(const T &local, const ibv_mr *mr, uint64_t remote,
             uint32_t rkey) const {
     using namespace hydra::rdma;
