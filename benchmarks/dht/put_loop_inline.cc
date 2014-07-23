@@ -3,6 +3,7 @@
 #include <atomic>
 #include <thread>
 #include <algorithm>
+#include <memory>
 
 #include "protocol/message.h"
 #include "rdma/RDMAClientSocket.h"
@@ -10,15 +11,17 @@
 struct data {
   std::vector<unsigned char> kv;
   uint8_t key_size;
+  std::unique_ptr<kj::FixedArray<capnp::word, 9> > response;
+  mr_t response_mr;
 };
 
 static void send(RDMAClientSocket &socket, data &request) {
-  auto result = socket.recv_async<kj::FixedArray<capnp::word, 9> >();
+  auto result = socket.recv_async(*request.response, request.response_mr.get());
 
   socket.send(put_message_inline(request.kv, request.key_size));
-  result.first.get();
+  result.get();
 
-  auto reply = capnp::FlatArrayMessageReader(*result.second.first);
+  auto reply = capnp::FlatArrayMessageReader(*request.response);
   auto reader = reply.getRoot<hydra::protocol::DHTResponse>();
 
   assert(reader.getAck().getSuccess());
@@ -33,7 +36,6 @@ static void load_keys(const std::string &host, const std::string &port,
   std::uniform_int_distribution<unsigned char> distribution(' ', '~');
 
   std::vector<data> requests;
-  requests.reserve(max_keys);
 
   for (size_t i = 0; i < max_keys; i++) {
     std::ostringstream ss;
@@ -48,7 +50,12 @@ static void load_keys(const std::string &host, const std::string &port,
     std::generate_n(std::back_inserter(kv), value_length,
                     std::bind(distribution, generator));
 
-    requests.push_back({ kv, static_cast<uint8_t>(key_length) });
+    requests.push_back({ kv,
+                         static_cast<uint8_t>(key_length),
+                         std::make_unique<kj::FixedArray<capnp::word, 9> >(),
+                         {} });
+    requests.back().response_mr =
+        socket.register_memory(ibv_access::READ, *requests.back().response);
   }
 
   for (;;) {
