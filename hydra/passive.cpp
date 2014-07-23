@@ -154,18 +154,6 @@ size_t hydra::passive::table_size() {
   return info->table_size;
 }
 
-#if 0
-void print_distribution(std::unordered_map<uint64_t, uint64_t> &distribution) {
-  std::vector<std::pair<uint64_t, uint64_t> > v(std::begin(distribution),
-                                                std::end(distribution));
-  std::sort(std::begin(v), std::end(v),
-            [](auto rhs, auto lhs) { return rhs.first < lhs.first; });
-  for (auto &&e : v) {
-    log_info() << e.first << ": " << e.second;
-  }
-}
-#endif
-
 void hydra::passive::init() {
   auto future = recv_async(*response, response_mr.get());
   send(init_message());
@@ -186,14 +174,14 @@ void hydra::passive::init() {
 }
 
 void hydra::passive::update_info() {
-  if(remote.addr == 0)
+  if (remote.addr == 0)
     init();
   read(info.get(), info_mr.get(), reinterpret_cast<node_info *>(remote.addr),
        remote.rkey).get();
 }
 
 void hydra::passive::update_predecessor(const hydra::node_id &pred) const {
-  //no reply.
+  // no reply.
   send(predecessor_message(pred));
 }
 

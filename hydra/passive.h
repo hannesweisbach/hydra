@@ -1,17 +1,11 @@
 #pragma once
 
 #include <string>
-#include <atomic>
 #include <memory>
-#include <functional>
 #include <vector>
 
-#include "rdma/RDMAWrapper.hpp"
 #include "rdma/RDMAClientSocket.h"
-#include "types.h"
 #include "hydra/protocol/message.h"
-
-#include "util/WorkerThread.h"
 
 #include "allocators/ZoneHeap.h"
 #include "allocators/ThreadSafeHeap.h"
@@ -24,10 +18,6 @@ class passive : public virtual RDMAClientSocket {
 public:
   passive(const std::string &host, const std::string &port);
 
-#if 0
-  routing_entry predecessor(const __uint128_t &id) const;
-  node_id successor(const __uint128_t &id) const;
-#endif
   void update_predecessor(const hydra::node_id &pred) const;
 
   bool put(const std::vector<unsigned char> &kv, const size_t &key_size);
