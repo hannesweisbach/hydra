@@ -40,41 +40,6 @@ hydra::node_info hydra::client::get_info(const RDMAClientSocket &socket) const {
   return ::hydra::get_info(socket);
 }
 
-std::pair<hydra::client::value_ptr, const size_t>
-hydra::client::find_entry(const RDMAClientSocket &socket,
-                          const std::vector<unsigned char> &key) const {
-  const hydra::node_info info = get_info(socket);
-  const size_t table_size = info.table_size;
-  const RDMAObj<hash_table_entry> *remote_table =
-      static_cast<const RDMAObj<hash_table_entry> *>(info.key_extents.addr);
-  const uint32_t rkey = info.key_extents.rkey;
-
-  const size_t index = hash(key) % table_size;
-
-  auto mem = socket.from(&remote_table[index], info.key_extents.rkey);
-  auto &entry = mem.first->get();
-
-  for (size_t hop = entry.hop, d = 1; hop; hop >>= 1, d++) {
-    if ((hop & 1) && !entry.is_empty() &&
-        (key.size() == entry.key_length())) {
-      auto data = socket.malloc<unsigned char>(entry.ptr.size);
-      uint64_t crc = 0;
-      do {
-        socket.read(data.first.get(), data.second, entry.key(), entry.rkey,
-                    entry.ptr.size).get();
-        crc = hash64(data.first.get(), entry.ptr.size);
-      } while (entry.ptr.crc != crc);
-      if (std::equal(std::begin(key), std::end(key), data.first.get())) {
-        return {std::move(data.first), entry.value_length()};
-      }
-    }
-    const size_t next_index = (index + d) % table_size;
-    socket.reload(mem, &remote_table[next_index], rkey);
-  }
-
-  return {value_ptr(nullptr, [](void *) {}), 0};
-}
-
 hydra::routing_table hydra::client::table() const { return root_node.table(); }
 
 bool hydra::client::add(const std::vector<unsigned char> &key,
