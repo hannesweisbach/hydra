@@ -156,14 +156,6 @@ void hydra::passive::update_info() {
          reinterpret_cast<node_info *>(remote.addr), remote.rkey).get();
 }
 
-hydra::routing_table hydra::passive::table() const {
-  auto routing_mr = hydra::get_info(*this).routing_table;
-  auto table = read<RDMAObj<routing_table> >(
-      reinterpret_cast<uintptr_t>(routing_mr.addr), routing_mr.rkey);
-  table.first.get();
-  return table.second.first->get();
-}
-
 void hydra::passive::update_predecessor(const hydra::node_id &pred) const {
   //no reply.
   send(predecessor_message(pred));

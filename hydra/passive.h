@@ -28,7 +28,6 @@ public:
   routing_entry predecessor(const __uint128_t &id) const;
   node_id successor(const __uint128_t &id) const;
 #endif
-  routing_table table() const;
   void update_predecessor(const hydra::node_id &pred) const;
   bool has_id(const keyspace_t &id) const;
 
