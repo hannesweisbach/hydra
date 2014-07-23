@@ -187,13 +187,3 @@ void hydra::passive::update_predecessor(const hydra::node_id &pred) const {
   send(predecessor_message(pred));
 }
 
-bool hydra::passive::has_id(const keyspace_t &id) const {
-  auto table = read<RDMAObj<routing_table> >(
-      reinterpret_cast<uintptr_t>(info->routing_table.addr),
-      info->routing_table.rkey);
-  table.first.get();
-  auto t = table.second.first->get();
-  return id.in(t.self().node.id, t.successor().node.id);
-//  return hydra::interval({t.self().node.id, t.successor().node.id}).contains(id);
-}
-

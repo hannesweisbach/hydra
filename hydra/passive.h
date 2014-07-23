@@ -29,7 +29,6 @@ public:
   node_id successor(const __uint128_t &id) const;
 #endif
   void update_predecessor(const hydra::node_id &pred) const;
-  bool has_id(const keyspace_t &id) const;
 
   bool put(const std::vector<unsigned char> &kv, const size_t &key_size);
   bool remove(const std::vector<unsigned char> &key);
