@@ -114,13 +114,6 @@ public:
     return rdma_recv_async(srq_id.get(), ptr, mr, size);
   }
 
-  template <typename T>
-  auto read(uint64_t remote, uint32_t rkey, size_t size = sizeof(T)) const {
-    assert(size == sizeof(T));
-    auto buffer = local_heap.malloc<T>(size);
-    auto future = rdma_read_async(id, buffer, size, remote, rkey);
-    return std::make_pair(std::move(future), std::move(buffer));
-  }
 
   template <typename T>
   auto from(const RDMAObj<T> *addr, const uint32_t rkey,
