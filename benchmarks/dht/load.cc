@@ -12,15 +12,14 @@ static void load_keys(RDMAClientSocket &socket, const size_t max_keys,
   std::uniform_int_distribution<unsigned char> distribution(' ', '~');
 
   struct data {
-    rdma_ptr<unsigned char> kv;
+    std::vector<unsigned char> kv;
+    mr_t kv_mr;
     size_t key_length;
     size_t length;
     const buffer_t &buffer;
     std::future<qp_t> result;
-    data(rdma_ptr<unsigned char> kv, const size_t length,
-         const size_t key_length, const buffer_t &buffer)
-        : kv(std::move(kv)), key_length(key_length), length(length),
-          buffer(buffer) {}
+    data(const size_t length, const size_t key_length, const buffer_t &buffer)
+        : kv(length), key_length(key_length), buffer(buffer) {}
   };
 
   std::vector<data> requests;
@@ -35,12 +34,12 @@ static void load_keys(RDMAClientSocket &socket, const size_t max_keys,
 
     const size_t key_length = ss.str().size();
     const size_t length = key_length + value_length;
-    requests.emplace_back(socket.malloc<unsigned char>(length), length,
-                          key_length, buffers.at(i));
+    requests.emplace_back(length, key_length, buffers.at(i));
 
     data &data = requests.back();
-    memcpy(data.kv.first.get(), ss.str().c_str(), key_length);
-    unsigned char *value = data.kv.first.get() + key_length;
+    data.kv_mr = socket.register_memory(ibv_access::READ, data.kv);
+    memcpy(data.kv.data(), ss.str().c_str(), key_length);
+    unsigned char *value = data.kv.data() + key_length;
     for (size_t byte = 0; byte < value_length; byte++) {
       value[byte] = distribution(generator);
     }
@@ -52,7 +51,7 @@ static void load_keys(RDMAClientSocket &socket, const size_t max_keys,
     request.result = socket.recv_async(request.buffer, buffer_mr.get());
 
     auto serialized =
-        put_message(request.kv, request.length, request.key_length);
+        put_message(request.kv, request.key_length, request.kv_mr->rkey);
     socket.send(serialized);
   }
 
