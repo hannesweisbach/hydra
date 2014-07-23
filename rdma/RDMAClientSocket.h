@@ -25,13 +25,6 @@ namespace hydra {
 mr_t register_memory(const RDMAClientSocket &socket, const ibv_access &flags,
                      const void *ptr, const size_t size);
 }
-
-#include "allocators/ZoneHeap.h"
-#include "allocators/ThreadSafeHeap.h"
-#include "allocators/FreeListHeap.h"
-#include "allocators/SegregatedFitsHeap.h"
-#include "RDMAAllocator.h"
-#include "hydra/RDMAObj.h"
 #include "rdma/addressof.h"
 
 class RDMAClientSocket {
@@ -39,18 +32,7 @@ class RDMAClientSocket {
   rdma_id_ptr id;
   completion_channel cc;
   completion_queue cq;
-#if 0
-  mutable hydra::ThreadSafeHeap<hydra::ZoneHeap<RdmaHeap<ibv_access::MSG>, 256>> local_heap;
-#else
-  mutable hydra::ThreadSafeHeap<hydra::FreeListHeap<
-      hydra::ZoneHeap<RdmaHeap<ibv_access::MSG>, 1024> > > local_heap;
-  mutable hydra::ThreadSafeHeap<hydra::ZoneHeap<
-      RdmaHeap<ibv_access::READ>, 1024 * 1024> > remote_heap;
-  mutable hydra::ThreadSafeHeap<hydra::ZoneHeap<
-      RdmaHeap<ibv_access::READ>, 1024 * 1024 * 10> >
-  remote_heap;
-#endif
-#endif
+
   uint32_t max_inline_data;
 
 public:
@@ -114,27 +96,6 @@ public:
     return rdma_recv_async(srq_id.get(), ptr, mr, size);
   }
 
-
-  template <typename T>
-  auto from(const RDMAObj<T> *addr, const uint32_t rkey,
-            size_t retries =
-                0) const -> decltype(local_heap.malloc<RDMAObj<T> >()) {
-    auto o = local_heap.malloc<RDMAObj<T> >();
-    reload(o, addr, rkey, retries);
-    return o;
-  }
-
-  template <typename T>
-  void reload(decltype(local_heap.malloc<RDMAObj<T> >()) & o,
-              const RDMAObj<T> *addr, const uint32_t rkey,
-              size_t retries = 0) const {
-    do {
-      read(o.first.get(), o.second, addr, rkey).get();
-    } while (retries-- > 0 && o.first->valid());
-
-    if (!o.first->valid())
-      throw std::runtime_error("Could not validate remote object");
-  }
 
   template <typename T>
   mr_t register_memory(const ibv_access flags, const T &o) const {

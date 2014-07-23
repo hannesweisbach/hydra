@@ -15,8 +15,7 @@ mr_t register_memory(const RDMAClientSocket &socket, const ibv_access &flags,
 RDMAClientSocket::RDMAClientSocket(const std::string &host,
                                    const std::string &port)
     : srq_id(createCmId(host, port, false, nullptr)),
-      id(nullptr, [](rdma_cm_id *) {}), cc(srq_id), cq(srq_id, cc, 4, 1, 0),
-      local_heap(*this), remote_heap(*this) {
+      id(nullptr, [](rdma_cm_id *) {}), cc(srq_id), cq(srq_id, cc, 128, 1, 0) {
 
   ibv_srq_init_attr srq_attr = { nullptr, { 4, 1, 0 } };
   check_zero(rdma_create_srq(srq_id.get(), nullptr, &srq_attr));
