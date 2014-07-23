@@ -71,14 +71,6 @@ public:
     return rdma_recv_async(srq_id.get(), &local, mr, size);
   }
 
-  template <typename T>
-  ibv_mr *mapMemory(const T *ptr, size_t size = sizeof(T)) const {
-    return check_nonnull(
-        rdma_reg_read(id.get(), static_cast<void *>(const_cast<T *>(ptr)),
-                      size),
-        "rdma_reg_read");
-  }
-
   template <typename T> auto malloc(const size_t n_elems = 1) const {
     return remote_heap.malloc<T>(n_elems);
   }
