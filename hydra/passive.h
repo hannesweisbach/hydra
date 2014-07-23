@@ -56,6 +56,10 @@ private:
   std::unique_ptr<hydra::node_info> info;
   mr_t info_mr;
 
+  using response_t = kj::FixedArray<capnp::word, 9>;
+  std::unique_ptr<response_t> response;
+  mr_t response_mr;
+
   mutable mr remote;
 };
 }

@@ -27,7 +27,9 @@ hydra::passive::passive(const std::string &host, const std::string &port)
     : RDMAClientSocket(host, port), buffer(std::make_unique<buffer_t>()),
       buffer_mr(register_memory(ibv_access::MSG, *buffer)),
       heap(48U, size2Class, *this), info(std::make_unique<hydra::node_info>()),
-      info_mr(register_memory(ibv_access::MSG, *info)) {
+      info_mr(register_memory(ibv_access::MSG, *info)),
+      response(std::make_unique<response_t>()),
+      response_mr(register_memory(ibv_access::MSG, *response)) {
   log_info() << "Starting client to " << host << ":" << port;
 
   connect();
@@ -36,7 +38,7 @@ hydra::passive::passive(const std::string &host, const std::string &port)
 bool hydra::passive::put(const std::vector<unsigned char> &kv,
                          const size_t &key_size) const {
   using namespace hydra::rdma;
-  auto response = recv_async<kj::FixedArray<capnp::word, 9> >();
+  auto future = recv_async(*response, response_mr.get());
 
   if (kv.size() < 256) {
     auto put = put_message_inline(kv, key_size);
@@ -44,7 +46,7 @@ bool hydra::passive::put(const std::vector<unsigned char> &kv,
            std::min(buffer->size() * sizeof(capnp::word), size_of(put)));
     send(*buffer, buffer_mr.get());
 
-    response.first.get();
+    future.get();
   } else {
     auto kv_mr = malloc<unsigned char>(kv.size());
     memcpy(kv_mr.first.get(), kv.data(), kv.size());
@@ -54,10 +56,10 @@ bool hydra::passive::put(const std::vector<unsigned char> &kv,
            std::min(buffer->size() * sizeof(capnp::word), size_of(put)));
     send(*buffer, buffer_mr.get());
 
-    response.first.get(); // stay in scope for kv_mr
+    future.get(); // stay in scope for kv_mr
   }
 
-  auto message = capnp::FlatArrayMessageReader(*response.second.first);
+  auto message = capnp::FlatArrayMessageReader(*response);
   auto reader = message.getRoot<hydra::protocol::DHTResponse>();
   assert(reader.which() == hydra::protocol::DHTResponse::ACK);
   return reader.getAck().getSuccess();
@@ -65,7 +67,7 @@ bool hydra::passive::put(const std::vector<unsigned char> &kv,
 
 bool hydra::passive::remove(const std::vector<unsigned char> &key) const {
   using namespace hydra::rdma;
-  auto response = recv_async<kj::FixedArray<capnp::word, 9> >();
+  auto future = recv_async(*response, response_mr.get());
 
   if (key.size() < 256) {
     auto del = del_message_inline(key);
@@ -73,7 +75,7 @@ bool hydra::passive::remove(const std::vector<unsigned char> &key) const {
            std::min(buffer->size() * sizeof(capnp::word), size_of(del)));
     send(*buffer, buffer_mr.get());
 
-    response.first.get();
+    future.get();
   } else {
     auto key_mr = malloc<unsigned char>(key.size());
     memcpy(key_mr.first.get(), key.data(), key.size());
@@ -83,10 +85,10 @@ bool hydra::passive::remove(const std::vector<unsigned char> &key) const {
            std::min(buffer->size() * sizeof(capnp::word), size_of(del)));
     send(*buffer, buffer_mr.get());
 
-    response.first.get(); // stay in scope for key_mr
+    future.get(); // stay in scope for key_mr
   }
 
-  auto message = capnp::FlatArrayMessageReader(*response.second.first);
+  auto message = capnp::FlatArrayMessageReader(*response);
   auto reader = message.getRoot<hydra::protocol::DHTResponse>();
   assert(reader.which() == hydra::protocol::DHTResponse::ACK);
   return reader.getAck().getSuccess();
@@ -156,12 +158,12 @@ void print_distribution(std::unordered_map<uint64_t, uint64_t> &distribution) {
 #endif
 
 void hydra::passive::init() const {
-  auto init = recv_async<kj::FixedArray<capnp::word, 9> >();
+  auto future = recv_async(*response, response_mr.get());
   send(init_message());
 
-  init.first.get(); // block.
+  future.get();
 
-  auto reply = capnp::FlatArrayMessageReader(*init.second.first);
+  auto reply = capnp::FlatArrayMessageReader(*response);
   auto reader = reply.getRoot<hydra::protocol::DHTResponse>();
 
   assert(reader.which() == hydra::protocol::DHTResponse::INIT);
