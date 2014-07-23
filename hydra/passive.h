@@ -31,27 +31,26 @@ public:
   void update_predecessor(const hydra::node_id &pred) const;
   bool has_id(const keyspace_t &id) const;
 
-  bool put(const std::vector<unsigned char> &kv, const size_t &key_size) const;
-  bool remove(const std::vector<unsigned char> &key) const;
-  bool contains(const std::vector<unsigned char> &key) const;
-  std::vector<unsigned char> get(const std::vector<unsigned char> &key) const;
+  bool put(const std::vector<unsigned char> &kv, const size_t &key_size);
+  bool remove(const std::vector<unsigned char> &key);
+  bool contains(const std::vector<unsigned char> &key);
+  std::vector<unsigned char> get(const std::vector<unsigned char> &key);
 
-  size_t table_size() const;
+  size_t table_size();
 
 private:
-  void init() const;
-  void update_info() const;
-  std::vector<unsigned char>
-  find_entry(const std::vector<unsigned char> &key) const;
+  void init();
+  void update_info();
+  std::vector<unsigned char> find_entry(const std::vector<unsigned char> &key);
 
   using buffer_t =
       kj::FixedArray<capnp::word, ((256 + 40) / sizeof(capnp::word) + 1)>;
   std::unique_ptr<buffer_t> buffer;
   mr_t buffer_mr;
 
-  ThreadSafeHeap<SegregatedFitsHeap<
-      FreeListHeap<ZoneHeap<RdmaHeap<ibv_access::READ>, 256> >,
-      ZoneHeap<RdmaHeap<ibv_access::READ>, 256> > > heap;
+  SegregatedFitsHeap<
+      FreeListHeap<ZoneHeap<RdmaHeap<ibv_access::READ>, 16 * 1024 * 1024> >,
+      ZoneHeap<RdmaHeap<ibv_access::READ>, 128 * 1024 * 1024> > heap;
 
   std::unique_ptr<hydra::node_info> info;
   mr_t info_mr;
@@ -60,6 +59,6 @@ private:
   std::unique_ptr<response_t> response;
   mr_t response_mr;
 
-  mutable mr remote;
+  mr remote;
 };
 }
