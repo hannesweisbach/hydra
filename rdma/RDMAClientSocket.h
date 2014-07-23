@@ -64,13 +64,6 @@ public:
   void connect() const;
   void disconnect() const;
   
-  template <typename T, typename = typename std::enable_if<
-                            !std::is_pointer<T>::value>::type>
-  auto recv_async(const T &local, const ibv_mr *mr,
-                              size_t size = sizeof(T)) {
-    return rdma_recv_async(srq_id.get(), &local, mr, size);
-  }
-
   template <typename T> auto malloc(const size_t n_elems = 1) const {
     return remote_heap.malloc<T>(n_elems);
   }
@@ -117,6 +110,14 @@ public:
                 << n_elems * sizeof(T) << " bytes)";
     return rdma_read_async__(id.get(), local, n_elems * sizeof(T), mr,
                              reinterpret_cast<uintptr_t>(remote), rkey);
+  }
+
+  template <typename T>
+  auto recv_async(const T &local, const ibv_mr *mr) const {
+    using namespace hydra::rdma;
+    const void *ptr = address_of(local);
+    const size_t size = size_of(local);
+    return rdma_recv_async(srq_id.get(), ptr, mr, size);
   }
 
   template <typename T, typename = typename std::enable_if<
