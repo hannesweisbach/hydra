@@ -36,6 +36,8 @@ public:
   bool contains(const std::vector<unsigned char> &key) const;
   std::vector<unsigned char> get(const std::vector<unsigned char> &key) const;
 
+  size_t table_size() const;
+
 private:
   void init() const;
   void update_info() const;

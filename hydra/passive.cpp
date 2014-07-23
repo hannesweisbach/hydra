@@ -139,6 +139,11 @@ hydra::passive::get(const std::vector<unsigned char> &key) const {
   return find_entry(key);
 }
 
+size_t hydra::passive::table_size() const {
+  update_info();
+  return info.first->table_size;
+}
+
 #if 0
 void print_distribution(std::unordered_map<uint64_t, uint64_t> &distribution) {
   std::vector<std::pair<uint64_t, uint64_t> > v(std::begin(distribution),
