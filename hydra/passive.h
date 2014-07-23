@@ -52,8 +52,9 @@ private:
   ThreadSafeHeap<SegregatedFitsHeap<
       FreeListHeap<ZoneHeap<RdmaHeap<ibv_access::READ>, 256> >,
       ZoneHeap<RdmaHeap<ibv_access::READ>, 256> > > heap;
-  ThreadSafeHeap<ZoneHeap<RdmaHeap<ibv_access::MSG>, 256> > local_heap;
-  decltype(local_heap.malloc<node_info>()) info;
+
+  std::unique_ptr<hydra::node_info> info;
+  mr_t info_mr;
 
   mutable mr remote;
 };

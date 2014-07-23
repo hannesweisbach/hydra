@@ -26,8 +26,8 @@ auto size2Class = [](size_t size) -> size_t {
 hydra::passive::passive(const std::string &host, const std::string &port)
     : RDMAClientSocket(host, port), buffer(std::make_unique<buffer_t>()),
       buffer_mr(register_memory(ibv_access::MSG, *buffer)),
-      heap(48U, size2Class, *this), local_heap(*this),
-      info(local_heap.malloc<node_info>()) {
+      heap(48U, size2Class, *this), info(std::make_unique<hydra::node_info>()),
+      info_mr(register_memory(ibv_access::MSG, *info)) {
   log_info() << "Starting client to " << host << ":" << port;
 
   connect();
@@ -96,15 +96,14 @@ std::vector<unsigned char>
 hydra::passive::find_entry(const std::vector<unsigned char> &key) const {
   std::vector<unsigned char> value;
   update_info();
-  const hydra::node_info & info_ = *info.first;
-  const size_t table_size = info_.table_size;
+  const size_t table_size = info->table_size;
   const RDMAObj<hash_table_entry> *remote_table =
-      static_cast<const RDMAObj<hash_table_entry> *>(info_.key_extents.addr);
-  const uint32_t rkey = info_.key_extents.rkey;
+      static_cast<const RDMAObj<hash_table_entry> *>(info->key_extents.addr);
+  const uint32_t rkey = info->key_extents.rkey;
 
   const size_t index = hash(key) % table_size;
 
-  auto mem = from(&remote_table[index], info_.key_extents.rkey);
+  auto mem = from(&remote_table[index], info->key_extents.rkey);
   auto &entry = mem.first->get();
 
   for (size_t hop = entry.hop, d = 1; hop; hop >>= 1, d++) {
@@ -141,7 +140,7 @@ hydra::passive::get(const std::vector<unsigned char> &key) const {
 
 size_t hydra::passive::table_size() const {
   update_info();
-  return info.first->table_size;
+  return info->table_size;
 }
 
 #if 0
@@ -178,8 +177,8 @@ void hydra::passive::init() const {
 void hydra::passive::update_info() const {
   if(remote.addr == 0)
     init();
-  read(info.first.get(), info.second,
-       reinterpret_cast<node_info *>(remote.addr), remote.rkey).get();
+  read(info.get(), info_mr.get(), reinterpret_cast<node_info *>(remote.addr),
+       remote.rkey).get();
 }
 
 void hydra::passive::update_predecessor(const hydra::node_id &pred) const {
@@ -189,8 +188,8 @@ void hydra::passive::update_predecessor(const hydra::node_id &pred) const {
 
 bool hydra::passive::has_id(const keyspace_t &id) const {
   auto table = read<RDMAObj<routing_table> >(
-      reinterpret_cast<uintptr_t>(info.first->routing_table.addr),
-      info.first->routing_table.rkey);
+      reinterpret_cast<uintptr_t>(info->routing_table.addr),
+      info->routing_table.rkey);
   table.first.get();
   auto t = table.second.first->get();
   return id.in(t.self().node.id, t.successor().node.id);
