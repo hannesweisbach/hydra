@@ -37,7 +37,8 @@ public:
   std::vector<unsigned char> get(const std::vector<unsigned char> &key) const;
 
 private:
-  void update_info();
+  void init() const;
+  void update_info() const;
   std::vector<unsigned char>
   find_entry(const std::vector<unsigned char> &key) const;
 
@@ -52,6 +53,6 @@ private:
   ThreadSafeHeap<ZoneHeap<RdmaHeap<ibv_access::MSG>, 256> > local_heap;
   decltype(local_heap.malloc<node_info>()) info;
 
-  mr remote;
+  mutable mr remote;
 };
 }

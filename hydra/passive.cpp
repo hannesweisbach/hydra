@@ -31,23 +31,6 @@ hydra::passive::passive(const std::string &host, const std::string &port)
   log_info() << "Starting client to " << host << ":" << port;
 
   connect();
-
-  auto init = recv_async<kj::FixedArray<capnp::word, 9> >();
-  send(init_message());
-
-  init.first.get(); // block.
-
-  auto reply = capnp::FlatArrayMessageReader(*init.second.first);
-  auto reader = reply.getRoot<hydra::protocol::DHTResponse>();
-
-  assert(reader.which() == hydra::protocol::DHTResponse::INIT);
-
-  auto mr = reader.getInit().getInfo();
-  assert(mr.getSize() >= sizeof(hydra::node_info));
-
-  remote.addr = mr.getAddr();
-  remote.size = mr.getSize();
-  remote.rkey = mr.getRkey();
 }
 
 bool hydra::passive::put(const std::vector<unsigned char> &kv,
@@ -168,10 +151,30 @@ void print_distribution(std::unordered_map<uint64_t, uint64_t> &distribution) {
 }
 #endif
 
-void hydra::passive::update_info() {
-  log_info() << "remote mr: " << remote;
+void hydra::passive::init() const {
+  auto init = recv_async<kj::FixedArray<capnp::word, 9> >();
+  send(init_message());
+
+  init.first.get(); // block.
+
+  auto reply = capnp::FlatArrayMessageReader(*init.second.first);
+  auto reader = reply.getRoot<hydra::protocol::DHTResponse>();
+
+  assert(reader.which() == hydra::protocol::DHTResponse::INIT);
+
+  auto mr = reader.getInit().getInfo();
+  assert(mr.getSize() >= sizeof(hydra::node_info));
+
+  remote.addr = mr.getAddr();
+  remote.size = mr.getSize();
+  remote.rkey = mr.getRkey();
+}
+
+void hydra::passive::update_info() const {
+  if(remote.addr == 0)
+    init();
   read(info.first.get(), info.second,
-         reinterpret_cast<node_info *>(remote.addr), remote.rkey).get();
+       reinterpret_cast<node_info *>(remote.addr), remote.rkey).get();
 }
 
 void hydra::passive::update_predecessor(const hydra::node_id &pred) const {
