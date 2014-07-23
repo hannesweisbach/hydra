@@ -94,6 +94,14 @@ public:
     rdma_read_async(id, local, remote, rkey, size).get();
   }
 
+  template <typename T>
+  void read(const T &local, const ibv_mr *mr, uint64_t remote,
+            uint32_t rkey) const {
+    using namespace hydra::rdma;
+    rdma_read_async__(id.get(), const_cast<void *>(address_of(local)),
+                      size_of(local), mr, remote, rkey).get();
+  }
+
   template <typename T, typename U>
   auto read(T *local, ibv_mr *mr, U *remote, uint32_t rkey,
                         size_t n_elems = 1) const {
