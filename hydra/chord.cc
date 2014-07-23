@@ -77,6 +77,11 @@ node_id node::predecessor(const keyspace_t &id) const {
 node_id node::successor(const keyspace_t &id) const {
   return find_table(id).successor().node;
 }
+
+node_id node::self() const {
+  auto table = load_table();
+  return table.self().node;
+}
 }
 }
 
