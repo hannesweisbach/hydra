@@ -96,15 +96,23 @@ bool hydra::passive::remove(const std::vector<unsigned char> &key) {
 std::vector<unsigned char>
 hydra::passive::find_entry(const std::vector<unsigned char> &key) {
   std::vector<unsigned char> value;
+
   update_info();
+
+  const size_t entry_size = sizeof(RDMAObj<hash_table_entry>);
   const size_t table_size = info->table_size;
-  const RDMAObj<hash_table_entry> *remote_table =
-      static_cast<const RDMAObj<hash_table_entry> *>(info->key_extents.addr);
+  const uintptr_t table_base =
+      reinterpret_cast<uintptr_t>(info->key_extents.addr);
   const uint32_t rkey = info->key_extents.rkey;
 
   const size_t index = hash(key) % table_size;
+  // &table_base[index];
+  const uintptr_t remote_index = table_base + index * entry_size;
 
-  auto mem = from(&remote_table[index], info->key_extents.rkey);
+  auto mem = heap.malloc<RDMAObj<hash_table_entry> >();
+  do {
+    read(*mem.first, mem.second, remote_index, info->key_extents.rkey);
+  } while (!mem.first->valid());
   auto &entry = mem.first->get();
 
   for (size_t hop = entry.hop, d = 1; hop; hop >>= 1, d++) {
@@ -124,7 +132,9 @@ hydra::passive::find_entry(const std::vector<unsigned char> &key) {
       }
     }
     const size_t next_index = (index + d) % table_size;
-    reload(mem, &remote_table[next_index], rkey);
+    do {
+      read(*mem.first, mem.second, remote_index, info->key_extents.rkey);
+    } while (!mem.first->valid());
   }
 
   return value;
