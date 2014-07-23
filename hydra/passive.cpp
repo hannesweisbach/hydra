@@ -112,15 +112,16 @@ bool hydra::passive::remove(const std::vector<unsigned char> &key) const {
 std::vector<unsigned char>
 hydra::passive::find_entry(const std::vector<unsigned char> &key) const {
   std::vector<unsigned char> value;
-  const hydra::node_info info = ::hydra::get_info(*this);
-  const size_t table_size = info.table_size;
+  update_info();
+  const hydra::node_info & info_ = *info.first;
+  const size_t table_size = info_.table_size;
   const RDMAObj<hash_table_entry> *remote_table =
-      static_cast<const RDMAObj<hash_table_entry> *>(info.key_extents.addr);
-  const uint32_t rkey = info.key_extents.rkey;
+      static_cast<const RDMAObj<hash_table_entry> *>(info_.key_extents.addr);
+  const uint32_t rkey = info_.key_extents.rkey;
 
   const size_t index = hash(key) % table_size;
 
-  auto mem = from(&remote_table[index], info.key_extents.rkey);
+  auto mem = from(&remote_table[index], info_.key_extents.rkey);
   auto &entry = mem.first->get();
 
   for (size_t hop = entry.hop, d = 1; hop; hop >>= 1, d++) {
