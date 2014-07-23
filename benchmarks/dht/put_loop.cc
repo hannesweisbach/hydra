@@ -6,21 +6,29 @@
 #include "rdma/RDMAClientSocket.h"
 #include "protocol/message.h"
 
+#include "hydra/allocators/ZoneHeap.h"
+#include "hydra/RDMAAllocator.h"
+
+using response_t = kj::FixedArray<capnp::word, 9>;
 struct data {
+  rdma_ptr<response_t> response;
   rdma_ptr<unsigned char> kv;
   size_t length;
   size_t key_length;
-  data(rdma_ptr<unsigned char> kv, const size_t length, const size_t key_length)
-      : kv(std::move(kv)), length(length), key_length(key_length) {}
+  data(rdma_ptr<response_t> response, rdma_ptr<unsigned char> kv,
+       const size_t length, const size_t key_length)
+      : response(std::move(response)), kv(std::move(kv)), length(length),
+        key_length(key_length) {}
 };
 
 static void send(RDMAClientSocket &socket, data &request) {
-  auto result = socket.recv_async<kj::FixedArray<capnp::word, 9> >();
+  auto result =
+      socket.recv_async(*request.response.first, request.response.second);
 
   socket.send(put_message(request.kv, request.length, request.key_length));
-  result.first.get();
+  result.get();
 
-  auto reply = capnp::FlatArrayMessageReader(*result.second.first);
+  auto reply = capnp::FlatArrayMessageReader(*request.response.first);
   auto reader = reply.getRoot<hydra::protocol::DHTResponse>();
 
   assert(reader.getAck().getSuccess());
@@ -31,6 +39,8 @@ static void load_keys(const std::string &host, const std::string &port,
                       std::atomic_bool &run, std::atomic<uint64_t> &cnt) {
   RDMAClientSocket socket(host, port);
   socket.connect();
+  hydra::ZoneHeap<RdmaHeap<ibv_access::READ>, 1024 * 1024 * 16> heap(socket);
+
   std::mt19937_64 generator;
   std::uniform_int_distribution<unsigned char> distribution(' ', '~');
 
@@ -44,7 +54,8 @@ static void load_keys(const std::string &host, const std::string &port,
     const size_t key_length = ss.str().size();
 
     const size_t length = key_length + value_length;
-    requests.emplace_back(socket.malloc<unsigned char>(length), length,
+    requests.emplace_back(heap.malloc<response_t>(1),
+                          heap.malloc<unsigned char>(length), length,
                           key_length);
 
     data &data = requests.back();
