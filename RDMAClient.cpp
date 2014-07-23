@@ -11,8 +11,7 @@
 #include "Logger.h"
 #include "utils.h"
 #include "hydra/client.h"
-#include "rdma/RDMAClientSocket.h"
-#include "hydra/protocol/message.h"
+#include "hydra/passive.h"
 
 std::vector<unsigned char> get_random_string(size_t length) {
   static std::mt19937_64 generator;
