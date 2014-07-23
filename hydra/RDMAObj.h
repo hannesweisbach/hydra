@@ -2,6 +2,7 @@
 
 #include "hash.h"
 #include "rdma/RDMAWrapper.hpp"
+#include <stdint.h>
 
 template <typename T> class RDMAObj {
 protected:
@@ -53,3 +54,18 @@ public:
   }
 };
 
+namespace hydra {
+namespace rdma {
+template <typename Socket, typename T>
+void load(const Socket &s, RDMAObj<T> &o, const ibv_mr *mr, uintptr_t remote,
+          uint32_t rkey, size_t retries = 1) {
+  do {
+    s.read(o, mr, remote, rkey);
+    retries--;
+  } while (!o.valid() && retries);
+
+  if (!o.valid())
+    throw std::runtime_error("Could not validate remote object");
+}
+}
+}
