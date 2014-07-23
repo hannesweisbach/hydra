@@ -120,14 +120,6 @@ public:
     return rdma_recv_async(srq_id.get(), ptr, mr, size);
   }
 
-  template <typename T, typename = typename std::enable_if<
-                            !std::is_pointer<T>::value>::type>
-  auto recv_async() const {
-    auto buffer = local_heap.malloc<T>();
-    auto future = rdma_recv_async(srq_id, buffer);
-    return std::make_pair(std::move(future), std::move(buffer));
-  }
-
   template <typename T>
   auto read(uint64_t remote, uint32_t rkey, size_t size = sizeof(T)) const {
     assert(size == sizeof(T));
