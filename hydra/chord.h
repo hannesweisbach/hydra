@@ -7,9 +7,6 @@
 
 namespace hydra {
 namespace chord {
-node_id predecessor(const routing_table &start, const keyspace_t &id);
-node_id successor(const routing_table &start, const keyspace_t &id);
-
 class node : public virtual RDMAClientSocket {
 public:
   node(const std::string &host, const std::string &port);
