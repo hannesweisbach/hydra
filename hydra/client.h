@@ -13,9 +13,6 @@
 
 
 namespace hydra {
-
-hydra::node_info get_info(const RDMAClientSocket &socket);
-
 class client {
 public:
   client(const std::string &ip, const std::string &port);
@@ -28,7 +25,6 @@ public:
 private:
   chord::node root;
   node_id responsible_node(const std::vector<unsigned char> &key) const;
-  node_info get_info(const RDMAClientSocket &socket) const;
 };
 }
 

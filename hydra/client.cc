@@ -6,38 +6,12 @@
 
 #include "hydra/protocol/message.h"
 
-namespace hydra {
-hydra::node_info get_info(const RDMAClientSocket &socket) {
-  auto init = socket.recv_async<kj::FixedArray<capnp::word, 9> >();
-
-  socket.send(init_message());
-
-  init.first.get(); // block.
-
-  auto reply = capnp::FlatArrayMessageReader(*init.second.first);
-  auto reader = reply.getRoot<hydra::protocol::DHTResponse>();
-
-  assert(reader.which() == hydra::protocol::DHTResponse::INIT);
-
-  auto mr = reader.getInit().getInfo();
-  assert(mr.getSize() >= sizeof(hydra::node_info));
-  auto info = socket.read<hydra::node_info>(mr.getAddr(), mr.getRkey());
-  info.first.get(); // block
-
-  return *info.second.first;
-}
-}
-
 hydra::client::client(const std::string &ip, const std::string &port)
     : root(ip, port) {}
 
 hydra::node_id
 hydra::client::responsible_node(const std::vector<unsigned char> &key) const {
   return root.successor(keyspace_t(hydra::hash(key)));
-}
-
-hydra::node_info hydra::client::get_info(const RDMAClientSocket &socket) const {
-  return ::hydra::get_info(socket);
 }
 
 bool hydra::client::add(const std::vector<unsigned char> &key,
