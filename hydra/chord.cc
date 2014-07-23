@@ -3,10 +3,13 @@
 #include "hydra/client.h"
 #include "hydra/protocol/message.h"
 
+#include "hydra/RDMAObj.h"
+
 namespace hydra {
 namespace chord {
 node::node(const std::string &host, const std::string &port)
-    : RDMAClientSocket(host, port) {
+    : RDMAClientSocket(host, port),
+      local_table_mr(register_memory(ibv_access::MSG, table)) {
   connect();
 
   kj::FixedArray<capnp::word, 9> response;
@@ -27,10 +30,8 @@ node::node(const std::string &host, const std::string &port)
 }
 
 hydra::routing_table node::load_table() const {
-  auto table =
-      read<RDMAObj<hydra::routing_table> >(table_mr.addr, table_mr.rkey);
-  table.first.get();
-  return table.second.first->get();
+  hydra::rdma::load(*this, table, local_table_mr.get(), table_mr.addr, table_mr.rkey);
+  return table.get();
 }
 
 hydra::routing_table node::find_table(const keyspace_t &id) const {

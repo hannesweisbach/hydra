@@ -17,6 +17,8 @@ public:
 private:
   hydra::routing_table load_table() const;
   hydra::routing_table find_table(const keyspace_t &) const;
+  RDMAObj<hydra::routing_table> table;
+  mr_t local_table_mr;
   mr table_mr;
 };
 }
