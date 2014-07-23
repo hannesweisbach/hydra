@@ -112,37 +112,28 @@ auto find_key_in(const size_t key_size, const hydra::keyspace_t &start,
   }
 }
 
-bool test_wrong_add(hydra::client &c) {
-  auto table = c.table();
-  if (table.self().node.id == table.predecessor().node.id) {
+bool test_wrong_add(const std::string &host, const std::string &port) {
+  hydra::chord::node node(host, port);
+
+  auto self = node.self();
+  auto pred = node.predecessor(self.id).id;
+  if (self.id == pred) {
     log_info() << "Could not perform test. Node is responsible for everything.";
     return true;
   }
-  hydra::keyspace_t start = table.self().node.id + hydra::keyspace_t(1);
-  hydra::keyspace_t end = table.predecessor().node.id;
+
+  hydra::keyspace_t start = self.id + hydra::keyspace_t(1);
+  hydra::keyspace_t end = pred;
 
   const size_t key_size = 16;
   const size_t val_size = 16;
   auto value = get_random_string(val_size);
   auto key = find_key_in(key_size, start, end);
 
-  RDMAClientSocket socket(table.self().node.ip, table.self().node.port);
-  socket.connect();
+  key.insert(std::end(key), std::begin(value), std::end(value));
 
-  const size_t size = key_size + val_size;
-  auto kv_mr = socket.malloc<unsigned char>(size);
-
-  std::memcpy(kv_mr.first.get(), key.data(), key.size());
-  std::memcpy(kv_mr.first.get() + key_size, value.data(), value.size());
-
-  auto result = socket.recv_async<kj::FixedArray<capnp::word, 9> >();
-  socket.send(put_message(kv_mr, size, key_size));
-  result.first.get();
-
-  auto reply = capnp::FlatArrayMessageReader(*result.second.first);
-  auto reader = reply.getRoot<hydra::protocol::DHTResponse>();
-
-  return !reader.getAck().getSuccess();
+  hydra::passive passive(self.ip, self.port);
+  return passive.put(key, key_size);
 }
 
 #if 0
@@ -227,7 +218,7 @@ int main(int argc, char * const argv[]) {
   log_info() << "Test test_add_remove done";
 
   log_info() << "Starting test_wrong_add";
-  assert(test_wrong_add(c));
+  assert(test_wrong_add(host, port));
   log_info() << "Test test_wrong_add done";
 
 #if 0
