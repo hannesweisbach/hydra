@@ -107,7 +107,7 @@ hydra::passive::find_entry(const std::vector<unsigned char> &key) {
 
   const size_t index = hash(key) % table_size;
   // &table_base[index];
-  const uintptr_t remote_index = table_base + index * entry_size;
+  uintptr_t remote_index = table_base + index * entry_size;
 
   auto mem = heap.malloc<RDMAObj<hash_table_entry> >();
   do {
@@ -132,6 +132,7 @@ hydra::passive::find_entry(const std::vector<unsigned char> &key) {
       }
     }
     const size_t next_index = (index + d) % table_size;
+    remote_index = table_base + next_index * entry_size;
     do {
       read(*mem.first, mem.second, remote_index, info->key_extents.rkey);
     } while (!mem.first->valid());
