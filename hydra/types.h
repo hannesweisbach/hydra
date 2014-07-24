@@ -196,6 +196,11 @@ struct hash_table_entry {
     return *this;
   }
   hash_table_entry() noexcept : hash_table_entry(nullptr, 0, 0, 0, 0) {}
+  void empty() {
+    ptr = { nullptr, 0 };
+    key_size = 0;
+    rkey = 0;
+  }
   bool is_empty() const { return ptr.is_empty(); }
   operator bool() const noexcept { return !is_empty(); }
   bool has_key(const char *k, size_t klen) const {
