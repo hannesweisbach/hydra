@@ -14,6 +14,7 @@ template <typename T> struct verifying_ptr {
       : ptr(reinterpret_cast<uint64_t>(p)),
         size(s),
         crc(::hydra::hash64(p, s)) {}
+  verifying_ptr &operator=(const verifying_ptr &) = default;
   verifying_ptr &operator=(verifying_ptr &&other) {
     ptr = other.ptr;
     size = other.size;
