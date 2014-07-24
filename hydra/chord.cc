@@ -51,11 +51,11 @@ hydra::routing_table node::find_table(const keyspace_t &id) const {
   return table;
 }
 
-node_id node::predecessor(const keyspace_t &id) const {
+node_id node::predecessor_node(const keyspace_t &id) const {
   return find_table(id).self().node;
 }
 
-node_id node::successor(const keyspace_t &id) const {
+node_id node::successor_node(const keyspace_t &id) const {
   return find_table(id).successor().node;
 }
 

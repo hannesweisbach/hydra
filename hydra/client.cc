@@ -11,7 +11,7 @@ hydra::client::client(const std::string &ip, const std::string &port)
 
 hydra::node_id
 hydra::client::responsible_node(const std::vector<unsigned char> &key) const {
-  return root.successor(keyspace_t(hydra::hash(key)));
+  return root.successor_node(keyspace_t(hydra::hash(key)));
 }
 
 bool hydra::client::add(const std::vector<unsigned char> &key,

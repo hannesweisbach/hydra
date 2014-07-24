@@ -11,8 +11,8 @@ namespace chord {
 class node : public virtual RDMAClientSocket {
 public:
   node(const std::string &host, const std::string &port);
-  node_id predecessor(const keyspace_t &id) const;
-  node_id successor(const keyspace_t &id) const;
+  node_id predecessor_node(const keyspace_t &id) const;
+  node_id successor_node(const keyspace_t &id) const;
   node_id self() const;
 
 private:

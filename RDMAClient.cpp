@@ -115,7 +115,7 @@ bool test_wrong_add(const std::string &host, const std::string &port) {
   hydra::chord::node node(host, port);
 
   auto self = node.self();
-  auto pred = node.predecessor(self.id).id;
+  auto pred = node.predecessor_node(self.id).id;
   if (self.id == pred) {
     log_info() << "Could not perform test. Node is responsible for everything.";
     return true;

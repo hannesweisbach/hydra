@@ -141,9 +141,9 @@ void node::join(const std::string& ip, const std::string& port) {
 
 void node::init_routing_table(const hydra::chord::node& remote) {
   (*routing_table_.first)([&](auto &table) {
-    table.successor().node = remote.successor(table.successor().start);
+    table.successor().node = remote.successor_node(table.successor().start);
 
-    auto pred = remote.predecessor(table.successor().start);
+    auto pred = remote.predecessor_node(table.successor().start);
 
     table.predecessor().node = pred;
 
@@ -160,7 +160,7 @@ void node::init_routing_table(const hydra::chord::node& remote) {
       } else {
         // n'.find_successor(elem.interval.start);
         //elem.node = successor(remote, elem.start).node;
-        auto succ = remote.successor(elem.start);
+        auto succ = remote.successor_node(elem.start);
         if (!table.self().node.id.in(elem.start, succ.id))
           elem.node = succ;
       }
@@ -179,7 +179,7 @@ void node::update_others() const {
         keyspace_t(static_cast<hydra::keyspace_t::value_type>(1 << i) + 1);
     auto re = routing_table_.first->get().preceding_node(id_);
     hydra::chord::node node(re.node.ip, re.node.port);
-    auto p = node.predecessor(id_);
+    auto p = node.predecessor_node(id_);
     // send message to p
     // send self().node and i+1
     if (p.id != routing_table_.first->get().self().node.id) {
