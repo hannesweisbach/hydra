@@ -18,13 +18,15 @@ node::node(const std::string &host, const std::string &port)
 
   auto future = recv_async(response, mr.get());
 
-  send(chord_request());
+  send(network_request());
   future.get();
 
   auto message = capnp::FlatArrayMessageReader(response);
   auto reader = message.getRoot<protocol::DHTResponse>();
-  assert(reader.which() == hydra::protocol::DHTResponse::CHORD);
-  auto t = reader.getChord().getTable();
+  assert(reader.which() == hydra::protocol::DHTResponse::NETWORK);
+  auto network = reader.getNetwork();
+  assert(network.getType() == hydra::protocol::DHTResponse::NetworkType::CHORD);
+  auto t = network.getTable();
   table_mr.addr = t.getAddr();
   table_mr.size = t.getSize();
   table_mr.rkey = t.getRkey();

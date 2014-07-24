@@ -45,11 +45,15 @@ struct DHTRequest {
       node @10 :Node;
       index @11 :UInt64;
     }
-    chord @12 :Void;
+    network @12 :Void;
   }
 }
 
 struct DHTResponse {
+  enum NetworkType {
+    fixed @0;
+    chord @1;
+  }
   union {
     ack :group {
       success @0 :Bool;
@@ -57,8 +61,9 @@ struct DHTResponse {
     init :group {
       info @1 :Mr;
     }
-    chord : group {
-      table @2 :Mr;
+    network : group {
+      type @2 :NetworkType;
+      table @3 :Mr;
     }
   }
 }

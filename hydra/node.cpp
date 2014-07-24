@@ -123,8 +123,9 @@ void node::recv(const request_t &request, const qp_t &qp) {
     });
     reply(qp, response);
   } break;
-  case protocol::DHTRequest::CHORD: {
-    reply(qp, chord_response(routing_table_));
+  case protocol::DHTRequest::NETWORK: {
+    reply(qp, network_response(routing_table_,
+                               protocol::DHTResponse::NetworkType::CHORD));
   } break;
   }
 }
