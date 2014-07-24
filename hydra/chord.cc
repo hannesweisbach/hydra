@@ -32,6 +32,18 @@ node::node(const std::string &host, const std::string &port)
   table_mr.rkey = t.getRkey();
 }
 
+node::node(const std::string &host, const std::string &port,
+           const uint64_t addr, const size_t size, const uint32_t rkey)
+    : RDMAClientSocket(host, port),
+      table(std::make_unique<RDMAObj<hydra::routing_table> >()),
+      local_table_mr(register_memory(ibv_access::MSG, *table)) {
+  table_mr.addr = addr;
+  table_mr.size = size;
+  table_mr.rkey = rkey;
+}
+
+node::~node() {}
+
 hydra::routing_table node::load_table() const {
   hydra::rdma::load(*this, *table, local_table_mr.get(), table_mr.addr,
                     table_mr.rkey);
@@ -62,6 +74,20 @@ node_id node::successor_node(const keyspace_t &id) const {
 node_id node::self() const {
   auto table = load_table();
   return table.self().node;
+}
+
+passive &node::successor(const keyspace_t &id) {
+  auto table = find_table(id);
+  auto start = table.predecessor().node.id + 1_ID;
+  auto end = table.self().node.id;
+  if (cache.empty()) {
+    cache.emplace_back(start, end, table.self().node.ip,
+                       table.self().node.port);
+  } else {
+    cache[0] =
+        network::node(start, end, table.self().node.ip, table.self().node.port);
+  }
+  return cache[0];
 }
 }
 }
