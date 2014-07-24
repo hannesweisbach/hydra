@@ -64,6 +64,7 @@ struct DHTResponse {
     network : group {
       type @2 :NetworkType;
       table @3 :Mr;
+      size @4 :UInt16;
     }
   }
 }
