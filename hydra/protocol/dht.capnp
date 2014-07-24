@@ -43,7 +43,9 @@ struct DHTRequest {
     }
     update :group {
       node @10 :Node;
+      index @11 :UInt64;
     }
+    chord @12 :Void;
   }
 }
 
@@ -54,6 +56,9 @@ struct DHTResponse {
     }
     init :group {
       info @1 :Mr;
+    }
+    chord : group {
+      table @2 :Mr;
     }
   }
 }
