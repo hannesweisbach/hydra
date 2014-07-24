@@ -22,7 +22,7 @@ bool hydra::client::add(const std::vector<unsigned char> &key,
   // log_info() << "Blocked for "
   //           << std::chrono::duration_cast<std::chrono::microseconds>(
   //                  end - start).count();
-  const hydra::passive dht(nodeid.ip, nodeid.port);
+  hydra::passive dht(nodeid.ip, nodeid.port);
   std::vector<unsigned char> kv(key);
   kv.insert(std::end(kv), std::begin(value), std::end(value));
   return dht.put(kv, key.size());
@@ -30,20 +30,20 @@ bool hydra::client::add(const std::vector<unsigned char> &key,
 
 bool hydra::client::remove(const std::vector<unsigned char> &key) const {
   const auto nodeid = responsible_node(key);
-  const hydra::passive dht(nodeid.ip, nodeid.port);
+  hydra::passive dht(nodeid.ip, nodeid.port);
   return dht.remove(key);
 }
 
 bool hydra::client::contains(const std::vector<unsigned char> &key) const {
   const auto nodeid = responsible_node(key);
-  const hydra::passive dht(nodeid.ip, nodeid.port);
+  hydra::passive dht(nodeid.ip, nodeid.port);
   return dht.contains(key);
 }
 
 std::vector<unsigned char>
 hydra::client::get(const std::vector<unsigned char> &key) const {
   const auto nodeid = responsible_node(key);
-  const hydra::passive dht(nodeid.ip, nodeid.port);
+  hydra::passive dht(nodeid.ip, nodeid.port);
   return dht.get(key);
 }
 
