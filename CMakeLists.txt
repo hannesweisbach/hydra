@@ -70,7 +70,7 @@ include_directories("/usr/local/include")
 #generated headers. because cmake refuses to propagate includes to parent scope.
 #TODO: propagate include file from hydra/protocol and target_include_dir it.
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/hydra/protocol)
-LIST(APPEND COMMON_LIBS rdma ${LIBCITYHASH} ${LIBDISPATCH} ${CMAKE_THREAD_LIBS_INIT} trace ${LIBCAPNP})
+LIST(APPEND COMMON_LIBS rdma ${LIBCITYHASH} ${LIBDISPATCH} ${CMAKE_THREAD_LIBS_INIT} trace)
 
 add_subdirectory(util)
 add_subdirectory(rdma)
