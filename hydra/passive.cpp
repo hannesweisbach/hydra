@@ -1,14 +1,8 @@
-#include <chrono>
-#include <typeinfo>
-
-#include <unordered_map>
 #include <algorithm>
 
 #include "hash.h"
 #include "passive.h"
-#include "client.h"
 #include "util/Logger.h"
-#include "util/concurrent.h"
 
 auto size2Class = [](size_t size) -> size_t {
   if (size == 0)
