@@ -12,6 +12,7 @@
 #include "utils.h"
 #include "hydra/client.h"
 #include "hydra/passive.h"
+#include "hydra/chord.h"
 
 std::vector<unsigned char> get_random_string(size_t length) {
   static std::mt19937_64 generator;
