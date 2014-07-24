@@ -66,12 +66,11 @@ size_t hydra::hopscotch_server::next_movable(size_t to) const {
 void
 hydra::hopscotch_server::add(std::tuple<mem_type, size_t, size_t, uint32_t> &e,
                              const size_t to, const size_t home) {
-  assert(std::get<0>(e));
-  shadow_table[to].set(std::move(std::get<0>(e)), std::get<1>(e), std::get<2>(e), std::get<3>(e));
   size_t distance = (to - home + table_size) % table_size;
   assert(distance < hop_range);
-  /* racy */
-  table[home]([=](auto &&entry) { entry.set_hop(distance); });
+  assert(std::get<0>(e));
+  shadow_table[to].set(shadow_table[home], distance, std::move(std::get<0>(e)),
+                       std::get<1>(e), std::get<2>(e), std::get<3>(e));
 }
 
 void hydra::hopscotch_server::move(size_t from, size_t to) {
@@ -85,13 +84,8 @@ void hydra::hopscotch_server::move(size_t from, size_t to) {
 
   /* racy - move/hop update */
   // add(std::move(shadow_table[from]), to, home);
-  shadow_table[to] = std::move(shadow_table[from]);
-
-  // mark from as free. TODO: incorporate into move.
-  table[home]([=](auto &&entry) {
-    entry.set_hop(distance);
-    entry.clear_hop(old_hops);
-  });
+  shadow_table[to].into(std::move(shadow_table[from]), shadow_table[home],
+                        old_hops, distance);
 }
 
 size_t hydra::hopscotch_server::move_into(size_t to) {
@@ -162,8 +156,7 @@ hydra::Return_t hydra::hopscotch_server::remove(const key_type &key) {
 
   const size_t home = home_of(key);
   const size_t distance = (kv - home + table_size) % table_size;
-  shadow_table[home].clear_hop(distance);
-  shadow_table[kv].empty();
+  shadow_table[kv].empty(shadow_table[home], distance);
   shadow_table[kv].unlock();
   used--;
 

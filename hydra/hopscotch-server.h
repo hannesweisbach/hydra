@@ -40,18 +40,34 @@ class hopscotch_server : public server_dht {
 #endif
     explicit resource_entry(server_entry &entry) : entry(entry) {}
     const value_type *key() const { return mem.get(); }
-    void set(mem_type ptr, size_t size, size_t key_size, uint32_t rkey) {
+    void set(resource_entry &home, const size_t &distance, mem_type ptr,
+             size_t size, size_t key_size, uint32_t rkey) {
       mem = std::move(ptr);
       uint32_t hop = entry.get().hop;
       new (&entry) server_entry(mem.get(), size, key_size, rkey, hop);
+
+      /* racy? */
+      home.entry([&](auto &&entry) { entry.set_hop(distance); });
+    }
+    void into(resource_entry other, resource_entry &home,
+              const size_t old_distance, const size_t new_distance) {
+      assert(other);
+      assert(!*this);
+      entry = other.entry;
+      home.entry([&](auto &&entry) {
+        entry.set_hop(new_distance);
+        entry.clear_hop(old_distance);
+      });
+      mem = std::move(other.mem);
     }
     operator bool() const noexcept {
       assert(bool(mem) == bool(entry.get()));
       return bool(mem);
     }
-    void empty() {
+    void empty(resource_entry &home, const size_t distance) {
+      home.entry([&](auto &&entry) { entry.clear_hop(distance); });
+      entry([](auto &&entry) { entry.empty(); });
       mem.reset();
-      entry = server_entry();
       assert(mem.get() == nullptr);
     }
     size_t size() const noexcept { return entry.get().ptr.size; }
@@ -59,9 +75,6 @@ class hopscotch_server : public server_dht {
     uint32_t rkey() const noexcept { return entry.get().rkey; }
     bool has_hop(const size_t &idx) const noexcept {
       return entry.get().hop & (1 << idx);
-    }
-    void clear_hop(const size_t &idx) noexcept {
-      entry([&](auto &&entry) { entry.clear_hop(idx); });
     }
     bool has_key(const key_type &other_key) const noexcept {
       return (key_size() == other_key.second) &&
