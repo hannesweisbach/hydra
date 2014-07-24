@@ -235,7 +235,7 @@ struct mr {
   uint64_t addr;
   uint32_t size;
   uint32_t rkey;
-  mr() = default;
+  mr() noexcept : addr(0), size(0), rkey(0) {}
   mr(ibv_mr *mr) noexcept : addr(reinterpret_cast<uint64_t>(mr->addr)),
                             size(static_cast<uint32_t>(mr->length)),
                             rkey(mr->rkey) {}
