@@ -170,12 +170,38 @@ hydra::Return_t hydra::hopscotch_server::remove(const key_type &key) {
   return SUCCESS;
 }
 
+void hydra::hopscotch_server::resize(LocalRDMAObj<hash_table_entry> *new_table,
+                                     size_t size) {
+  table_size = size;
+  table = new_table;
+
+  std::vector<resource_entry> tmp_shadow_table;
+  tmp_shadow_table.reserve(table_size);
+
+  for (size_t i = 0; i < table_size; i++) {
+    new (&table[i]) LocalRDMAObj<hash_table_entry>;
+    tmp_shadow_table.emplace_back(table[i]);
+  }
+
+  std::swap(shadow_table, tmp_shadow_table);
+  used = 0;
+
+  for (auto &&entry : tmp_shadow_table) {
+    if (entry) {
+      auto tmp = std::make_tuple(std::move(entry.mem), entry.size(),
+                                 entry.key_size(), entry.rkey());
+      add(tmp);
+    }
+  }
+}
+
+
 void hydra::hopscotch_server::dump() const { dump(0, table_size); }
 void hydra::hopscotch_server::dump(const size_t &from, const size_t &to) const {
   for (size_t i = from; i < to; i++) {
     auto &e = shadow_table[i];
     if (e)
-      std::cout << &e << " " << std::setw(6) << i << " " << e.rdma_entry.get()
+      std::cout << &e << " " << std::setw(6) << i << " " << e.entry.get()
                 << std::endl;
   }
 }
