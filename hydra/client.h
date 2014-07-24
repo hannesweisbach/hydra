@@ -6,11 +6,8 @@
 #include <utility>
 #include <vector>
 
-#include "hydra/chord.h"
-#include "hydra/types.h"
-
-#include "rdma/RDMAClientSocket.h"
-
+#include "hydra/network.h"
+#include "hydra/passive.h"
 
 namespace hydra {
 class client {
@@ -23,8 +20,8 @@ public:
   std::vector<unsigned char> get(const std::vector<unsigned char> &key) const;
 
 private:
-  chord::node root;
-  node_id responsible_node(const std::vector<unsigned char> &key) const;
+  std::unique_ptr<hydra::network> network;
+  passive &responsible_node(const std::vector<unsigned char> &key) const;
 };
 }
 
