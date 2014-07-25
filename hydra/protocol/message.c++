@@ -66,19 +66,34 @@ kj::Array<capnp::word> network_request() {
   return messageToFlatArray(request);
 }
 
-kj::Array<capnp::word>
+static kj::Array<capnp::word>
 network_response(const rdma_ptr<LocalRDMAObj<hydra::routing_table> > &table,
-                 hydra::protocol::DHTResponse::NetworkType type) {
+                 hydra::protocol::DHTResponse::NetworkType type,
+                 const uint16_t size = 0) {
   ::capnp::MallocMessageBuilder message;
   auto msg = message.initRoot<hydra::protocol::DHTResponse>();
 
   auto network = msg.initNetwork();
   network.setType(type);
+  network.setSize(size);
   auto remote = network.initTable();
   remote.setAddr(reinterpret_cast<uintptr_t>(table.first.get()));
   remote.setSize(sizeof(LocalRDMAObj<hydra::routing_table>));
   remote.setRkey(table.second->rkey);
 
   return messageToFlatArray(message);
+}
+
+kj::Array<capnp::word>
+chord_response(const rdma_ptr<LocalRDMAObj<hydra::routing_table> > &table) {
+  return network_response(table,
+                          hydra::protocol::DHTResponse::NetworkType::CHORD);
+}
+
+kj::Array<capnp::word>
+fixed_response(const rdma_ptr<LocalRDMAObj<hydra::routing_table> > &table,
+               const uint16_t size) {
+  return network_response(
+      table, hydra::protocol::DHTResponse::NetworkType::FIXED, size);
 }
 
