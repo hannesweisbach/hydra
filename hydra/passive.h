@@ -18,8 +18,6 @@ class passive : public virtual RDMAClientSocket {
 public:
   passive(const std::string &host, const std::string &port);
 
-  void update_predecessor(const hydra::node_id &pred) const;
-
   bool put(const std::vector<unsigned char> &kv, const size_t &key_size);
   bool remove(const std::vector<unsigned char> &key);
   bool contains(const std::vector<unsigned char> &key);

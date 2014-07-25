@@ -51,7 +51,7 @@ class node {
   WorkerThread messageThread;
 
   monitor<decltype(heap.malloc<LocalRDMAObj<node_info>>())> info;
-  decltype(heap.malloc<LocalRDMAObj<routing_table>>()) routing_table_;
+  std::unique_ptr<hydra::overlay::routing_table> routing_table;
 
   void post_recv(const request_t &);
   void recv(const request_t &, const qp_t &qp);
@@ -69,11 +69,6 @@ class node {
                   const qp_t &qp) const;
   void handle_del(const protocol::DHTRequest::Del::Inline::Reader &reader,
                   const qp_t &qp) const;
-
-  /* call when joining the network - already running node ip */
-  void init_routing_table(const hydra::overlay::chord& remote);
-  void update_others() const;
-  void update_routing_table(const hydra::node_id &e, const size_t i);
 
 public:
   node(const std::string& ip, const std::string &port,

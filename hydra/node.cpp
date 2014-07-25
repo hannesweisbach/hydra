@@ -32,17 +32,9 @@ node::node(std::vector<std::string> ips, const std::string &port, uint32_t msg_b
           heap.malloc<LocalRDMAObj<hash_table_entry> >(initial_table_size)),
       dht(table_ptr.first.get(), 32U, initial_table_size),
       info(heap.malloc<LocalRDMAObj<node_info> >()),
-      routing_table_(heap.malloc<LocalRDMAObj<hydra::routing_table> >()),
       request_buffers(msg_buffers),
       buffers_mr(socket.register_memory(
           ibv_access::REMOTE_READ | ibv_access::LOCAL_WRITE, request_buffers)) {
-  (*routing_table_.first)([&](auto &table) {
-    new (&table) hydra::routing_table(ips.front(), port);
-    log_info() << table;
-  });
-
-  log_info() << "valid: " << routing_table_.first->valid();
-
 #if 1
   for (int msg_index = 0; msg_index < msg_buffers; msg_index++) {
     post_recv(request_buffers.at(msg_index));
@@ -55,7 +47,6 @@ node::node(std::vector<std::string> ips, const std::string &port, uint32_t msg_b
          (*rdma_obj.first)([&](auto &info) {
            info.table_size = 8;
            info.key_extents = *table_ptr.second;
-           info.routing_table = *routing_table_.second;
       info.id = keyspace_t(
           hash((ips.front() + port).c_str(), ips.front().size() + port.size()));
 
@@ -124,19 +115,25 @@ void node::recv(const request_t &request, const qp_t &qp) {
     reply(qp, response);
   } break;
   case protocol::DHTRequest::NETWORK: {
-    reply(qp, chord_response(routing_table_));
+    // TODO: forward to network implementation
+    // network implementation returns an kj::Array
+    // reply(qp, chord_response(routing_table_));
   } break;
   }
 }
 
 void node::join(const std::string& ip, const std::string& port) {
+#if 0
   hydra::overlay::chord remote(ip, port);
   init_routing_table(remote);
   update_others();
 #if 0
   notify_ulp();
 #endif
+#endif
 }
+
+#if 0
 
 void node::init_routing_table(const hydra::overlay::chord& remote) {
   (*routing_table_.first)([&](auto &table) {
@@ -211,6 +208,7 @@ void node::update_routing_table(const hydra::node_id &s, const size_t i) {
     }
   });
 }
+#endif
 
 void node::handle_add(const protocol::DHTRequest::Put::Inline::Reader &reader,
                       const qp_t &qp) {
@@ -251,13 +249,13 @@ void node::handle_add(const protocol::DHTRequest::Put::Remote::Reader &reader,
 
 bool node::handle_add(rdma_ptr<unsigned char> kv, const size_t size,
                       const size_t key_size) {
-
+#if 0
   if (!routing_table_.first->get().has_id(
            hydra::keyspace_t(hash(kv.first.get(), key_size)))) {
     log_err() << "Not responsible for key " << hash(kv.first.get(), key_size);
     return false;
   }
-
+#endif
 #if PER_ENTRY_LOCKS
   hopscotch_server &hs = dht;
 #else

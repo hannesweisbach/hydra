@@ -4,12 +4,17 @@
 #include "hydra/protocol/message.h"
 
 #include "hydra/RDMAObj.h"
+#include <capnp/message.h>
+#include <capnp/serialize.h>
+#include "dht.capnp.h"
 
 namespace hydra {
 namespace overlay {
+namespace chord {
+
 chord::chord(const std::string &host, const std::string &port)
     : RDMAClientSocket(host, port),
-      table(std::make_unique<RDMAObj<hydra::routing_table> >()),
+      table(std::make_unique<RDMAObj<routing_table> >()),
       local_table_mr(register_memory(ibv_access::MSG, *table)) {
   connect();
 
@@ -35,7 +40,7 @@ chord::chord(const std::string &host, const std::string &port)
 chord::chord(const std::string &host, const std::string &port,
            const uint64_t addr, const size_t size, const uint32_t rkey)
     : RDMAClientSocket(host, port),
-      table(std::make_unique<RDMAObj<hydra::routing_table> >()),
+      table(std::make_unique<RDMAObj<routing_table> >()),
       local_table_mr(register_memory(ibv_access::MSG, *table)) {
   table_mr.addr = addr;
   table_mr.size = size;
@@ -44,13 +49,13 @@ chord::chord(const std::string &host, const std::string &port,
 
 chord::~chord() {}
 
-hydra::routing_table chord::load_table() const {
+routing_table chord::load_table() const {
   hydra::rdma::load(*this, *table, local_table_mr.get(), table_mr.addr,
                     table_mr.rkey);
   return (*table).get();
 }
 
-hydra::routing_table chord::find_table(const keyspace_t &id) const {
+routing_table chord::find_table(const keyspace_t &id) const {
   using namespace hydra::literals;
 
   auto table = load_table();
@@ -88,6 +93,55 @@ passive &chord::successor(const keyspace_t &id) {
         network::node(start, end, table.self().node.ip, table.self().node.port);
   }
   return cache[0];
+}
+
+static void init_node(const node_id &node, hydra::protocol::Node::Builder &n) {
+  auto ip = n.initIp(sizeof(node.ip));
+  auto port = n.initPort(sizeof(node.port));
+  auto id = n.initId(sizeof(node.id));
+
+  memcpy(std::begin(ip), node.ip, sizeof(node.ip));
+  memcpy(std::begin(port), node.port, sizeof(node.port));
+  memcpy(std::begin(id), &node.id, sizeof(node.id));
+}
+
+kj::Array<capnp::word> predecessor_message(const node_id &node) {
+  ::capnp::MallocMessageBuilder response;
+
+  auto n = response.initRoot<hydra::protocol::DHTRequest>()
+               .initPredecessor()
+               .initNode();
+  init_node(node, n);
+  return messageToFlatArray(response);
+}
+
+kj::Array<capnp::word> update_message(const node_id &node,
+                                      const size_t &index) {
+  ::capnp::MallocMessageBuilder response;
+
+  auto update = response.initRoot<hydra::protocol::DHTRequest>().initUpdate();
+  update.setIndex(index);
+  auto n = update.initNode();
+  init_node(node, n);
+  return messageToFlatArray(response);
+
+}
+
+std::ostream &operator<<(std::ostream &s, const routing_table &t) {
+  s << "routing_table " << t.table.size() << std::endl;
+  {
+    indent_guard guard(s);
+    s << indent << "pred: " << t.predecessor() << std::endl;
+    s << indent << "self: " << t.self() << std::endl;
+    size_t i = 1;
+    for (auto &&e : t) {
+      s << indent << "[" << std::setw(3) << i++ << "] " << e
+        << " " << std::endl;
+    }
+  }
+  return s;
+}
+
 }
 }
 }

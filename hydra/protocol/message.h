@@ -19,14 +19,7 @@ template <> size_t size_of(const kj::Array<capnp::word> &o);
 
 kj::Array<capnp::word> init_message();
 kj::Array<capnp::word> ack_message(const bool);
-kj::Array<capnp::word> predecessor_message(const hydra::node_id &);
-kj::Array<capnp::word> update_message(const hydra::node_id &, const size_t &);
 kj::Array<capnp::word> network_request();
-kj::Array<capnp::word>
-chord_response(const rdma_ptr<LocalRDMAObj<hydra::routing_table> > &);
-kj::Array<capnp::word>
-fixed_response(const rdma_ptr<LocalRDMAObj<hydra::routing_table> > &,
-               const uint16_t);
 
 template <typename T>
 kj::Array<capnp::word> put_message(const T &kv, const size_t &key_size,

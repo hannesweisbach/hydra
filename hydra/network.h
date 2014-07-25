@@ -4,11 +4,15 @@
 #include <string>
 #include <memory>
 
-#include "hydra/passive.h"
+#include <capnp/serialize.h>
+
 #include "hydra/keyspace.h"
+#include "hydra/types.h"
+#include "hydra/passive.h"
 
 namespace hydra {
 namespace overlay {
+using namespace hydra::literals;
 class network {
 public:
   class node {
@@ -29,5 +33,51 @@ public:
 
   virtual passive &successor(const keyspace_t &id) = 0;
 };
+
+class routing_table {
+public:
+  routing_table() = default;
+  routing_table(const routing_table &) = default;
+  virtual ~routing_table() = default;
+  routing_table& operator=(routing_table&& ) = default;
+  routing_table &operator=(const routing_table &) = default;
+  //virtual new_keyspace_range join(nodeid) = 0;
+};
+
+struct node_id {
+  keyspace_t id;
+  char ip[16];
+  char port[6];
+  node_id() = default;
+  node_id(const keyspace_t &id, const char (&ip_)[16], const char (&port_)[6])
+      : id(id) {
+    memcpy(ip, ip_, sizeof(ip));
+    memcpy(port, port_, sizeof(port));
+  }
+  node_id(const keyspace_t &id, const std::string &ip_,
+          const std::string &port_)
+      : id(id), ip(), port() {
+    ip_.copy(ip, sizeof(ip));
+    port_.copy(port, sizeof(port));
+  }
+};
+
+struct routing_entry {
+  node_id node;
+  keyspace_t start;
+  routing_entry() {}
+  routing_entry(const node_id &node, const struct keyspace_t &start)
+      : node(node), start(start) {}
+  routing_entry(const std::string &ip, const std::string &port,
+                const keyspace_t &n, const keyspace_t &k)
+      : node(n, ip, port), start(n + (1_ID << k)) {}
+  routing_entry(const std::string &ip, const std::string &port,
+                const keyspace_t &n)
+      : node(n, ip, port), start(n) {}
+};
+
+std::ostream &operator<<(std::ostream &s, const node_id &id);
+std::ostream &operator<<(std::ostream &s, const routing_entry &e);
+
 }
 }

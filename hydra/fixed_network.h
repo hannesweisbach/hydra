@@ -4,10 +4,15 @@
 
 #include "hydra/network.h"
 #include "rdma/RDMAClientSocket.h"
+#include "rdma/RDMAServerSocket.h"
+
+#include "hydra/RDMAObj.h"
 
 namespace hydra {
 namespace overlay {
 namespace fixed {
+
+using entry_t = LocalRDMAObj<routing_entry>;
 
 class fixed : public network {
   std::vector<node> nodes;
@@ -16,6 +21,19 @@ class fixed : public network {
 public:
   fixed(RDMAClientSocket &, const uint64_t, const size_t, const uint32_t);
 };
+
+class routing_table : public hydra::overlay::routing_table {
+  std::vector<entry_t> table;
+public:
+  routing_table(RDMAServerSocket &socket, const size_t size) : table(size)  {
+    // allocate / register memory
+    // fill table
+  }
+};
+
+kj::Array<capnp::word>
+network_response(const rdma_ptr<LocalRDMAObj<routing_table> > &,
+                 const uint16_t);
 }
 }
 }

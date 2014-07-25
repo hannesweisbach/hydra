@@ -171,8 +171,3 @@ void hydra::passive::update_info() {
        remote.rkey).get();
 }
 
-void hydra::passive::update_predecessor(const hydra::node_id &pred) const {
-  // no reply.
-  send(predecessor_message(pred));
-}
-
