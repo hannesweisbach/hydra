@@ -23,35 +23,20 @@ passive &fixed::successor(const keyspace_t &id) {
   return *result;
 }
 
-static kj::Array<capnp::word>
-network_response(const rdma_ptr<LocalRDMAObj<routing_table> > &table,
-                 hydra::protocol::DHTResponse::NetworkType type,
-                 const uint16_t size = 0) {
+kj::Array<capnp::word> routing_table::init() const {
   ::capnp::MallocMessageBuilder message;
   auto msg = message.initRoot<hydra::protocol::DHTResponse>();
 
   auto network = msg.initNetwork();
-  network.setType(type);
-  network.setSize(size);
+  network.setType(hydra::protocol::DHTResponse::NetworkType::FIXED);
+  // network.setSize(size);
   auto remote = network.initTable();
+#if 0
   remote.setAddr(reinterpret_cast<uintptr_t>(table.first.get()));
   remote.setSize(sizeof(LocalRDMAObj<routing_table>));
   remote.setRkey(table.second->rkey);
-
+#endif
   return messageToFlatArray(message);
-}
-
-kj::Array<capnp::word>
-chord_response(const rdma_ptr<LocalRDMAObj<routing_table> > &table) {
-  return network_response(table,
-                          hydra::protocol::DHTResponse::NetworkType::CHORD);
-}
-
-kj::Array<capnp::word>
-fixed_response(const rdma_ptr<LocalRDMAObj<routing_table> > &table,
-               const uint16_t size) {
-  return network_response(
-      table, hydra::protocol::DHTResponse::NetworkType::FIXED, size);
 }
 }
 }

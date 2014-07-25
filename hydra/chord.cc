@@ -95,6 +95,21 @@ passive &chord::successor(const keyspace_t &id) {
   return cache[0];
 }
 
+kj::Array<capnp::word> routing_table::init() const {
+  ::capnp::MallocMessageBuilder message;
+  auto msg = message.initRoot<hydra::protocol::DHTResponse>();
+
+  auto network = msg.initNetwork();
+  network.setType(hydra::protocol::DHTResponse::NetworkType::CHORD);
+  auto remote = network.initTable();
+#if 0
+  remote.setAddr(reinterpret_cast<uintptr_t>(table.first.get()));
+  remote.setSize(sizeof(LocalRDMAObj<routing_table>));
+  remote.setRkey(table.second->rkey);
+#endif
+  return messageToFlatArray(message);
+}
+
 static void init_node(const node_id &node, hydra::protocol::Node::Builder &n) {
   auto ip = n.initIp(sizeof(node.ip));
   auto port = n.initPort(sizeof(node.port));

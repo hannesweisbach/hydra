@@ -47,7 +47,9 @@ void hydra::passive::update_predecessor(const hydra::node_id &pred) const {
 
 #endif
 
-struct routing_table : hydra::overlay::routing_table {
+struct routing_table : public hydra::overlay::routing_table {
+  kj::Array<capnp::word> init() const override;
+
   static const size_t predecessor_index = 0;
   static const size_t self_index = 1;
   static const size_t successor_index = 2;

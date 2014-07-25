@@ -115,9 +115,7 @@ void node::recv(const request_t &request, const qp_t &qp) {
     reply(qp, response);
   } break;
   case protocol::DHTRequest::NETWORK: {
-    // TODO: forward to network implementation
-    // network implementation returns an kj::Array
-    // reply(qp, chord_response(routing_table_));
+    reply(qp, routing_table->init());
   } break;
   }
 }

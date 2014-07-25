@@ -41,6 +41,8 @@ public:
   virtual ~routing_table() = default;
   routing_table& operator=(routing_table&& ) = default;
   routing_table &operator=(const routing_table &) = default;
+
+  virtual kj::Array<capnp::word> init() const = 0;
   //virtual new_keyspace_range join(nodeid) = 0;
 };
 
