@@ -71,11 +71,11 @@ struct routing_entry {
   routing_entry(const node_id &node, const struct keyspace_t &start)
       : node(node), start(start) {}
   routing_entry(const std::string &ip, const std::string &port,
-                const keyspace_t &n, const keyspace_t &k)
-      : node(n, ip, port), start(n + (1_ID << k)) {}
+                const keyspace_t &start, const keyspace_t &id)
+      : node(id, ip, port), start(start) {}
   routing_entry(const std::string &ip, const std::string &port,
-                const keyspace_t &n)
-      : node(n, ip, port), start(n) {}
+                const keyspace_t &id)
+      : node(id, ip, port), start(id) {}
   bool empty() { return node.ip[0] != 0; }
 };
 
