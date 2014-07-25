@@ -3,7 +3,7 @@
 #include "hydra/fixed_network.h"
 
 namespace hydra {
-
+namespace overlay{
 fixed::fixed(RDMAClientSocket &root, const uint64_t addr, const size_t size,
              const uint32_t rkey) {
   // check fixed layout
@@ -19,6 +19,7 @@ passive &fixed::successor(const keyspace_t &id) {
     throw std::runtime_error("Host not found");
 
   return *result;
+}
 }
 }
 

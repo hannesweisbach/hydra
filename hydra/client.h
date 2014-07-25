@@ -20,7 +20,7 @@ public:
   std::vector<unsigned char> get(const std::vector<unsigned char> &key) const;
 
 private:
-  std::unique_ptr<hydra::network> network;
+  std::unique_ptr<hydra::overlay::network> network;
   passive &responsible_node(const std::vector<unsigned char> &key) const;
 };
 }

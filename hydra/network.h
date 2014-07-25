@@ -8,6 +8,7 @@
 #include "hydra/keyspace.h"
 
 namespace hydra {
+namespace overlay {
 class network {
 public:
   class node {
@@ -25,7 +26,8 @@ public:
     operator hydra::passive &() { return *node_; }
   };
   virtual ~network() = default;
-  
+
   virtual passive &successor(const keyspace_t &id) = 0;
 };
+}
 }

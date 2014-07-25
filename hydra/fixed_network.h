@@ -6,7 +6,7 @@
 #include "rdma/RDMAClientSocket.h"
 
 namespace hydra {
-
+namespace overlay {
 class fixed : public network {
   std::vector<node> nodes;
   passive &successor(const keyspace_t &id) override;
@@ -14,4 +14,5 @@ class fixed : public network {
 public:
   fixed(RDMAClientSocket &, const uint64_t, const size_t, const uint32_t);
 };
+}
 }

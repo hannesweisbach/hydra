@@ -130,7 +130,7 @@ void node::recv(const request_t &request, const qp_t &qp) {
 }
 
 void node::join(const std::string& ip, const std::string& port) {
-  hydra::chord::node remote(ip, port);
+  hydra::overlay::chord remote(ip, port);
   init_routing_table(remote);
   update_others();
 #if 0
@@ -138,7 +138,7 @@ void node::join(const std::string& ip, const std::string& port) {
 #endif
 }
 
-void node::init_routing_table(const hydra::chord::node& remote) {
+void node::init_routing_table(const hydra::overlay::chord& remote) {
   (*routing_table_.first)([&](auto &table) {
     table.successor().node = remote.successor_node(table.successor().start);
 
@@ -177,7 +177,7 @@ void node::update_others() const {
         routing_table_.first->get().self().node.id -
         keyspace_t(static_cast<hydra::keyspace_t::value_type>(1 << i) + 1);
     auto re = routing_table_.first->get().preceding_node(id_);
-    hydra::chord::node node(re.node.ip, re.node.port);
+    hydra::overlay::chord node(re.node.ip, re.node.port);
     auto p = node.predecessor_node(id_);
     // send message to p
     // send self().node and i+1

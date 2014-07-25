@@ -71,7 +71,7 @@ class node {
                   const qp_t &qp) const;
 
   /* call when joining the network - already running node ip */
-  void init_routing_table(const hydra::passive& remote);
+  void init_routing_table(const hydra::overlay::chord& remote);
   void update_others() const;
   void update_routing_table(const hydra::node_id &e, const size_t i);
 

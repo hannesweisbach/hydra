@@ -9,13 +9,13 @@
 #include "hydra/network.h"
 
 namespace hydra {
-namespace chord {
-class node : public virtual RDMAClientSocket, public network {
+namespace overlay {
+class chord : public virtual RDMAClientSocket, public network {
 public:
-  node(const std::string &host, const std::string &port);
-  node(const std::string &host, const std::string &port, const uint64_t,
-       const size_t, const uint32_t);
-  ~node();
+  chord(const std::string &host, const std::string &port);
+  chord(const std::string &host, const std::string &port, const uint64_t,
+        const size_t, const uint32_t);
+  ~chord();
   node_id predecessor_node(const keyspace_t &id) const;
   node_id successor_node(const keyspace_t &id) const;
   node_id self() const;

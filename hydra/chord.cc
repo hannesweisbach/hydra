@@ -6,8 +6,8 @@
 #include "hydra/RDMAObj.h"
 
 namespace hydra {
-namespace chord {
-node::node(const std::string &host, const std::string &port)
+namespace overlay {
+chord::chord(const std::string &host, const std::string &port)
     : RDMAClientSocket(host, port),
       table(std::make_unique<RDMAObj<hydra::routing_table> >()),
       local_table_mr(register_memory(ibv_access::MSG, *table)) {
@@ -32,7 +32,7 @@ node::node(const std::string &host, const std::string &port)
   table_mr.rkey = t.getRkey();
 }
 
-node::node(const std::string &host, const std::string &port,
+chord::chord(const std::string &host, const std::string &port,
            const uint64_t addr, const size_t size, const uint32_t rkey)
     : RDMAClientSocket(host, port),
       table(std::make_unique<RDMAObj<hydra::routing_table> >()),
@@ -42,41 +42,41 @@ node::node(const std::string &host, const std::string &port,
   table_mr.rkey = rkey;
 }
 
-node::~node() {}
+chord::~chord() {}
 
-hydra::routing_table node::load_table() const {
+hydra::routing_table chord::load_table() const {
   hydra::rdma::load(*this, *table, local_table_mr.get(), table_mr.addr,
                     table_mr.rkey);
   return (*table).get();
 }
 
-hydra::routing_table node::find_table(const keyspace_t &id) const {
+hydra::routing_table chord::find_table(const keyspace_t &id) const {
   using namespace hydra::literals;
 
   auto table = load_table();
   while (!id.in(table.self().node.id + 1_ID, table.successor().node.id)) {
     auto re = table.preceding_node(id).node;
-    node node(re.ip, re.port);
+    chord node(re.ip, re.port);
 
     table = node.load_table();
   }
   return table;
 }
 
-node_id node::predecessor_node(const keyspace_t &id) const {
+node_id chord::predecessor_node(const keyspace_t &id) const {
   return find_table(id).self().node;
 }
 
-node_id node::successor_node(const keyspace_t &id) const {
+node_id chord::successor_node(const keyspace_t &id) const {
   return find_table(id).successor().node;
 }
 
-node_id node::self() const {
+node_id chord::self() const {
   auto table = load_table();
   return table.self().node;
 }
 
-passive &node::successor(const keyspace_t &id) {
+passive &chord::successor(const keyspace_t &id) {
   auto table = find_table(id);
   auto start = table.predecessor().node.id + 1_ID;
   auto end = table.self().node.id;
