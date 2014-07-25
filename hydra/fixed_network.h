@@ -1,6 +1,8 @@
 #pragma once
 
 #include <vector>
+#include <string>
+#include <cstdint>
 
 #include "hydra/network.h"
 #include "rdma/RDMAClientSocket.h"
@@ -29,11 +31,7 @@ class routing_table : public hydra::overlay::routing_table {
   kj::Array<capnp::word> init() const override;
 
 public:
-  routing_table(RDMAServerSocket &socket, const uint16_t size)
-      : table(size), table_mr(socket.register_memory(ibv_access::READ, table)) {
-    // allocate / register memory
-    // fill table
-  }
+  routing_table(RDMAServerSocket &socket, uint16_t size);
 };
 
 kj::Array<capnp::word>

@@ -1,4 +1,6 @@
 #include <exception>
+#include <iterator>
+#include <algorithm>
 
 #include "hydra/fixed_network.h"
 #include "hydra/passive.h"
@@ -21,6 +23,29 @@ passive &fixed::successor(const keyspace_t &id) {
     throw std::runtime_error("Host not found");
 
   return *result;
+}
+
+routing_table::routing_table(RDMAServerSocket &socket, uint16_t size) {
+  if (size == 0)
+    throw std::runtime_error("Routing table of size 0 is not supported.");
+
+  auto keys = keyspace_t(std::numeric_limits<keyspace_t::value_type>::max());
+  auto id = 0_ID;
+  auto generator = [&]() mutable {
+    assert(size);
+    auto partition = keys / keyspace_t(size);
+    keys -= partition;
+    size--;
+    auto id_ = id;
+    id += partition;
+    return entry_t("", "", id_, id - 1_ID);
+  };
+
+  std::generate_n(std::back_inserter(table), size, generator);
+  table_mr = socket.register_memory(ibv_access::READ, table);
+
+  for (const auto &e : table)
+    std::cout << e.get() << std::endl;
 }
 
 kj::Array<capnp::word> routing_table::init() const {
