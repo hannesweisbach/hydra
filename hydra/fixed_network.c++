@@ -29,13 +29,11 @@ kj::Array<capnp::word> routing_table::init() const {
 
   auto network = msg.initNetwork();
   network.setType(hydra::protocol::DHTResponse::NetworkType::FIXED);
-  // network.setSize(size);
+  network.setSize(static_cast<uint16_t>(table.size()));
   auto remote = network.initTable();
-#if 0
-  remote.setAddr(reinterpret_cast<uintptr_t>(table.first.get()));
-  remote.setSize(sizeof(LocalRDMAObj<routing_table>));
-  remote.setRkey(table.second->rkey);
-#endif
+  remote.setAddr(reinterpret_cast<uintptr_t>(table_mr->addr));
+  remote.setSize(table_mr->length);
+  remote.setRkey(table_mr->rkey);
   return messageToFlatArray(message);
 }
 }

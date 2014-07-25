@@ -29,7 +29,7 @@ class routing_table : public hydra::overlay::routing_table {
   kj::Array<capnp::word> init() const override;
 
 public:
-  routing_table(RDMAServerSocket &socket, const size_t size)
+  routing_table(RDMAServerSocket &socket, const uint16_t size)
       : table(size), table_mr(socket.register_memory(ibv_access::READ, table)) {
     // allocate / register memory
     // fill table
