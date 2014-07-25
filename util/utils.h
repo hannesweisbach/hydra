@@ -25,6 +25,13 @@ inline uint64_t log2(const uint64_t val) {
 }
 }
 
+//to guard against 'too perfect forwarding'
+template <typename T, typename U> struct not_self {
+  using DecayedT = typename std::decay<T>::type;
+  static constexpr bool value =
+      !std::is_same<DecayedT, U>::value && !std::is_base_of<U, DecayedT>::value;
+};
+
 /* As of libstdc++-4.9 std::max is not yet constexpr */
 template <typename... Args> constexpr size_t sizeof_largest_type() {
   size_t max = 0;
