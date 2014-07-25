@@ -43,12 +43,12 @@ struct keyspace_t {
   }
 
   keyspace_t &operator+=(const keyspace_t &rhs) noexcept {
-    *this + rhs;
+    *this = *this + rhs;
     return *this;
   }
 
   keyspace_t &operator-=(const keyspace_t &rhs) noexcept {
-    *this - rhs;
+    *this = *this - rhs;
     return *this;
   }
 
