@@ -9,9 +9,13 @@ protected:
   uint64_t crc;
 
 public:
-  template <typename... Args>
-  RDMAObj(Args &&... args)
-      : obj(std::forward<Args>(args)...), crc(hydra::hash64(&obj)) {}
+  RDMAObj() : crc(hydra::hash64(&obj)) {}
+  template <typename T1, typename... Args,
+            typename std::enable_if<not_self<T1, RDMAObj<T> >::value>::type * =
+                nullptr>
+  RDMAObj(T1 arg0, Args &&... args)
+      : obj(std::forward<T1>(arg0), std::forward<Args>(args)...),
+        crc(hydra::hash64(&obj)) {}
   RDMAObj(const RDMAObj<T> &other) = default;
   RDMAObj<T> &operator=(const RDMAObj<T> &other) = default;
   RDMAObj(RDMAObj<T> &&other)
