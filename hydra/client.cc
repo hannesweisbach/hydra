@@ -28,8 +28,8 @@ hydra::client::client(const std::string &ip, const std::string &port) {
   auto t = network_msg.getTable();
   switch (network_msg.getType()) {
   case hydra::protocol::DHTResponse::NetworkType::FIXED:
-    network = std::make_unique<hydra::overlay::fixed>(node, t.getAddr(),
-                                                      t.getSize(), t.getRkey());
+    network = std::make_unique<hydra::overlay::fixed::fixed>(
+        node, t.getAddr(), t.getSize(), t.getRkey());
     break;
   case hydra::protocol::DHTResponse::NetworkType::CHORD:
     network = std::make_unique<hydra::overlay::chord>(ip, port, t.getAddr(),
