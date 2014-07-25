@@ -38,6 +38,11 @@ struct keyspace_t {
     return keyspace_t(static_cast<value_type>(value__ << rhs.value__));
   }
 
+  keyspace_t &operator+=(const keyspace_t &rhs) noexcept {
+    *this + rhs;
+    return *this;
+  }
+
   bool operator==(keyspace_t const &rhs) const noexcept {
     return value__ == rhs.value__;
   }
