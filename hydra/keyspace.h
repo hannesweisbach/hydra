@@ -47,6 +47,11 @@ struct keyspace_t {
     return *this;
   }
 
+  keyspace_t &operator-=(const keyspace_t &rhs) noexcept {
+    *this - rhs;
+    return *this;
+  }
+
   bool operator==(keyspace_t const &rhs) const noexcept {
     return value__ == rhs.value__;
   }
