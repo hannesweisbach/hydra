@@ -24,11 +24,13 @@ public:
 
 class routing_table : public hydra::overlay::routing_table {
   std::vector<entry_t> table;
+  mr_t table_mr;
 
   kj::Array<capnp::word> init() const override;
 
 public:
-  routing_table(RDMAServerSocket &socket, const size_t size) : table(size) {
+  routing_table(RDMAServerSocket &socket, const size_t size)
+      : table(size), table_mr(socket.register_memory(ibv_access::READ, table)) {
     // allocate / register memory
     // fill table
   }
