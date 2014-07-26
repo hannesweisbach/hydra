@@ -6,7 +6,6 @@ $Cxx.namespace("hydra::protocol");
 struct Node {
   ip @0 :Text;
   port @1 :Text;
-  id @2 :Data;
 }
 
 struct Mr {
@@ -38,14 +37,21 @@ struct DHTRequest {
       }
     }
     init @8 :Void;
+    network @9 :Void;
+
+# inter-node communication
+    join : group {
+      node @10 :Node;
+    }
     predecessor : group {
-      node @9 :Node;
+      id @11 :Data;
+      node @12 :Node;
     }
     update :group {
-      node @10 :Node;
-      index @11 :UInt64;
+      node @13 :Node;
+      id @14 :Data;
+      index @15 :UInt64;
     }
-    network @12 :Void;
   }
 }
 
@@ -66,5 +72,12 @@ struct DHTResponse {
       table @3 :Mr;
       size @4 :UInt16;
     }
+
+#inter-node responses
+    join : group {
+      start @5 :Data;
+      end @6 :Data;
+    }
+
   }
 }
