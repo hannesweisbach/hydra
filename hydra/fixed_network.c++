@@ -64,7 +64,36 @@ kj::Array<capnp::word> routing_table::init() const {
 
 kj::Array<capnp::word> routing_table::join(const std::string &host,
                                            const std::string &port) {
-  return kj::Array<capnp::word>();
+  auto result =
+      std::find_if(std::begin(table), std::end(table),
+                   [](const auto &entry) { return entry.get().empty(); });
+
+  if (result == std::end(table)) {
+    //TODO add success indicator to reply.
+    throw std::runtime_error(
+        "Tried joining a full network. Error handling not implemented.");
+  }
+
+  (*result)([&](auto &&entry) {
+    assert(host.size() < sizeof(node_id::ip));
+    assert(port.size() < sizeof(node_id::port));
+
+    host.copy(entry.node.ip, sizeof(node_id::ip));
+    port.copy(entry.node.port, sizeof(node_id::port));
+  });
+
+  auto msg = update(host, port, result->get().node.id,
+                    std::distance(std::begin(table), result));
+  for (const auto &entry : table) {
+    const auto &node = entry.get();
+    if (!node.empty()) {
+      RDMAClientSocket s(node.node.ip, node.node.port);
+      s.connect();
+      s.send(msg);
+    }
+  }
+
+  return join_reply(result->get().start, result->get().node.id);
 }
 
 }
