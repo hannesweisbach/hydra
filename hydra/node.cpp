@@ -34,7 +34,8 @@ node::node(std::vector<std::string> ips, const std::string &port, uint32_t msg_b
       info(heap.malloc<LocalRDMAObj<node_info> >()),
       request_buffers(msg_buffers),
       buffers_mr(socket.register_memory(
-          ibv_access::REMOTE_READ | ibv_access::LOCAL_WRITE, request_buffers)) {
+          ibv_access::REMOTE_READ | ibv_access::LOCAL_WRITE, request_buffers)),
+      ip(ips[0]), port(port) {
 #if 1
   for (int msg_index = 0; msg_index < msg_buffers; msg_index++) {
     post_recv(request_buffers.at(msg_index));
@@ -120,14 +121,31 @@ void node::recv(const request_t &request, const qp_t &qp) {
   }
 }
 
-void node::join(const std::string& ip, const std::string& port) {
-#if 0
-  hydra::overlay::chord remote(ip, port);
-  init_routing_table(remote);
-  update_others();
+void node::join(const std::string &ip, const std::string &port) {
+  // TODO: this should probably implemented in routing_table, since it is
+  // overlay-specific.
+  kj::FixedArray<capnp::word, 7> buffer;
+  RDMAClientSocket s(ip, port);
+  s.connect();
+  auto mr = s.register_memory(ibv_access::MSG, buffer);
+  auto future = s.recv_async(buffer, mr.get());
+  s.send(overlay::join_request(this->ip, this->port));
+  future.get();
+
+  auto message = capnp::FlatArrayMessageReader(buffer);
+  auto reply = message.getRoot<protocol::DHTResponse>();
+
+  assert(reply.isJoin());
+
+  auto join = reply.getJoin();
+  auto start_ = join.getStart();
+  auto end_ = join.getEnd();
+  assert(start_.size() == sizeof(start));
+  assert(end_.size() == sizeof(end));
+  memcpy(&start, std::begin(start_), start_.size());
+  memcpy(&end, std::begin(end_), end_.size());
 #if 0
   notify_ulp();
-#endif
 #endif
 }
 
