@@ -92,5 +92,8 @@ void init_node(const std::string &host, const std::string &port,
                hydra::protocol::Node::Builder &n);
 kj::Array<capnp::word> join_request(const std::string &host,
                                     const std::string &port);
+kj::Array<capnp::word> join_reply(const keyspace_t &start,
+                                  const keyspace_t &end,
+                                  const bool success = true);
 }
 }

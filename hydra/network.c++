@@ -51,6 +51,20 @@ kj::Array<capnp::word> join_request(const std::string &host,
   return messageToFlatArray(message);
 }
 
+kj::Array<capnp::word> join_reply(const keyspace_t &start,
+                                  const keyspace_t &end, const bool) {
+  ::capnp::MallocMessageBuilder response;
+  hydra::protocol::DHTResponse::Builder msg =
+      response.initRoot<hydra::protocol::DHTResponse>();
+
+  auto join = msg.initJoin();
+  auto start_ = join.initStart(sizeof(start));
+  auto end_ = join.initEnd(sizeof(end));
+  memcpy(std::begin(start_), &start, sizeof(start));
+  memcpy(std::begin(end_), &end, sizeof(end));
+  return messageToFlatArray(response);
+}
+
 kj::Array<capnp::word> network_request() {
   ::capnp::MallocMessageBuilder request;
   request.initRoot<hydra::protocol::DHTRequest>().initOverlay().setNetwork();
