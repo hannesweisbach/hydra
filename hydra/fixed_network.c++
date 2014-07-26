@@ -1,6 +1,7 @@
 #include <exception>
 #include <iterator>
 #include <algorithm>
+#include <sstream>
 
 #include "hydra/fixed_network.h"
 #include "hydra/passive.h"
@@ -97,8 +98,24 @@ kj::Array<capnp::word> routing_table::join(const std::string &host,
 }
 
 void routing_table::update(const std::string &host, const std::string &port,
-                           const keyspace_t &id, const size_t index) {}
+                           const keyspace_t &id, const size_t index) {
+  if (table.size() < index) {
+    const auto &it = std::begin(table) + index;
+    (*it)([&](auto &&entry) {
+      assert(host.size() < sizeof(node_id::ip));
+      assert(port.size() < sizeof(node_id::port));
+      assert(id == entry.node.id);
 
+      host.copy(entry.node.ip, sizeof(node_id::ip));
+      port.copy(entry.node.port, sizeof(node_id::port));
+    });
+  } else {
+    std::ostringstream ss;
+    ss << "Request to update non-existent entry " << index
+       << " in table of size " << table.size();
+    throw std::runtime_error(ss.str());
+  }
+}
 }
 }
 }
