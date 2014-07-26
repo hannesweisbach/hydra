@@ -82,8 +82,8 @@ kj::Array<capnp::word> routing_table::join(const std::string &host,
     port.copy(entry.node.port, sizeof(node_id::port));
   });
 
-  auto msg = update(host, port, result->get().node.id,
-                    std::distance(std::begin(table), result));
+  auto msg = update_message(host, port, result->get().node.id,
+                            std::distance(std::begin(table), result));
   for (const auto &entry : table) {
     const auto &node = entry.get();
     if (!node.empty()) {

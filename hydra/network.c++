@@ -65,8 +65,10 @@ kj::Array<capnp::word> join_reply(const keyspace_t &start,
   return messageToFlatArray(response);
 }
 
-kj::Array<capnp::word> update(const std::string &host, const std::string &port,
-                              const keyspace_t &id, const size_t index) {
+kj::Array<capnp::word> update_message(const std::string &host,
+                                      const std::string &port,
+                                      const keyspace_t &id,
+                                      const size_t index) {
   ::capnp::MallocMessageBuilder response;
   auto msg = response.initRoot<hydra::protocol::DHTRequest>();
 
