@@ -90,7 +90,7 @@ std::ostream &operator<<(std::ostream &s, const routing_entry &e);
 kj::Array<capnp::word> network_request();
 void init_node(const std::string &host, const std::string &port,
                hydra::protocol::Node::Builder &n);
-kj::Array<capnp::word> join_message(const std::string &host,
+kj::Array<capnp::word> join_request(const std::string &host,
                                     const std::string &port);
 }
 }
