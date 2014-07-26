@@ -81,7 +81,7 @@ struct routing_entry {
   routing_entry(const std::string &ip, const std::string &port,
                 const keyspace_t &id)
       : node(id, ip, port), start(id) {}
-  bool empty() { return node.ip[0] != 0; }
+  bool empty() const { return node.ip[0] != 0; }
 };
 
 std::ostream &operator<<(std::ostream &s, const node_id &id);
