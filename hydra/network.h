@@ -36,6 +36,9 @@ public:
 
 class routing_table {
   virtual kj::Array<capnp::word> init() const = 0;
+  virtual kj::Array<capnp::word> join(const std::string &host,
+                                      const std::string &port) = 0;
+
 public:
   routing_table() = default;
   routing_table(const routing_table &) = default;

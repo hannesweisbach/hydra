@@ -29,6 +29,8 @@ class routing_table : public hydra::overlay::routing_table {
   mr_t table_mr;
 
   kj::Array<capnp::word> init() const override;
+  kj::Array<capnp::word> join(const std::string &host,
+                              const std::string &port) override;
 
 public:
   routing_table(RDMAServerSocket &socket, uint16_t size);

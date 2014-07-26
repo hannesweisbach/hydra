@@ -61,6 +61,12 @@ kj::Array<capnp::word> routing_table::init() const {
   remote.setRkey(table_mr->rkey);
   return messageToFlatArray(message);
 }
+
+kj::Array<capnp::word> routing_table::join(const std::string &host,
+                                           const std::string &port) {
+  return kj::Array<capnp::word>();
+}
+
 }
 }
 }

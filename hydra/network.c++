@@ -28,9 +28,10 @@ kj::Array<capnp::word> routing_table::process_message(
   switch (overlay.which()) {
   case hydra::protocol::DHTRequest::Overlay::NETWORK:
     return init();
-  case hydra::protocol::DHTRequest::Overlay::JOIN:
-    //return join();
-    break;
+  case hydra::protocol::DHTRequest::Overlay::JOIN: {
+    auto node = overlay.getJoin().getNode();
+    return join(node.getIp().cStr(), node.getPort().cStr());
+  }
   case hydra::protocol::DHTRequest::Overlay::UPDATE:
     break;
   default:

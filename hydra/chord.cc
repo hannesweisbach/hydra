@@ -118,6 +118,9 @@ static void init_node(const node_id &node, hydra::protocol::Node::Builder &n) {
   memcpy(std::begin(ip), node.ip, sizeof(node.ip));
   memcpy(std::begin(port), node.port, sizeof(node.port));
   memcpy(std::begin(id), &node.id, sizeof(node.id));
+kj::Array<capnp::word> routing_table::join(const std::string &host,
+                                           const std::string &port) {
+  return kj::Array<capnp::word>();
 }
 
 kj::Array<capnp::word> predecessor_message(const node_id &node) {
