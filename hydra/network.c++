@@ -21,6 +21,22 @@ void init_node(const std::string &host, const std::string &port,
   port.copy(std::begin(port_), port.size());
 }
 
+kj::Array<capnp::word> routing_table::process_message(
+    const hydra::protocol::DHTRequest::Overlay::Reader &overlay) {
+  switch (overlay.which()) {
+  case hydra::protocol::DHTRequest::Overlay::NETWORK:
+    return init();
+  case hydra::protocol::DHTRequest::Overlay::JOIN:
+    //return join();
+    break;
+  case hydra::protocol::DHTRequest::Overlay::UPDATE:
+    break;
+  default:
+    break;
+  }
+  return kj::Array<capnp::word>();
+}
+
 kj::Array<capnp::word> join_message(const std::string &host,
                                     const std::string &port) {
 

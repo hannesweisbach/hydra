@@ -35,6 +35,7 @@ public:
 };
 
 class routing_table {
+  virtual kj::Array<capnp::word> init() const = 0;
 public:
   routing_table() = default;
   routing_table(const routing_table &) = default;
@@ -42,8 +43,9 @@ public:
   routing_table& operator=(routing_table&& ) = default;
   routing_table &operator=(const routing_table &) = default;
 
-  virtual kj::Array<capnp::word> init() const = 0;
-  //virtual new_keyspace_range join(nodeid) = 0;
+  kj::Array<capnp::word>
+  process_message(const hydra::protocol::DHTRequest::Overlay::Reader &);
+  //virtual kj::Array<capnp::word> join(const node_id &);
 };
 
 struct node_id {
