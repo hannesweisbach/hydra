@@ -99,7 +99,7 @@ kj::Array<capnp::word> routing_table::join(const std::string &host,
 
 void routing_table::update(const std::string &host, const std::string &port,
                            const keyspace_t &id, const size_t index) {
-  if (table.size() < index) {
+  if (index < table.size()) {
     const auto &it = std::begin(table) + index;
     (*it)([&](auto &&entry) {
       assert(host.size() < sizeof(node_id::ip));
