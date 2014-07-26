@@ -354,6 +354,9 @@ void node::handle_del(const protocol::DHTRequest::Del::Remote::Reader &reader,
 void node::reply(const qp_t &qp, ::capnp::MessageBuilder &reply) const {
   kj::Array<capnp::word> serialized = messageToFlatArray(reply);
 
+  if (serialized.size() == 0)
+    return;
+
   return socket(qp, [&](rdma_cm_id *id) {
     sendImmediate(id, serialized.begin(),
                   serialized.size() * sizeof(capnp::word));
@@ -362,6 +365,9 @@ void node::reply(const qp_t &qp, ::capnp::MessageBuilder &reply) const {
 
 void node::reply(const qp_t &qp,
                  const ::kj::Array< ::capnp::word> &reply) const {
+  if (reply.size() == 0)
+    return;
+
   return socket(qp, [&](rdma_cm_id *id) {
     sendImmediate(id, std::begin(reply), reply.size() * sizeof(capnp::word));
   });
