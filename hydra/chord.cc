@@ -115,6 +115,9 @@ kj::Array<capnp::word> routing_table::join(const std::string &host,
   return kj::Array<capnp::word>();
 }
 
+void routing_table::update(const std::string &host, const std::string &port,
+                           const keyspace_t &id, const size_t index) {}
+
 #if 0
 kj::Array<capnp::word> predecessor_message(const node_id &node) {
   ::capnp::MallocMessageBuilder response;

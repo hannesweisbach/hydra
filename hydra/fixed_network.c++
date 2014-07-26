@@ -96,6 +96,9 @@ kj::Array<capnp::word> routing_table::join(const std::string &host,
   return join_reply(result->get().start, result->get().node.id);
 }
 
+void routing_table::update(const std::string &host, const std::string &port,
+                           const keyspace_t &id, const size_t index) {}
+
 }
 }
 }

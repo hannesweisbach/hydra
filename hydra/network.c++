@@ -32,8 +32,15 @@ kj::Array<capnp::word> routing_table::process_message(
     auto node = overlay.getJoin().getNode();
     return join(node.getIp().cStr(), node.getPort().cStr());
   }
-  case hydra::protocol::DHTRequest::Overlay::UPDATE:
-    break;
+  case hydra::protocol::DHTRequest::Overlay::UPDATE: {
+    auto update_ = overlay.getUpdate();
+    auto node = update_.getNode();
+    keyspace_t id;
+    auto id_ = update_.getId();
+    assert(id_.size() == sizeof(id));
+    memcpy(&id, std::begin(id_), sizeof(id));
+    update(node.getIp().cStr(), node.getPort().cStr(), id, update_.getIndex());
+  } break;
   default:
     break;
   }
