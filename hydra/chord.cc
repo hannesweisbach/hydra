@@ -110,14 +110,6 @@ kj::Array<capnp::word> routing_table::init() const {
   return messageToFlatArray(message);
 }
 
-static void init_node(const node_id &node, hydra::protocol::Node::Builder &n) {
-  auto ip = n.initIp(sizeof(node.ip));
-  auto port = n.initPort(sizeof(node.port));
-  auto id = n.initId(sizeof(node.id));
-
-  memcpy(std::begin(ip), node.ip, sizeof(node.ip));
-  memcpy(std::begin(port), node.port, sizeof(node.port));
-  memcpy(std::begin(id), &node.id, sizeof(node.id));
 kj::Array<capnp::word> routing_table::join(const std::string &host,
                                            const std::string &port) {
   return kj::Array<capnp::word>();
