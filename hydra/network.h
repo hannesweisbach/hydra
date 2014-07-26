@@ -95,5 +95,7 @@ kj::Array<capnp::word> join_request(const std::string &host,
 kj::Array<capnp::word> join_reply(const keyspace_t &start,
                                   const keyspace_t &end,
                                   const bool success = true);
+kj::Array<capnp::word> update(const std::string &host, const std::string &port,
+                              const keyspace_t &id, const size_t index);
 }
 }

@@ -65,6 +65,21 @@ kj::Array<capnp::word> join_reply(const keyspace_t &start,
   return messageToFlatArray(response);
 }
 
+kj::Array<capnp::word> update(const std::string &host, const std::string &port,
+                              const keyspace_t &id, const size_t index) {
+  ::capnp::MallocMessageBuilder response;
+  auto msg = response.initRoot<hydra::protocol::DHTRequest>();
+
+  auto update = msg.initOverlay().initUpdate();
+  update.setIndex(index);
+  auto node = update.initNode();
+  init_node(host, port, node);
+  auto id_ = update.initId(sizeof(id));
+  memcpy(std::begin(id_), &id, sizeof(id));
+
+  return messageToFlatArray(response);
+}
+
 kj::Array<capnp::word> network_request() {
   ::capnp::MallocMessageBuilder request;
   request.initRoot<hydra::protocol::DHTRequest>().initOverlay().setNetwork();
