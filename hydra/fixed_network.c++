@@ -86,6 +86,7 @@ kj::Array<capnp::word> routing_table::join(const std::string &host,
   auto msg = update_message(host, port, result->get().node.id,
                             std::distance(std::begin(table), result));
   for (const auto &entry : table) {
+    // TODO may avoid sending an update message to this node.
     const auto &node = entry.get();
     if (!node.empty()) {
       RDMAClientSocket s(node.node.ip, node.node.port);
