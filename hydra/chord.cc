@@ -115,6 +115,7 @@ kj::Array<capnp::word> routing_table::join(const std::string &host,
   return kj::Array<capnp::word>();
 }
 
+#if 0
 kj::Array<capnp::word> predecessor_message(const node_id &node) {
   ::capnp::MallocMessageBuilder response;
 
@@ -136,7 +137,7 @@ kj::Array<capnp::word> update_message(const node_id &node,
   return messageToFlatArray(response);
 
 }
-
+#endif
 std::ostream &operator<<(std::ostream &s, const routing_table &t) {
   s << "routing_table " << t.table.size() << std::endl;
   {
