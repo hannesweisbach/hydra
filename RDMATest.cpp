@@ -82,6 +82,8 @@ int main(int argc, char *const argv[]) {
 
   if(connect_remote)
     node.join(remote.first, remote.second);
+  else
+    node.join(host.first[0], host.second);
 
 #ifdef PROFILER
   ProfilerStart("./server.prof");
