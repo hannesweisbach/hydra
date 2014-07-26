@@ -247,13 +247,11 @@ void node::handle_add(const protocol::DHTRequest::Put::Remote::Reader &reader,
 
 bool node::handle_add(rdma_ptr<unsigned char> kv, const size_t size,
                       const size_t key_size) {
-#if 0
-  if (!routing_table_.first->get().has_id(
-           hydra::keyspace_t(hash(kv.first.get(), key_size)))) {
+  auto id = keyspace_t(hash(kv.first.get(), key_size));
+  if (!id.in(start, end)) {
     log_err() << "Not responsible for key " << hash(kv.first.get(), key_size);
     return false;
   }
-#endif
 #if PER_ENTRY_LOCKS
   hopscotch_server &hs = dht;
 #else

@@ -53,6 +53,9 @@ class node {
   monitor<decltype(heap.malloc<LocalRDMAObj<node_info>>())> info;
   std::unique_ptr<hydra::overlay::routing_table> routing_table;
 
+  keyspace_t start;
+  keyspace_t end;
+
   void post_recv(const request_t &);
   void recv(const request_t &, const qp_t &qp);
   void send(const uint64_t id);
