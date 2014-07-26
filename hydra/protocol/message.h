@@ -19,7 +19,6 @@ template <> size_t size_of(const kj::Array<capnp::word> &o);
 
 kj::Array<capnp::word> init_message();
 kj::Array<capnp::word> ack_message(const bool);
-kj::Array<capnp::word> network_request();
 
 template <typename T>
 kj::Array<capnp::word> put_message(const T &kv, const size_t &key_size,

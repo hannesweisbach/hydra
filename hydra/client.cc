@@ -18,7 +18,8 @@ hydra::client::client(const std::string &ip, const std::string &port) {
 
   auto future = node.recv_async(response, response_mr.get());
 
-  node.send(network_request());
+  //TODO put into factory.
+  node.send(overlay::network_request());
   future.get();
 
   auto message = capnp::FlatArrayMessageReader(response);

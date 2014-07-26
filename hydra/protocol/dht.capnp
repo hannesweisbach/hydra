@@ -37,20 +37,22 @@ struct DHTRequest {
       }
     }
     init @8 :Void;
-    network @9 :Void;
 
 # inter-node communication
-    join : group {
-      node @10 :Node;
-    }
-    predecessor : group {
-      id @11 :Data;
-      node @12 :Node;
-    }
-    update :group {
-      node @13 :Node;
-      id @14 :Data;
-      index @15 :UInt64;
+    overlay :group {
+      network @9 :Void;
+      join : group {
+        node @10 :Node;
+      }
+      predecessor : group {
+        id @11 :Data;
+        node @12 :Node;
+      }
+      update :group {
+        node @13 :Node;
+        id @14 :Data;
+        index @15 :UInt64;
+      }
     }
   }
 }

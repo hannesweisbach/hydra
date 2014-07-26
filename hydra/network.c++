@@ -27,10 +27,18 @@ kj::Array<capnp::word> join_message(const std::string &host,
   ::capnp::MallocMessageBuilder message;
   auto msg = message.initRoot<hydra::protocol::DHTRequest>();
 
-  auto node = msg.initJoin().initNode();
+  auto node = msg.initOverlay().initJoin().initNode();
   init_node(host, port, node);
   return messageToFlatArray(message);
 }
+
+kj::Array<capnp::word> network_request() {
+  ::capnp::MallocMessageBuilder request;
+  request.initRoot<hydra::protocol::DHTRequest>().initOverlay().setNetwork();
+  return messageToFlatArray(request);
+}
+
+
 }
 }
 

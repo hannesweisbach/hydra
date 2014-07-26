@@ -27,10 +27,3 @@ kj::Array<capnp::word> ack_message(const bool success) {
   return messageToFlatArray(response);
 }
 
-kj::Array<capnp::word> network_request() {
-  ::capnp::MallocMessageBuilder request;
-  request.initRoot<hydra::protocol::DHTRequest>().setNetwork();
-  return messageToFlatArray(request);
-}
-
-
