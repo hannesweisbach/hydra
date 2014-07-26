@@ -39,7 +39,7 @@ struct DHTRequest {
     init @8 :Void;
 
 # inter-node communication
-    overlay :group {
+    overlay :union {
       network @9 :Void;
       join : group {
         node @10 :Node;
