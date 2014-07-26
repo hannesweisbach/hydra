@@ -14,8 +14,10 @@ std::ostream &operator<<(std::ostream &s, const routing_entry &e) {
 
 void init_node(const std::string &host, const std::string &port,
                hydra::protocol::Node::Builder &n) {
-  auto host_ = n.initIp(host.size());
-  auto port_ = n.initPort(port.size());
+  assert(host.size() < 16);
+  assert(port.size() < 6);
+  auto host_ = n.initIp(static_cast<uint32_t>(host.size()));
+  auto port_ = n.initPort(static_cast<uint32_t>(port.size()));
 
   host.copy(std::begin(host_), host.size());
   port.copy(std::begin(port_), port.size());
