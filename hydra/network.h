@@ -12,7 +12,41 @@
 
 namespace hydra {
 namespace overlay {
+
 using namespace hydra::literals;
+
+struct node_id {
+  keyspace_t id;
+  char ip[16];
+  char port[6];
+  node_id() = default;
+  node_id(const keyspace_t &id, const char (&ip_)[16], const char (&port_)[6])
+      : id(id) {
+    memcpy(ip, ip_, sizeof(ip));
+    memcpy(port, port_, sizeof(port));
+  }
+  node_id(const keyspace_t &id, const std::string &ip_,
+          const std::string &port_)
+      : id(id), ip(), port() {
+    ip_.copy(ip, sizeof(ip));
+    port_.copy(port, sizeof(port));
+  }
+};
+
+struct routing_entry {
+  node_id node;
+  keyspace_t start;
+  routing_entry() {}
+  routing_entry(const node_id &node, const struct keyspace_t &start)
+      : node(node), start(start) {}
+  routing_entry(const std::string &ip, const std::string &port,
+                const keyspace_t &start, const keyspace_t &id)
+      : node(id, ip, port), start(start) {}
+  routing_entry(const std::string &ip, const std::string &port,
+                const keyspace_t &id)
+      : node(id, ip, port), start(id) {}
+  bool empty() const { return node.ip[0] == 0; }
+};
 
 using entry_t = LocalRDMAObj<routing_entry>;
 
@@ -54,39 +88,6 @@ public:
   kj::Array<capnp::word>
   process_message(const hydra::protocol::DHTRequest::Overlay::Reader &);
   //virtual kj::Array<capnp::word> join(const node_id &);
-};
-
-struct node_id {
-  keyspace_t id;
-  char ip[16];
-  char port[6];
-  node_id() = default;
-  node_id(const keyspace_t &id, const char (&ip_)[16], const char (&port_)[6])
-      : id(id) {
-    memcpy(ip, ip_, sizeof(ip));
-    memcpy(port, port_, sizeof(port));
-  }
-  node_id(const keyspace_t &id, const std::string &ip_,
-          const std::string &port_)
-      : id(id), ip(), port() {
-    ip_.copy(ip, sizeof(ip));
-    port_.copy(port, sizeof(port));
-  }
-};
-
-struct routing_entry {
-  node_id node;
-  keyspace_t start;
-  routing_entry() {}
-  routing_entry(const node_id &node, const struct keyspace_t &start)
-      : node(node), start(start) {}
-  routing_entry(const std::string &ip, const std::string &port,
-                const keyspace_t &start, const keyspace_t &id)
-      : node(id, ip, port), start(start) {}
-  routing_entry(const std::string &ip, const std::string &port,
-                const keyspace_t &id)
-      : node(id, ip, port), start(id) {}
-  bool empty() const { return node.ip[0] == 0; }
 };
 
 std::ostream &operator<<(std::ostream &s, const node_id &id);
