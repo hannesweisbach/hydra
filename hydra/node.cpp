@@ -124,87 +124,12 @@ void node::recv(const request_t &request, const qp_t &qp) {
 void node::join(const std::string &ip, const std::string &port) {
   // TODO: this should probably implemented in routing_table, since it is
   // overlay-specific.
-  kj::FixedArray<capnp::word, 7> buffer;
-  RDMAClientSocket s(ip, port);
-  s.connect();
-  auto mr = s.register_memory(ibv_access::MSG, buffer);
-  auto future = s.recv_async(buffer, mr.get());
-  s.send(overlay::join_request(this->ip, this->port));
-  future.get();
-
-  auto message = capnp::FlatArrayMessageReader(buffer);
-  auto reply = message.getRoot<protocol::DHTResponse>();
-
-  assert(reply.isJoin());
-
-  auto join = reply.getJoin();
-  auto start_ = join.getStart();
-  auto end_ = join.getEnd();
-  assert(start_.size() == sizeof(start));
-  assert(end_.size() == sizeof(end));
-  memcpy(&start, std::begin(start_), start_.size());
-  memcpy(&end, std::begin(end_), end_.size());
 #if 0
   notify_ulp();
 #endif
 }
 
 #if 0
-
-void node::init_routing_table(const hydra::overlay::chord& remote) {
-  (*routing_table_.first)([&](auto &table) {
-    table.successor().node = remote.successor_node(table.successor().start);
-
-    auto pred = remote.predecessor_node(table.successor().start);
-
-    table.predecessor().node = pred;
-
-    //table.successor().predecessor = me;
-    auto succ = table.successor().node;
-    hydra::passive successor_node(succ.ip, succ.port);
-    successor_node.send(predecessor_message(table.self().node));
-
-    std::transform(std::begin(table) + 1, std::end(table), std::begin(table),
-                   std::begin(table) + 1,
-                   [&](auto && elem, auto && prev)->hydra::routing_entry {
-      if (elem.start.in(table.self().node.id, prev.node.id - 1)) {
-        elem.node = prev.node;
-      } else {
-        // n'.find_successor(elem.interval.start);
-        //elem.node = successor(remote, elem.start).node;
-        auto succ = remote.successor_node(elem.start);
-        if (!table.self().node.id.in(elem.start, succ.id))
-          elem.node = succ;
-      }
-      return elem;
-    });
-    log_info() << table;
-  });
-}
-
-/* here my own routing table is up and running */
-void node::update_others() const {
-  const size_t max = std::numeric_limits<hydra::keyspace_t::value_type>::digits;
-  for (size_t i = 0; i < max; i++) {
-    keyspace_t id_ =
-        routing_table_.first->get().self().node.id -
-        keyspace_t(static_cast<hydra::keyspace_t::value_type>(1 << i) + 1);
-    auto re = routing_table_.first->get().preceding_node(id_);
-    hydra::overlay::chord node(re.node.ip, re.node.port);
-    auto p = node.predecessor_node(id_);
-    // send message to p
-    // send self().node and i+1
-    if (p.id != routing_table_.first->get().self().node.id) {
-      hydra::async([=]() {
-        RDMAClientSocket socket(p.ip, p.port);
-        socket.connect();
-        socket.send(update_message(routing_table_.first->get().self().node, i));
-      });
-    }
-    // p.update_finger_table(id, i + 1);
-  }
-}
-
 //called upon reception of update message
 void node::update_routing_table(const hydra::node_id &s, const size_t i) {
   (*routing_table_.first)([=](auto &table) {
