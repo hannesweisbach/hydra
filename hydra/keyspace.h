@@ -52,6 +52,17 @@ struct keyspace_t {
     return *this;
   }
 
+  keyspace_t &operator++() {
+    *this += keyspace_t(1);
+    return *this;
+  }
+
+  keyspace_t operator++(int) {
+    auto result = *this;
+    ++(*this);
+    return result;
+  }
+
   bool operator==(keyspace_t const &rhs) const noexcept {
     return value__ == rhs.value__;
   }
