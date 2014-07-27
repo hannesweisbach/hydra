@@ -95,6 +95,38 @@ passive &chord::successor(const keyspace_t &id) {
   return cache[0];
 }
 
+/* we have an identifier space of 2**k. chord says we need a routing table of
+ * size k. I additionally store my predecessor and myself in the table, thus
+ * size is k + 2:
+ * [0] is my predecessor
+ * [1] is myself
+ * [2] is my successor
+ * and so forth
+ * TODO: put predecessor in slot 128., so the layout of the array corresponds to
+ * chord.
+ */
+
+routing_table::routing_table(RDMAServerSocket &server, const std::string &ip,
+                             const std::string &port)
+    : hydra::overlay::routing_table(ip, port) {
+  const auto table_size = std::numeric_limits<keyspace_t::value_type>::digits;
+  static_assert(table_size > successor_index, "Keyspace is too small");
+
+  auto id = keyspace_t(static_cast<keyspace_t::value_type>(hash(local_host)));
+
+  table_.emplace_back(local_host, local_port, id);
+  table_.emplace_back(local_host, local_port, id);
+
+  keyspace_t k = 0_ID;
+  std::generate_n(std::back_inserter(table_), table_size,
+                  [&]() { return entry_t(local_host, local_port, id, k++); });
+
+  table_mr = server.register_memory(ibv_access::READ, table_);
+
+  for (const auto &e : table_)
+    std::cout << e.get() << std::endl;
+}
+
 kj::Array<capnp::word> routing_table::init() const {
   ::capnp::MallocMessageBuilder message;
   auto msg = message.initRoot<hydra::protocol::DHTResponse>();

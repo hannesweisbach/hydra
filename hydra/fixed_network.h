@@ -33,7 +33,8 @@ class routing_table : public hydra::overlay::routing_table {
               const keyspace_t &id, const size_t index) override;
 
 public:
-  routing_table(RDMAServerSocket &socket, uint16_t size);
+  routing_table(RDMAServerSocket &socket, const std::string &host,
+                const std::string &port, uint16_t size);
 };
 
 kj::Array<capnp::word>

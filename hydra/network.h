@@ -78,8 +78,12 @@ class routing_table {
   virtual void update(const std::string &host, const std::string &port,
                       const keyspace_t &id, const size_t index) = 0;
 
+protected:
+  const std::string local_host;
+  const std::string local_port;
+
 public:
-  routing_table() = default;
+  routing_table(const std::string &host, const std::string &port);
   routing_table(const routing_table &) = default;
   virtual ~routing_table() = default;
   routing_table& operator=(routing_table&& ) = default;

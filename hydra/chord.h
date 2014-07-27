@@ -5,25 +5,13 @@
 #include <vector>
 
 #include "rdma/RDMAClientSocket.h"
+#include "rdma/RDMAServerSocket.h"
 #include "hydra/network.h"
 
 namespace hydra {
 namespace overlay {
 namespace chord {
 
-/* we have an identifier space of 2**128.
- * chord says we need a routing table of size 128.
- * I additionally store my predecessor and myself in the table.
- * [0] is my predecessor
- * [1] is myself
- * [2] is my successor
- * and so forth
- * TODO: put predecessor in slot 128., so the layout of the array corresponds to
- * chord.
- */
-constexpr size_t routingtable_size =
-    std::numeric_limits<keyspace_t::value_type>::digits + 2;
-  
 //decltype(heap.malloc<LocalRDMAObj<routing_table>>()) routing_table_;
 #if 0
   /* call when joining the network - already running node ip */
@@ -31,14 +19,6 @@ constexpr size_t routingtable_size =
   void update_others() const;
   void update_routing_table(const hydra::node_id &e, const size_t i);
   void update_predecessor(const hydra::overlay::node_id &pred) const;
-
-  
-  (*routing_table_.first)([&](auto &table) {
-    new (&table) hydra::routing_table(ips.front(), port);
-    log_info() << table;
-  });
-
-  log_info() << "valid: " << routing_table_.first->valid();
 
 void hydra::passive::update_predecessor(const hydra::node_id &pred) const {
   // no reply.
@@ -60,27 +40,14 @@ struct routing_table : public hydra::overlay::routing_table {
 
   std::array<routing_entry, routingtable_size> table;
 
-  static_assert(routingtable_size > successor_index,
-                "Table is not large enough");
-
   auto begin() const { return &successor(); }
   auto begin() { return &successor(); }
   auto end() const { return table.end(); }
   auto end() { return table.end(); }
 
-  routing_table() = default;
-  routing_table(const std::string &ip, const std::string &port,
-                const keyspace_t &id) {
-    table[predecessor_index] = routing_entry(ip, port, id);
-    table[self_index] = routing_entry(ip, port, id);
-    keyspace_t::value_type k = 0;
-    for (auto &&entry : *this) {
-      entry = routing_entry(ip, port, id, keyspace_t(k++));
-    }
-  }
-  routing_table(const std::string &ip, const std::string &port)
-      : routing_table(ip, port, keyspace_t(static_cast<keyspace_t::value_type>(
-                                    hash(ip)))) {}
+public:
+  routing_table(RDMAServerSocket &root, const std::string &ip,
+                const std::string &port);
   const routing_entry preceding_node(const keyspace_t &id) const {
 #if 0
     log_info() << std::hex << "Checking (" << (unsigned)self().node.id << " "
