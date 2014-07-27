@@ -10,11 +10,23 @@
 namespace hydra {
 namespace overlay {
 namespace fixed {
-fixed::fixed(RDMAClientSocket &root, const uint64_t addr, const size_t size,
-             const uint32_t rkey) {
-  // check fixed layout
-  // read table
-  // init vector
+fixed::fixed(RDMAClientSocket &root, uint64_t addr, const uint32_t rkey,
+             const uint16_t entries) {
+  entry_t entry;
+  auto mr = root.register_memory(ibv_access::READ, entry);
+
+  std::generate_n(std::back_inserter(nodes), entries, [&]() {
+    hydra::rdma::load(root, entry, mr.get(), addr, rkey);
+    addr += sizeof(entry);
+
+    const auto &e = entry.get();
+    if (e.empty()) {
+      throw std::runtime_error("Empty entry in routing table would require "
+                               "dynamic join. But dynamic joining is not "
+                               "supported.");
+    }
+    return network::node(e.start, e.node.id, e.node.ip, e.node.port);
+  });
 }
 
 passive &fixed::successor(const keyspace_t &id) {
