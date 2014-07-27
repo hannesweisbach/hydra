@@ -14,8 +14,6 @@ namespace hydra {
 namespace overlay {
 namespace fixed {
 
-using entry_t = LocalRDMAObj<routing_entry>;
-
 class fixed : public network {
   std::vector<node> nodes;
   passive &successor(const keyspace_t &id) override;

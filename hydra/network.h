@@ -13,6 +13,9 @@
 namespace hydra {
 namespace overlay {
 using namespace hydra::literals;
+
+using entry_t = LocalRDMAObj<routing_entry>;
+
 class network {
 public:
   class node {
