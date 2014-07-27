@@ -19,7 +19,7 @@ class fixed : public network {
   passive &successor(const keyspace_t &id) override;
 
 public:
-  fixed(RDMAClientSocket &, const uint64_t, const size_t, const uint32_t);
+  fixed(RDMAClientSocket &, uint64_t, const uint32_t, const uint16_t);
 };
 
 class routing_table : public hydra::overlay::routing_table {

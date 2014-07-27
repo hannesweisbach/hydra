@@ -38,7 +38,9 @@ passive &fixed::successor(const keyspace_t &id) {
   return *result;
 }
 
-routing_table::routing_table(RDMAServerSocket &socket, uint16_t size) {
+routing_table::routing_table(RDMAServerSocket &socket, const std::string &host,
+                             const std::string &port, uint16_t size)
+    : hydra::overlay::routing_table(host, port) {
   if (size == 0)
     throw std::runtime_error("Routing table of size 0 is not supported.");
 

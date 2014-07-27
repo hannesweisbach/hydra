@@ -38,13 +38,12 @@ chord::chord(const std::string &host, const std::string &port)
 }
 
 chord::chord(const std::string &host, const std::string &port,
-           const uint64_t addr, const size_t size, const uint32_t rkey)
-    : RDMAClientSocket(host, port),
-      table(std::make_unique<RDMAObj<routing_table> >()),
-      local_table_mr(register_memory(ibv_access::MSG, *table)) {
+             const uint64_t addr, const uint32_t rkey, const uint16_t entries)
+    : RDMAClientSocket(host, port), local_table(entries),
+      local_table_mr(register_memory(ibv_access::MSG, local_table)) {
   table_mr.addr = addr;
-  table_mr.size = size;
   table_mr.rkey = rkey;
+  load_table();
 }
 
 chord::~chord() {}
