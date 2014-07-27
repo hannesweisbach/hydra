@@ -129,28 +129,6 @@ void node::join(const std::string &ip, const std::string &port) {
 #endif
 }
 
-#if 0
-//called upon reception of update message
-void node::update_routing_table(const hydra::node_id &s, const size_t i) {
-  (*routing_table_.first)([=](auto &table) {
-    if (s.id.in(table.self().node.id, table[i].node.id - 1)) {
-      table[i].node = s;
-      auto pred = table.predecessor().node;
-      if (pred.id != s.id) {
-        // send message to p
-        // p.update_finger_table(id, i + 1);
-        hydra::async([=]() {
-          RDMAClientSocket socket(pred.ip, pred.port);
-          socket.connect();
-          socket.send(update_message(s, i));
-        });
-      }
-      log_info() << table;
-    }
-  });
-}
-#endif
-
 void node::handle_add(const protocol::DHTRequest::Put::Inline::Reader &reader,
                       const qp_t &qp) {
   auto data = reader.getData();

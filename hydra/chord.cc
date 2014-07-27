@@ -48,57 +48,61 @@ chord::chord(const std::string &host, const std::string &port,
 
 chord::~chord() {}
 
-routing_table chord::load_table() const {
-  hydra::rdma::load(*this, *table, local_table_mr.get(), table_mr.addr,
-                    table_mr.rkey);
-  return (*table).get();
+std::vector<entry_t> chord::load_table() {
+  uint64_t addr = table_mr.addr;
+  for (auto &&entry : local_table) {
+    hydra::rdma::load(*this, entry, local_table_mr.get(), addr, table_mr.rkey);
+    addr += sizeof(entry_t);
+  }
+  return local_table;
 }
 
-routing_table chord::find_table(const keyspace_t &id) const {
+std::vector<entry_t> chord::find_table(const keyspace_t &id) {
   using namespace hydra::literals;
 
   auto table = load_table();
-  while (!id.in(table.self().node.id + 1_ID, table.successor().node.id)) {
-    auto re = table.preceding_node(id).node;
+  auto start = table[routing_table::self_index].get().node.id + 1_ID;
+  auto end = table[routing_table::successor_index].get().node.id;
+  
+  while (!id.in(start, end)) {
+    auto re = preceding_node(table, id).node;
     chord node(re.ip, re.port);
 
     table = node.load_table();
+    start = table[routing_table::self_index].get().node.id + 1_ID;
+    end = table[routing_table::successor_index].get().node.id;
   }
   return table;
 }
 
-node_id chord::predecessor_node(const keyspace_t &id) const {
-  return find_table(id).self().node;
+node_id chord::predecessor_node(const keyspace_t &id) {
+  return find_table(id)[routing_table::self_index].get().node;
 }
 
-node_id chord::successor_node(const keyspace_t &id) const {
-  return find_table(id).successor().node;
+node_id chord::successor_node(const keyspace_t &id) {
+  return find_table(id)[routing_table::successor_index].get().node;
 }
 
-node_id chord::self() const {
+node_id chord::self() {
   auto table = load_table();
-  return table.self().node;
+  return table[routing_table::self_index].get().node;
 }
 
 passive &chord::successor(const keyspace_t &id) {
   auto table = find_table(id);
-  auto start = table.predecessor().node.id + 1_ID;
-  auto end = table.self().node.id;
+  const auto &self = table[routing_table::self_index].get();
+  auto start = table[routing_table::predecessor_index].get().node.id + 1_ID;
+  auto end = self.node.id;
   if (cache.empty()) {
-    cache.emplace_back(start, end, table.self().node.ip,
-                       table.self().node.port);
+    cache.emplace_back(start, end, self.node.ip, self.node.port);
   } else {
-    cache[0] =
-        network::node(start, end, table.self().node.ip, table.self().node.port);
+    cache[0] = network::node(start, end, self.node.ip, self.node.port);
   }
   return cache[0];
 }
 
 static kj::Array<capnp::word> predecessor_message(const std::string &host,
                                                   const std::string &port);
-static kj::Array<capnp::word> update_message(const std::string &host,
-                                             const std::string &port,
-                                             const size_t &index);
 
 /* we have an identifier space of 2**k. chord says we need a routing table of
  * size k. I additionally store my predecessor and myself in the table, thus
@@ -152,7 +156,27 @@ kj::Array<capnp::word> routing_table::process_join(const std::string &host,
 }
 
 void routing_table::update(const std::string &host, const std::string &port,
-                           const keyspace_t &id, const size_t index) {}
+                           const keyspace_t &id, const size_t index) {
+  if (id.in(table[self_index].get().node.id,
+            table[index].get().node.id - 1_ID)) {
+    table[index]([&](auto &&entry) {
+      entry = routing_entry(host, port, id, entry.node.id);
+    });
+    auto pred = table[predecessor_index].get().node;
+    if (pred.id != id) {
+      // send message to p
+      // p.update_finger_table(id, i + 1);
+      hydra::async([=]()->void {
+        RDMAClientSocket socket(pred.ip, pred.port);
+        socket.connect();
+        socket.send(update_message(host, port, id, index));
+      });
+    }
+
+    for (const auto &e : table)
+      std::cout << e.get() << std::endl;
+  }
+}
 
 std::pair<keyspace_t, keyspace_t> routing_table::join(const std::string &host,
                                                       const std::string &port) {
@@ -211,7 +235,7 @@ std::pair<keyspace_t, keyspace_t> routing_table::join(const std::string &host,
       hydra::async([=]() {
         RDMAClientSocket socket(p.ip, p.port);
         socket.connect();
-        socket.send(update_message(local_host, local_port, i));
+        socket.send(update_message(local_host, local_port, self_id, i));
       });
     }
     // p.update_finger_table(id, i + 1);
@@ -228,20 +252,6 @@ kj::Array<capnp::word> predecessor_message(const std::string &host,
                .initOverlay()
                .initPredecessor()
                .initNode();
-  init_node(host, port, n);
-  return messageToFlatArray(response);
-}
-
-kj::Array<capnp::word> update_message(const std::string &host,
-                                      const std::string &port,
-                                      const size_t &index) {
-  ::capnp::MallocMessageBuilder response;
-
-  auto update = response.initRoot<hydra::protocol::DHTRequest>()
-                    .initOverlay()
-                    .initUpdate();
-  update.setIndex(index);
-  auto n = update.initNode();
   init_node(host, port, n);
   return messageToFlatArray(response);
 }

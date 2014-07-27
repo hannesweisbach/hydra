@@ -12,21 +12,6 @@ namespace hydra {
 namespace overlay {
 namespace chord {
 
-//decltype(heap.malloc<LocalRDMAObj<routing_table>>()) routing_table_;
-#if 0
-  /* call when joining the network - already running node ip */
-  void init_routing_table(const hydra::overlay::chord& remote);
-  void update_others() const;
-  void update_routing_table(const hydra::node_id &e, const size_t i);
-  void update_predecessor(const hydra::overlay::node_id &pred) const;
-
-void hydra::passive::update_predecessor(const hydra::node_id &pred) const {
-  // no reply.
-  send(predecessor_message(pred));
-}
-
-#endif
-
 class routing_table : public hydra::overlay::routing_table {
   kj::Array<capnp::word> init() const override;
   kj::Array<capnp::word> process_join(const std::string &host,
@@ -72,10 +57,6 @@ private:
 };
 
 std::ostream &operator<<(std::ostream &s, const routing_table &t);
-kj::Array<capnp::word> predecessor_message(const node_id &);
-kj::Array<capnp::word> update_message(const node_id &, const size_t &);
-kj::Array<capnp::word>
-chord_response(const rdma_ptr<LocalRDMAObj<routing_table> > &);
 
 }
 }
