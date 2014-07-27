@@ -113,16 +113,16 @@ routing_table::routing_table(RDMAServerSocket &server, const std::string &ip,
 
   auto id = keyspace_t(static_cast<keyspace_t::value_type>(hash(local_host)));
 
-  table_.emplace_back(local_host, local_port, id);
-  table_.emplace_back(local_host, local_port, id);
+  table.emplace_back(local_host, local_port, id);
+  table.emplace_back(local_host, local_port, id);
 
   keyspace_t k = 0_ID;
-  std::generate_n(std::back_inserter(table_), table_size,
+  std::generate_n(std::back_inserter(table), table_size,
                   [&]() { return entry_t(local_host, local_port, id, k++); });
 
-  table_mr = server.register_memory(ibv_access::READ, table_);
+  table_mr = server.register_memory(ibv_access::READ, table);
 
-  for (const auto &e : table_)
+  for (const auto &e : table)
     std::cout << e.get() << std::endl;
 }
 
@@ -132,12 +132,11 @@ kj::Array<capnp::word> routing_table::init() const {
 
   auto network = msg.initNetwork();
   network.setType(hydra::protocol::DHTResponse::NetworkType::CHORD);
+  network.setSize(static_cast<uint16_t>(table.size()));
   auto remote = network.initTable();
-#if 0
-  remote.setAddr(reinterpret_cast<uintptr_t>(table.first.get()));
-  remote.setSize(sizeof(LocalRDMAObj<routing_table>));
-  remote.setRkey(table.second->rkey);
-#endif
+  remote.setAddr(reinterpret_cast<uintptr_t>(table_mr->addr));
+  remote.setSize(table_mr->length);
+  remote.setRkey(table_mr->rkey);
   return messageToFlatArray(message);
 }
 
@@ -181,12 +180,14 @@ std::ostream &operator<<(std::ostream &s, const routing_table &t) {
   s << "routing_table " << t.table.size() << std::endl;
   {
     indent_guard guard(s);
-    s << indent << "pred: " << t.predecessor() << std::endl;
-    s << indent << "self: " << t.self() << std::endl;
+    s << indent << "pred: " << t.table[routing_table::predecessor_index].get()
+      << std::endl;
+    s << indent << "self: " << t.table[routing_table::self_index].get()
+      << std::endl;
     size_t i = 1;
-    for (auto &&e : t) {
-      s << indent << "[" << std::setw(3) << i++ << "] " << e
-        << " " << std::endl;
+    for (auto &&e : t.table) {
+      s << indent << "[" << std::setw(3) << i++ << "] " << e.get() << " "
+        << std::endl;
     }
   }
   return s;

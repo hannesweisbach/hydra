@@ -27,7 +27,7 @@ void hydra::passive::update_predecessor(const hydra::node_id &pred) const {
 
 #endif
 
-struct routing_table : public hydra::overlay::routing_table {
+class routing_table : public hydra::overlay::routing_table {
   kj::Array<capnp::word> init() const override;
   kj::Array<capnp::word> process_join(const std::string &host,
                                       const std::string &port) override;
@@ -36,62 +36,18 @@ struct routing_table : public hydra::overlay::routing_table {
   std::pair<keyspace_t, keyspace_t> join(const std::string &host,
                                          const std::string &port) override;
 
+  std::vector<entry_t> table;
+  mr_t table_mr;
+
+  friend std::ostream &operator<<(std::ostream &s, const routing_table &t);
+
+public:
   static const size_t predecessor_index = 0;
   static const size_t self_index = 1;
   static const size_t successor_index = 2;
 
-  std::array<routing_entry, routingtable_size> table;
-
-  auto begin() const { return &successor(); }
-  auto begin() { return &successor(); }
-  auto end() const { return table.end(); }
-  auto end() { return table.end(); }
-
-public:
   routing_table(RDMAServerSocket &root, const std::string &ip,
                 const std::string &port);
-  const routing_entry preceding_node(const keyspace_t &id) const {
-#if 0
-    log_info() << std::hex << "Checking (" << (unsigned)self().node.id << " "
-               << (unsigned)id << ") contains ";
-#endif
-    auto it =
-        std::find_if(table.rbegin(), table.rend() + 2, [=](const auto &node) {
-// return node.interval.contains(id);
-#if 0
-      log_info() << std::hex <<  "  " << (unsigned)node.node.id;
-#endif
-#if 1
-          // gcc fails to call this->self(), so call it explicitly
-          return node.node.id.in(this->self().node.id + 1_ID, id - 1_ID);
-#else
-          return interval(
-              { static_cast<keyspace_t>(), static_cast<keyspace_t>(id - 1) })
-              .contains(node.node.id);
-#endif
-        });
-    assert(it != table.rend() + 2);
-
-    return *it;
-  }
-
-  bool has_id(const keyspace_t &id) const {
-    return id.in(predecessor().node.id + 1_ID, self().node.id);
-  }
-
-  routing_entry &operator[](const size_t i) {
-    return table[i + successor_index];
-  }
-  const routing_entry &operator[](const size_t i) const {
-    return table[i + successor_index];
-  }
-
-  const routing_entry &predecessor() const { return table[predecessor_index]; }
-  routing_entry &predecessor() { return table[predecessor_index]; }
-  const routing_entry &self() const { return table[self_index]; }
-  routing_entry &self() { return table[self_index]; }
-  const routing_entry &successor() const { return table[successor_index]; }
-  routing_entry &successor() { return table[successor_index]; }
 };
 
 class chord : public virtual RDMAClientSocket, public network {
