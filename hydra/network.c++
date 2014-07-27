@@ -23,6 +23,9 @@ void init_node(const std::string &host, const std::string &port,
   port.copy(std::begin(port_), port.size());
 }
 
+routing_table::routing_table(const std::string &host, const std::string &port)
+    : local_host(host), local_port(port) {}
+
 kj::Array<capnp::word> routing_table::process_message(
     const hydra::protocol::DHTRequest::Overlay::Reader &overlay) {
   switch (overlay.which()) {
