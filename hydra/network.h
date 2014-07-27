@@ -89,9 +89,10 @@ public:
   routing_table& operator=(routing_table&& ) = default;
   routing_table &operator=(const routing_table &) = default;
 
+  virtual std::pair<keyspace_t, keyspace_t> join(const std::string &host,
+                                                 const std::string &port) = 0;
   kj::Array<capnp::word>
   process_message(const hydra::protocol::DHTRequest::Overlay::Reader &);
-  //virtual kj::Array<capnp::word> join(const node_id &);
 };
 
 std::ostream &operator<<(std::ostream &s, const node_id &id);

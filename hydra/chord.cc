@@ -149,6 +149,11 @@ kj::Array<capnp::word> routing_table::process_join(const std::string &host,
 void routing_table::update(const std::string &host, const std::string &port,
                            const keyspace_t &id, const size_t index) {}
 
+std::pair<keyspace_t, keyspace_t> routing_table::join(const std::string &host,
+                                                      const std::string &port) {
+  return { 0_ID, 0_ID };
+}
+
 #if 0
 kj::Array<capnp::word> predecessor_message(const node_id &node) {
   ::capnp::MallocMessageBuilder response;

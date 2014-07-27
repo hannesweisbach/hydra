@@ -33,6 +33,8 @@ struct routing_table : public hydra::overlay::routing_table {
                                       const std::string &port) override;
   void update(const std::string &host, const std::string &port,
               const keyspace_t &id, const size_t index) override;
+  std::pair<keyspace_t, keyspace_t> join(const std::string &host,
+                                         const std::string &port) override;
 
   static const size_t predecessor_index = 0;
   static const size_t self_index = 1;

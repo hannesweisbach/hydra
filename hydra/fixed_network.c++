@@ -131,6 +131,34 @@ void routing_table::update(const std::string &host, const std::string &port,
     throw std::runtime_error(ss.str());
   }
 }
+
+std::pair<keyspace_t, keyspace_t> routing_table::join(const std::string &host,
+                                                      const std::string &port) {
+  kj::FixedArray<capnp::word, 7> buffer;
+  RDMAClientSocket s(host, port);
+  s.connect();
+  auto mr = s.register_memory(ibv_access::MSG, buffer);
+  auto future = s.recv_async(buffer, mr.get());
+  s.send(join_request(local_host, local_port));
+
+  future.get();
+
+  auto message = capnp::FlatArrayMessageReader(buffer);
+  auto reply = message.getRoot<protocol::DHTResponse>();
+
+  assert(reply.isJoin());
+
+  auto join = reply.getJoin();
+  auto start_ = join.getStart();
+  auto end_ = join.getEnd();
+  keyspace_t start, end;
+  assert(start_.size() == sizeof(start));
+  assert(end_.size() == sizeof(end));
+  memcpy(&start, std::begin(start_), start_.size());
+  memcpy(&end, std::begin(end_), end_.size());
+
+  return { start, end };
+}
 }
 }
 }

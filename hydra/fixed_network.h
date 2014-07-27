@@ -31,6 +31,8 @@ class routing_table : public hydra::overlay::routing_table {
                                       const std::string &port) override;
   void update(const std::string &host, const std::string &port,
               const keyspace_t &id, const size_t index) override;
+  std::pair<keyspace_t, keyspace_t> join(const std::string &host,
+                                         const std::string &port) override;
 
 public:
   routing_table(RDMAServerSocket &socket, const std::string &host,
