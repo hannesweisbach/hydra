@@ -73,8 +73,8 @@ public:
 
 class routing_table {
   virtual kj::Array<capnp::word> init() const = 0;
-  virtual kj::Array<capnp::word> join(const std::string &host,
-                                      const std::string &port) = 0;
+  virtual kj::Array<capnp::word> process_join(const std::string &host,
+                                              const std::string &port) = 0;
   virtual void update(const std::string &host, const std::string &port,
                       const keyspace_t &id, const size_t index) = 0;
 

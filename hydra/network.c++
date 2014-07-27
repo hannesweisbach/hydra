@@ -33,7 +33,7 @@ kj::Array<capnp::word> routing_table::process_message(
     return init();
   case hydra::protocol::DHTRequest::Overlay::JOIN: {
     auto node = overlay.getJoin().getNode();
-    return join(node.getIp().cStr(), node.getPort().cStr());
+    return process_join(node.getIp().cStr(), node.getPort().cStr());
   }
   case hydra::protocol::DHTRequest::Overlay::UPDATE: {
     auto update_ = overlay.getUpdate();

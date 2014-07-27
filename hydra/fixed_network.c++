@@ -77,8 +77,8 @@ kj::Array<capnp::word> routing_table::init() const {
   return messageToFlatArray(message);
 }
 
-kj::Array<capnp::word> routing_table::join(const std::string &host,
-                                           const std::string &port) {
+kj::Array<capnp::word> routing_table::process_join(const std::string &host,
+                                                   const std::string &port) {
   auto result =
       std::find_if(std::begin(table), std::end(table),
                    [](const auto &entry) { return entry.get().empty(); });

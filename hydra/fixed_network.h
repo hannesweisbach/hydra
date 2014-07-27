@@ -27,8 +27,8 @@ class routing_table : public hydra::overlay::routing_table {
   mr_t table_mr;
 
   kj::Array<capnp::word> init() const override;
-  kj::Array<capnp::word> join(const std::string &host,
-                              const std::string &port) override;
+  kj::Array<capnp::word> process_join(const std::string &host,
+                                      const std::string &port) override;
   void update(const std::string &host, const std::string &port,
               const keyspace_t &id, const size_t index) override;
 
