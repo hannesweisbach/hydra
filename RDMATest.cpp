@@ -27,7 +27,7 @@ int main(int argc, char *const argv[]) {
 
   using conn_t = std::pair<std::vector<std::string>, std::string>;
 #if 1
-  conn_t host({"10.0.0.1"}, "8042");
+  conn_t host({}, "8042");
 #else
   conn_t host({"110.211.55.5"}, "8042");
 #endif
@@ -76,6 +76,9 @@ int main(int argc, char *const argv[]) {
       log_err() << "Unkown option code " << (char)c;
     }
   }
+
+  if (host.first.empty())
+    host.first.push_back("10.0.0.1");
 
   Logger::set_severity(verbosity);
   hydra::node node(host.first, host.second);
