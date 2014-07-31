@@ -71,6 +71,9 @@ public:
   virtual passive &successor(const keyspace_t &id) = 0;
 };
 
+std::unique_ptr<network> connect(const std::string &host,
+                                 const std::string &port);
+
 class routing_table {
   virtual kj::Array<capnp::word> init() const = 0;
   virtual kj::Array<capnp::word> process_join(const std::string &host,

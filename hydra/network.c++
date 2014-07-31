@@ -1,6 +1,10 @@
 #include <iomanip>
 
 #include "hydra/network.h"
+#include "hydra/fixed_network.h"
+#include "hydra/chord.h"
+
+#include "rdma/RDMAClientSocket.h"
 
 namespace hydra {
 namespace overlay {
@@ -98,7 +102,33 @@ kj::Array<capnp::word> network_request() {
   return messageToFlatArray(request);
 }
 
+std::unique_ptr<network> connect(const std::string &host,
+                                 const std::string &port) {
+  RDMAClientSocket node(host, port);
+  node.connect();
 
+  kj::FixedArray<capnp::word, 7> response;
+  auto response_mr = node.register_memory(ibv_access::MSG, response);
+
+  auto future = node.recv_async(response, response_mr.get());
+
+  node.send(overlay::network_request());
+  future.get();
+
+  auto message = capnp::FlatArrayMessageReader(response);
+  auto reader = message.getRoot<protocol::DHTResponse>();
+  assert(reader.which() == hydra::protocol::DHTResponse::NETWORK);
+  auto network_msg = reader.getNetwork();
+  auto t = network_msg.getTable();
+  switch (network_msg.getType()) {
+  case hydra::protocol::DHTResponse::NetworkType::FIXED:
+    return std::make_unique<hydra::overlay::fixed::fixed>(
+        node, t.getAddr(), t.getRkey(), network_msg.getSize());
+  case hydra::protocol::DHTResponse::NetworkType::CHORD:
+    return std::make_unique<hydra::overlay::chord::chord>(
+        host, port, t.getAddr(), t.getRkey(), network_msg.getSize());
+  }
+}
 }
 }
 
