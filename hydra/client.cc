@@ -1,43 +1,12 @@
 #include "hydra/client.h"
-#include "hydra/passive.h"
 #include "hydra/hash.h"
-
-#include "hydra/fixed_network.h"
-#include "hydra/chord.h"
 
 #include "util/Logger.h"
 
 #include "hydra/protocol/message.h"
 
-hydra::client::client(const std::string &ip, const std::string &port) {
-  RDMAClientSocket node(ip, port);
-  node.connect();
-
-  kj::FixedArray<capnp::word, 9> response;
-  auto response_mr = node.register_memory(ibv_access::MSG, response);
-
-  auto future = node.recv_async(response, response_mr.get());
-
-  //TODO put into factory.
-  node.send(overlay::network_request());
-  future.get();
-
-  auto message = capnp::FlatArrayMessageReader(response);
-  auto reader = message.getRoot<protocol::DHTResponse>();
-  assert(reader.which() == hydra::protocol::DHTResponse::NETWORK);
-  auto network_msg = reader.getNetwork();
-  auto t = network_msg.getTable();
-  switch (network_msg.getType()) {
-  case hydra::protocol::DHTResponse::NetworkType::FIXED:
-    network = std::make_unique<hydra::overlay::fixed::fixed>(
-        node, t.getAddr(), t.getRkey(), network_msg.getSize());
-    break;
-  case hydra::protocol::DHTResponse::NetworkType::CHORD:
-    network = std::make_unique<hydra::overlay::chord::chord>(
-        ip, port, t.getAddr(), t.getRkey(), network_msg.getSize());
-    break;
-  }
-}
+hydra::client::client(const std::string &ip, const std::string &port)
+    : network(overlay::connect(ip, port)) {}
 
 hydra::passive &
 hydra::client::responsible_node(const std::vector<unsigned char> &key) const {

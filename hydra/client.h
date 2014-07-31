@@ -1,9 +1,6 @@
 #pragma once
 
-#include <future>
 #include <memory>
-#include <functional>
-#include <utility>
 #include <vector>
 
 #include "hydra/network.h"
