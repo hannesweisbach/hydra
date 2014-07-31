@@ -72,7 +72,7 @@ kj::Array<capnp::word> routing_table::init() const {
   network.setSize(static_cast<uint16_t>(table.size()));
   auto remote = network.initTable();
   remote.setAddr(reinterpret_cast<uintptr_t>(table_mr->addr));
-  remote.setSize(table_mr->length);
+  remote.setSize(static_cast<uint32_t>(table_mr->length));
   remote.setRkey(table_mr->rkey);
   return messageToFlatArray(message);
 }
