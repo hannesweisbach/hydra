@@ -5,7 +5,8 @@
 #include "util/concurrent.h"
 
 namespace hydra {
-template <typename SuperHeap> class LockedHeap : public SuperHeap {
+template <typename SuperHeap> class LockedHeap {
+  SuperHeap superheap;
   spinlock lock;
 
 public:
@@ -15,10 +16,10 @@ public:
   using rdma_ptr = typename SuperHeap::template rdma_ptr<T>;
   template <typename... Args>
   LockedHeap(Args &&... args)
-      : SuperHeap(std::forward<Args>(args)...) {}
+      : superheap(std::forward<Args>(args)...) {}
   template <typename T> rdma_ptr<T> malloc(const size_t n_elems = 1) {
     std::unique_lock<spinlock> l(lock);
-    return SuperHeap::template malloc<T>(n_elems);
+    return superheap.template malloc<T>(n_elems);
   }
 };
 }
