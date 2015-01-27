@@ -23,9 +23,13 @@ std::ostream &hydra::operator<<(std::ostream &s, const hydra::hash_table_entry &
 }
 
 size_t hydra::hopscotch_server::next_size() const {
-  const size_t max_size =
-      std::numeric_limits<hydra::keyspace_t::value_type>::max() + hop_range;
-  assert(("Table cannot grow anymore.", table_size <= max_size));
+  constexpr size_t max_size =
+      std::numeric_limits<hydra::keyspace_t::value_type>::max();
+  if (max_size < table_size - hop_range) {
+    std::cout << "Table growing beyond maximum possible size: " << max_size
+              << " " << table_size << std::endl;
+    assert(("Table cannot grow anymore.", table_size <= max_size));
+  }
   const size_t proposed_next_size = server_dht::next_size();
   return std::min(max_size, proposed_next_size);
 }
