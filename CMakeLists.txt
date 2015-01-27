@@ -45,6 +45,7 @@ FIND_PACKAGE(Threads)
 find_library(LIBDISPATCH dispatch "/usr/local/")
 find_library(LIBCITYHASH cityhash "/usr/local")
 find_library(LIBCAPNP    capnp "/usr/local")
+find_library(LIBKJ       kj "/usr/local")
 
 #set(LIBDISPATCH "dispatch-NOTFOUND")
 if(${LIBDISPATCH} MATCHES "-NOTFOUND")
@@ -63,6 +64,12 @@ endif()
 if(${LIBCAPNP} MATCHES "NOTFOUND")
   message(FATAL_ERROR "libcapnp not found.")
 endif()
+
+if(${LIBKJ} MATCHES "NOTFOUND")
+  message(FATAL_ERROR "libkj not found.")
+endif()
+
+SET(LIBCAPNP "${LIBCAPNP};${LIBKJ}")
 
 include_directories(.)
 include_directories(util rdma hydra)
