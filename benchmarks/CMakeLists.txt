@@ -13,4 +13,7 @@ add_custom_command(TARGET hashbench POST_BUILD COMMAND objdump hashbench -hS > $
 add_executable(map_copy map_copy.cc)
 target_link_libraries(map_copy  ${COMMON_LIBS} hydra util)
 
+add_executable(locks locks.c++)
+target_link_libraries(locks util ${COMMON_LIBS})
+
 add_subdirectory(dht)
