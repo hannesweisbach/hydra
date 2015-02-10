@@ -1,2 +1,0 @@
-add_executable(dispatch_test test.cc)
-target_link_libraries(dispatch_test futuredispatch)

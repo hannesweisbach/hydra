@@ -20,5 +20,4 @@ add_executable(future_test future.c++)
 target_link_libraries(future_test gtest_main future)
 
 add_subdirectory(rdma)
-add_subdirectory(dispatch)
 #add_subdirectory(HashTable)
