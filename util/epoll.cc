@@ -26,7 +26,6 @@ int epoll::wait(epoll_event *events, int maxevents, int timeout) {
     int ret = ::epoll_wait(efd, events, maxevents, timeout);
     if (ret < 0) {
       if (errno == EINTR) {
-        log_debug() << "Interrupted.";
         continue;
       } else {
         throw_errno();
