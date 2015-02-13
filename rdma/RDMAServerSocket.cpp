@@ -66,6 +66,11 @@ RDMAServerSocket::RDMAServerSocket(std::vector<std::string> hosts,
   }
 
   cm_events();
+  if(id->verbs) {
+    ibv_device_attr attr;
+    check_zero(ibv_query_device(id->verbs, &attr));
+    log_info() << attr;
+  }
 }
 
 RDMAServerSocket::~RDMAServerSocket() {
