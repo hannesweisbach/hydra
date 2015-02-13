@@ -309,7 +309,8 @@ private:
   std::unique_ptr<concept> impl;
 };
 
-template <typename T> class shared_state {
+template <typename T>
+class shared_state /*: public std::enable_shared_from_this<shared_state<T> >*/ {
   using expected_type = boost::expected<T, std::exception_ptr>;
 
 public:
