@@ -32,8 +32,7 @@ RDMAServerSocket::RDMAServerSocket(std::vector<std::string> hosts,
                                    const std::string &port, uint32_t max_wr,
                                    int cq_entries)
     : ec(createEventChannel()), id(createCmId(hosts.back(), port, true)),
-      cc(id), cq(id, cc, cq_entries, 256, 0), running(true),
-      heap(52U, size2Class, *this) {
+      cc(id), cq(id, cc, cq_entries, 256, 0), running(true) {
   assert(max_wr);
 
   check_zero(rdma_migrate_id(id.get(), ec.get()));
