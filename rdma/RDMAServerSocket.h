@@ -36,10 +36,8 @@ private:
   completion_channel cc;
   completion_queue cq;
   WorkerThread eventThread;
-  std::future<void> accept_future;
   std::atomic_bool running;
   mutable monitor<std::unordered_map<qp_t, RDMAServerSocket::client_t> > clients;
-
 
   void accept(client_t id) const;
   void cm_events() const;
@@ -102,7 +100,7 @@ public:
   void disconnect(const qp_t qp_num) const;
   void listen(int backlog = 10);
   rdma_cm_id * find(const qp_t qp_num) const;
-  
+
   template <typename T>
   std::future<T *> recv_async(const T *local, const ibv_mr *mr,
                               size_t size = sizeof(T)) {
@@ -128,10 +126,9 @@ public:
   auto read(const qp_t &qp_num, T &local, const ibv_mr *mr,
             const uint64_t &remote, const uint32_t &rkey,
             const size_t size = sizeof(T)) {
-      return read_helper(find(qp_num), local, size, mr, remote, rkey,
-                         std::is_pointer<T>());
+    return read_helper(find(qp_num), local, size, mr, remote, rkey,
+                       std::is_pointer<T>());
   }
-
 
   template <typename T>
   mr_t register_memory(const ibv_access flags, const T &o) const {

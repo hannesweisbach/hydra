@@ -62,7 +62,6 @@ RDMAServerSocket::RDMAServerSocket(std::vector<std::string> hosts,
     ids.push_back(std::move(client_id));
 
     log_info() << srq_attr;
-    cq_entries_ = srq_attr.attr.max_wr;
   }
 
   cm_events();
