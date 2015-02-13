@@ -40,8 +40,12 @@ using qp_t = decltype(ibv_wc::qp_num);
 static_assert(std::is_same<qp_t, decltype(ibv_qp::qp_num)>::value,
               "QP number type must be the same in ibv_wc and ibv_qp");
 
+#if 1
 template <typename T>
 using pointer_t = std::unique_ptr<T, std::function<void(T *)> >;
+#else
+template <typename T> using pointer_t = std::shared_ptr<T>;
+#endif
 template <typename T> using rdma_ptr = std::pair<pointer_t<T>, ibv_mr *>;
 
 using ec_ptr = std::unique_ptr< ::rdma_event_channel,
