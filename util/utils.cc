@@ -11,16 +11,18 @@ spinlock::spinlock(const std::string &name) noexcept : name(name),
                                                        lock_(false) {}
 void spinlock::lock() const noexcept {
   locks++;
-  if (!lock_.test_and_set(std::memory_order_acquire))
+  if (!lock_.test_and_set(std::memory_order_acquire)) {
     return;
+  }
 
 #if YIELD
   for (size_t i = 0; i < 1024; i++) {
 #else
   for (;;) {
 #endif
-    if (!lock_.test_and_set(std::memory_order_acquire))
+    if (!lock_.test_and_set(std::memory_order_acquire)) {
       return;
+    }
     asm volatile("pause":::);
     spins++;
   }
