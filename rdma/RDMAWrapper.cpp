@@ -436,7 +436,7 @@ bool completion_queue::cq::poll() const {
     if (ret > 1024)
       log_debug() << __func__ << " " << ret;
 
-    std::for_each(std::begin(wcs), std::begin(wcs) + ret, [&](const auto &wc) {
+    std::for_each(std::begin(wcs), std::begin(wcs) + ret, [&flushing](const auto &wc) {
       if (wc.status == IBV_WC_WR_FLUSH_ERR) {
         flushing = true;
       }
