@@ -32,7 +32,7 @@ RDMAServerSocket::RDMAServerSocket(std::vector<std::string> hosts,
                                    const std::string &port, uint32_t max_wr,
                                    int cq_entries)
     : ec(createEventChannel()), id(createCmId(hosts.back(), port, true)),
-      cc(id), cq(id, cc, cq_entries, 256, 0), running(true) {
+      cc(id), cq(id, cc, cq_entries, 1, 0), running(true) {
   assert(max_wr);
 
   check_zero(rdma_migrate_id(id.get(), ec.get()));
@@ -45,10 +45,10 @@ RDMAServerSocket::RDMAServerSocket(std::vector<std::string> hosts,
 
   for (const auto &host : hosts) {
     ibv_qp_init_attr attr = {};
-    attr.cap.max_send_wr = 4;
-    attr.cap.max_recv_wr = 4;
+    attr.cap.max_send_wr = 256;
+    attr.cap.max_recv_wr = 0;
     attr.cap.max_send_sge = 1;
-    attr.cap.max_recv_sge = 1;
+    attr.cap.max_recv_sge = 0;
     attr.recv_cq = cq;
     attr.send_cq = cq;
     attr.srq = id->srq;
@@ -112,10 +112,10 @@ void RDMAServerSocket::listen(int backlog) {
 void RDMAServerSocket::accept(client_t client_id) const {
   ibv_qp_init_attr qp_attr = {};
   qp_attr.qp_type = IBV_QPT_RC;
-  qp_attr.cap.max_send_wr = 10;
-  qp_attr.cap.max_recv_wr = 10;
+  qp_attr.cap.max_send_wr = 256;
+  qp_attr.cap.max_recv_wr = 0;
   qp_attr.cap.max_send_sge = 1;
-  qp_attr.cap.max_recv_sge = 1;
+  qp_attr.cap.max_recv_sge = 0;
   qp_attr.cap.max_inline_data = 72;
   qp_attr.recv_cq = cq;
   qp_attr.send_cq = cq;

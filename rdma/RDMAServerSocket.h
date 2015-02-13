@@ -72,9 +72,9 @@ private:
 
 public:
   RDMAServerSocket(std::vector<std::string> hosts, const std::string &port,
-                   uint32_t max_wr = 32768, int cq_entries = 131071);
+                   uint32_t max_wr = 16383, int cq_entries = 131071);
   RDMAServerSocket(const std::string &host, const std::string &port,
-                   uint32_t max_wr = 10, int cq_entries = 10);
+                   uint32_t max_wr = 16383, int cq_entries = 131071);
   ~RDMAServerSocket();
   template <typename Functor> void operator()(Functor &&functor) const {
     return clients([=](const auto &clients) {
