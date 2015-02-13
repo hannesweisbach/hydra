@@ -10,7 +10,7 @@ add_executable(demangler demangler.cc)
 target_link_libraries(demangler demangle)
 
 add_library(future STATIC future.c++)
-target_link_libraries(future dispatch)
+target_link_libraries(future dispatch util)
 
 if(${HAVE_LIBDISPATCH})
   target_link_libraries(logger ${LIBDISPATCH} uint128)
