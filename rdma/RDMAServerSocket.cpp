@@ -79,7 +79,9 @@ RDMAServerSocket::~RDMAServerSocket() {
     rdma_disconnect(id.get());
   }
   rdma_disconnect(id.get());
-  rdma_destroy_srq(id.get());
+  // should cause an event to be fired, but doesn't.
+  // use epoll w/ timeouts instead
+  id.reset();
 }
 
 void RDMAServerSocket::disconnect(const qp_t qp_num) const {
