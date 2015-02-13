@@ -116,8 +116,6 @@ class completion_queue {
     std::unique_ptr<ibv_cq, cq_deleter> cq_;
 
     void notify() const;
-    void ack() const;
-    bool poll() const;
     operator ibv_cq *() const;
 
   public:
@@ -126,6 +124,8 @@ class completion_queue {
        const int completion_vector = 0);
     ~cq();
 
+    bool poll() const;
+    void ack() const;
     bool handle() const;
 
     friend class completion_queue;

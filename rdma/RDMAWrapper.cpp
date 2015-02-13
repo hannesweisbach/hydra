@@ -339,7 +339,24 @@ void completion_channel::stop() {
     poller.join();
 }
 
+#define BUSY_WAIT 1
+
 void completion_channel::loop(ibv_comp_channel *cc, std::atomic_bool *run) {
+#if BUSY_WAIT
+  void *user_context = nullptr;
+  struct ibv_cq *cq = nullptr;
+
+  check_zero(ibv_get_cq_event(cc, &cq, &user_context));
+  auto *ptr = reinterpret_cast<completion_queue::cq *>(user_context);
+
+  ptr->ack();
+
+  while (*run) {
+    if (ptr->poll())
+      return;
+  }
+
+#else
   epoll_event event;
   event.events = EPOLLIN;
   event.data.fd = cc->fd;
@@ -361,7 +378,10 @@ void completion_channel::loop(ibv_comp_channel *cc, std::atomic_bool *run) {
       }
     }
   }
+#endif
 }
+
+#undef BUSY_WAIT
 
 completion_queue::completion_queue(const rdma_id_ptr &id,
                                    const completion_channel &cc,
