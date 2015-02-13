@@ -12,7 +12,6 @@
 }
 
 [[noreturn]] inline void throw_errno(const std::string& where) {
-  log_error() << where << ": " << strerror(errno);
   throw std::runtime_error(where + ": " + strerror(errno));
 }
 
