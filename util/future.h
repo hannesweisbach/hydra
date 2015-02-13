@@ -139,6 +139,80 @@ private:
   std::shared_ptr<detail::shared_state<void> > state;
 };
 
+template <typename T> class future<future<T> > {
+  using expected_type = boost::expected<future<T>, std::exception_ptr>;
+
+public:
+  future();
+  future(future &&other);
+  future(const future &) = delete;
+  future &operator=(future &&) = default;
+  future &operator=(const future &) = delete;
+
+  void swap(future &rhs) {
+    using std::swap;
+    swap(state, rhs.state);
+  }
+
+  expected_type get() {
+    check_state();
+    auto tmp(state->get());
+    state.reset();
+    return tmp;
+  }
+
+  bool valid() const { return static_cast<bool>(state); }
+  void wait() const {
+    check_state();
+    state->wait();
+  }
+
+  template <typename Functor>
+  auto then(Functor &&f) -> future<decltype(f(std::declval<expected_type>()))> {
+    check_state();
+    auto tmp = state->set_continuation(std::forward<Functor>(f));
+    state.reset();
+    return tmp;
+  }
+
+  template <typename = std::enable_if<std::is_same<T, void>::value> >
+  future<T> unwrap() {
+    promise<T> promise;
+    auto future = promise.get_future();
+
+    then([promise = std::move(promise)](auto && inner_future) mutable {
+      try {
+        inner_future.value()
+            .then([promise = std::move(promise)](auto && value) mutable {
+               try {
+                 value.value();
+                 promise.set_value();
+               }
+               catch (...) {
+                 promise.set_exception(std::current_exception());
+               }
+             });
+      }
+      catch (...) {
+        promise.set_exception(std::current_exception());
+      }
+    });
+
+    return future;
+  }
+
+private:
+  void check_state() const {
+    if (!state) {
+      throw std::future_error(std::make_error_code(std::future_errc::no_state));
+    }
+  }
+  friend class promise<future<T> >;
+  future(std::shared_ptr<detail::shared_state<future<T> > > state_)
+      : state(state_) {}
+  std::shared_ptr<detail::shared_state<future<T> > > state;
+};
+
 namespace detail {
 
 template <typename Callable> void schedule_task(Callable &&c) {
