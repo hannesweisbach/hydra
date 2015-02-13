@@ -7,12 +7,11 @@
 #include <thread>
 #include <mutex>
 
-
 #include <iostream>
-
 
 #include <boost/expected/expected.hpp>
 #include <dispatch/dispatch.h>
+#include "util/concurrent.h"
 
 namespace hydra {
 
@@ -215,6 +214,13 @@ private:
 
 namespace detail {
 
+#if 0
+using lock_type = std::mutex;
+#else
+using lock_type = hydra::spinlock;
+#endif
+
+
 template <typename Callable> void schedule_task(Callable &&c) {
   using packaged_type = std::packaged_task<void(void)>;
   auto queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
@@ -373,7 +379,7 @@ private:
 
   expected_type data;
   std::atomic_bool satisfied;
-  std::mutex state_lock;
+  typename detail::lock_type state_lock;
   std::unique_ptr<continuation<T> > continuation_;
 };
 
@@ -412,7 +418,7 @@ private:
   void set_(expected_type value);
   expected_type data;
   std::atomic_bool satisfied;
-  std::mutex state_lock;
+  typename detail::lock_type state_lock;
   std::unique_ptr<continuation<void> > continuation_;
 };
 }
