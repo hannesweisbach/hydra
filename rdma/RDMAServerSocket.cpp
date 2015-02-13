@@ -14,6 +14,7 @@
 #include "RDMAWrapper.hpp"
 #include "util/Logger.h"
 #include "util/concurrent.h"
+#include "util/epoll.h"
 
 namespace hydra {
 mr_t register_memory(const RDMAServerSocket &socket, const ibv_access &flags,
@@ -136,34 +137,29 @@ void RDMAServerSocket::cm_events() const {
     hydra::util::epoll poll;
     epoll_event poll_event;
     poll_event.events = EPOLLIN;
-    poll_event.data.fd = id->channel->fd;
+    poll_event.data.fd = ec->fd;
 
-    poll.add(id->channel->fd, &poll_event);
+    poll.add(ec->fd, &poll_event);
 
-    while (running.load()) {
+    while (running) {
       rdma_cm_event *cm_event = nullptr;
 
-      if (id->event) {
-        rdma_ack_cm_event(id->event);
-        id->event = nullptr;
-      }
-
-      int ret = poll.wait(&poll_event, 1, -1);
+      int ret = poll.wait(&poll_event, 1, 2000);
       if (ret) {
-        if (poll_event.data.fd == id->channel->fd) {
-          check_zero(rdma_get_cm_event(id->channel, &cm_event));
+        if (poll_event.data.fd == ec->fd) {
+          check_zero(rdma_get_cm_event(ec.get(), &cm_event));
           check_zero(cm_event->status);
+          if (cm_event->event == RDMA_CM_EVENT_CONNECT_REQUEST) {
+            accept(client_t(cm_event->id));
+          } else if (cm_event->event == RDMA_CM_EVENT_DISCONNECTED) {
+            rdma_disconnect(cm_event->id);
+          }
+          check_zero(rdma_ack_cm_event(cm_event));
         } else {
           log_err() << "Unkown fd " << poll_event.data.fd << " set. Expected "
                     << id->channel->fd;
           std::terminate();
         }
-      }
-
-      if (cm_event->event == RDMA_CM_EVENT_CONNECT_REQUEST) {
-        accept(client_t(cm_event->id));
-      } else if (cm_event->event == RDMA_CM_EVENT_DISCONNECTED) {
-        rdma_disconnect(cm_event->id);
       }
     }
   });
