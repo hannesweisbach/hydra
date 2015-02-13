@@ -441,14 +441,13 @@ bool completion_queue::cq::poll() const {
         flushing = true;
       }
 
-      auto f =
-          reinterpret_cast<std::function<void(const ibv_wc &)> *>(wc.wr_id);
-      if (f) {
-        (*f)(wc);
-      }
+      if (wc.wr_id)
+        rdma_completion(wc);
 
-      if (wc.status != IBV_WC_SUCCESS)
+      if (wc.status != IBV_WC_SUCCESS) {
+        std::cout << "Abort. error: " << wc.status << std::endl;
         return;
+      }
 
       switch (wc.opcode) {
       case IBV_WC_SEND:
