@@ -243,7 +243,7 @@ public:
   void wait() {
     for (;;) {
       {
-        std::unique_lock<std::mutex> l(state_lock);
+        std::unique_lock<decltype(state_lock)> l(state_lock);
         if (satisfied)
           break;
       }
@@ -254,7 +254,7 @@ public:
   template <typename Functor,
             typename R = typename std::result_of<Functor(expected_type)>::type>
   auto set_continuation(Functor &&f) -> future<R> {
-    std::unique_lock<std::mutex> l(state_lock);
+    std::unique_lock<decltype(state_lock)> l(state_lock);
 
     promise<R> promise;
     auto future = promise.get_future();
@@ -270,7 +270,7 @@ public:
 
 private:
   void set_(expected_type value) {
-    std::unique_lock<std::mutex> l(state_lock);
+    std::unique_lock<decltype(state_lock)> l(state_lock);
     if (satisfied) {
       throw std::future_error(
           std::make_error_code(std::future_errc::promise_already_satisfied));
@@ -305,7 +305,7 @@ public:
             typename R = typename std::result_of<Functor(expected_type)>::type>
   auto set_continuation(Functor &&f)
       -> future<decltype(f(std::declval<expected_type>()))> {
-    std::unique_lock<std::mutex> l(state_lock);
+    std::unique_lock<decltype(state_lock)> l(state_lock);
 
     promise<R> promise;
     auto future = promise.get_future();

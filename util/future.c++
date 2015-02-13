@@ -12,7 +12,7 @@ void shared_state<void>::set() {
 }
 
 void shared_state<void>::set_(expected_type value) {
-  std::unique_lock<std::mutex> l(state_lock);
+  std::unique_lock<decltype(state_lock)> l(state_lock);
   if (satisfied) {
     throw std::future_error(
         std::make_error_code(std::future_errc::promise_already_satisfied));
@@ -32,7 +32,7 @@ shared_state<void>::expected_type shared_state<void>::get() {
 void shared_state<void>::wait() {
   for (;;) {
     {
-      std::unique_lock<std::mutex> l(state_lock);
+      std::unique_lock<decltype(state_lock)> l(state_lock);
       if (satisfied)
         break;
     }
