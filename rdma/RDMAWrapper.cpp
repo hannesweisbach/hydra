@@ -288,7 +288,6 @@ rdma_id_ptr createCmId(const std::string &host, const std::string &port,
                          );
     }
     catch (const std::exception &e) {
-      log_err() << e.what();
       exception = std::current_exception();
     }
   }
