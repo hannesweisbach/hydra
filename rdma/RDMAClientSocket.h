@@ -78,6 +78,11 @@ public:
     return rdma_recv_async(srq_id.get(), ptr, mr, size);
   }
 
+  template <typename T>
+  auto write(const rdma_ptr<T> &ptr, const uint64_t &remote,
+             const uint32_t &rkey, const size_t size = sizeof(T)) const {
+    return rdma_write_async(id, ptr, size, remote, rkey);
+  }
 
   template <typename T>
   mr_t register_memory(const ibv_access flags, const T &o) const {
