@@ -18,6 +18,7 @@
 #include "util/concurrent.h"
 #include "util/exception.h"
 #include "util/Logger.h"
+#include "util/future.h"
 
 std::ostream &operator<<(std::ostream &ostream, const enum ibv_wc_status& status);
 std::ostream &operator<<(std::ostream &ostream, const enum ibv_wc_opcode& opcode);
@@ -214,46 +215,34 @@ auto async_rdma_operation2(RDMAFunctor &&functor, T value)
   return promise->get_future();
 }
 
-template <typename RDMAFunctor>
-auto async_rdma_operation(RDMAFunctor &&functor)
-    -> std::future<qp_t> {
-  auto promise = std::make_shared<std::promise<qp_t> >();
-  std::function<void(const ibv_wc &)> *f =
-      new std::function<void(const ibv_wc &)>();
-  *f = [=](const ibv_wc &wc) {
-    try {
-      if (wc.status == IBV_WC_SUCCESS) {
-        promise->set_value(wc.qp_num);
-      } else {
-        log_info() << (enum ibv_wc_status)wc.status << " : " << wc.byte_len
-                   << " wr_id: " << reinterpret_cast<void *>(f) << " ("
-                   << reinterpret_cast<void *>(wc.wr_id) << ") "
-                   << " promise: " << reinterpret_cast<void *>(promise.get());
-        std::ostringstream s;
-        s << wc.opcode << " resulted in " << wc.status;
-        throw std::runtime_error(s.str());
-      }
-    }
-    catch (std::exception &) {
-      promise->set_exception(std::current_exception());
-    }
-    delete f;
-  };
+void rdma_completion(const ibv_wc&) noexcept;
 
-  //log_info() << "wr_id: " << reinterpret_cast<void *>(f)
-  //           << " promise: " << reinterpret_cast<void *>(promise.get());
-  check_zero(functor(reinterpret_cast<void*>(f)));
+template <typename RDMA_Callable>
+hydra::future<qp_t> async_rdma_operation(RDMA_Callable &&functor) {
+  auto promise = new hydra::promise<qp_t>();
+  auto future = promise->get_future();
 
-  return promise->get_future();
+  check_zero(functor(reinterpret_cast<void *>(promise)));
+
+  return future;
 }
 
 template <typename T>
-std::future<qp_t> rdma_recv_async(rdma_cm_id *id, const T *local,
-                                 const ibv_mr *mr, size_t size = sizeof(T)) {
-  auto func =
-      std::bind(rdma_post_recv, id, std::placeholders::_1,
-                const_cast<void *>(static_cast<const void *>(local)), size,
-                const_cast<ibv_mr *>(mr));
+auto rdma_write_async(const rdma_id_ptr &id, const rdma_ptr<T> &ptr,
+                      const size_t &size, const uint64_t &remote,
+                      const uint32_t &rkey) {
+  auto func = std::bind(rdma_post_write, id.get(), std::placeholders::_1,
+                        static_cast<void *>(ptr.first.get()), size, ptr.second,
+                        IBV_SEND_SIGNALED, remote, rkey);
+  return async_rdma_operation(func);
+}
+
+template <typename T>
+auto rdma_recv_async(rdma_cm_id *id, const T *local, const ibv_mr *mr,
+                     size_t size = sizeof(T)) {
+  auto func = std::bind(rdma_post_recv, id, std::placeholders::_1,
+                        const_cast<void *>(static_cast<const void *>(local)),
+                        size, const_cast<ibv_mr *>(mr));
   return async_rdma_operation(func);
 }
 
@@ -275,9 +264,8 @@ auto rdma_read_async(const rdma_id_ptr &id, const T &buffer, const size_t size,
 }
 
 template <typename T>
-std::future<qp_t> rdma_read_async__(rdma_cm_id *id, T *local, size_t size,
-                                    const ibv_mr *mr, uint64_t remote,
-                                    uint32_t rkey) {
+decltype(auto) rdma_read_async__(rdma_cm_id *id, T *local, size_t size, const ibv_mr *mr,
+                       uint64_t remote, uint32_t rkey) {
   auto functor =
       std::bind(rdma_post_read, id, std::placeholders::_1, local, size,
                 const_cast<ibv_mr *>(mr), IBV_SEND_SIGNALED, remote, rkey);

@@ -63,11 +63,9 @@ node::node(std::vector<std::string> ips, const std::string &port, uint32_t msg_b
 }
 
 void node::post_recv(const request_t &request) {
-  auto future = socket.recv_async(request, buffers_mr.get());
-  messageThread.send([ = , &request, future = std::move(future) ]() mutable {
-    auto qp = future.get();
+  socket.recv_async(request, buffers_mr.get()).then([=, &request](auto &&qp) {
     try {
-      recv(request, qp);
+      recv(request, qp.value());
     }
     catch (std::exception &e) {
       std::cout << e.what() << std::endl;
@@ -155,14 +153,21 @@ void node::handle_add(const protocol::DHTRequest::Put::Remote::Reader &reader,
 
   assert(key);
 
-  auto fut = socket(qp, [=, &kv_reader](rdma_cm_id *id) {
+  socket(qp, [=, &kv_reader](rdma_cm_id *id) {
     return rdma_read_async__(id, key, size, mr, kv_reader.getAddr(),
                              kv_reader.getRkey());
-  });
-  hydra::then(std::move(fut), [ =, mem = std::move(mem) ](auto s__) mutable {
-    s__.get();
-    auto success = handle_add(std::move(mem), size, key_size);
-    reply(qp, ack_message(success));
+  }).then([ =, mem = std::move(mem) ](auto && result) mutable {
+    if(!result) {
+      try {
+        result.value();
+      }
+      catch (const std::runtime_error &e) {
+        std::cout << "Exception: " << e.what() << std::endl;
+      }
+    } else {
+      auto success = handle_add(std::move(mem), size, key_size);
+      reply(qp, ack_message(success));
+    }
   });
 }
 
@@ -250,23 +255,20 @@ void node::handle_del(const protocol::DHTRequest::Del::Remote::Reader &reader,
   auto key = mem.first.get();
   auto local_mr = mem.second;
 
-  auto fut = socket(qp, [=, &mr](rdma_cm_id *id) {
+  socket(qp, [=, &mr](rdma_cm_id *id) {
     return rdma_read_async__(id, key, size, local_mr, mr.getAddr(),
                              mr.getRkey());
-  });
-  hydra::then(std::move(fut),
-              [ =, mem = std::move(mem) ](auto && future) mutable {
-    future.get();
-    auto ret = dht([ =, mem = std::move(mem) ](hopscotch_server & s) mutable {
-                                                server_dht::key_type key =
-                                                    std::make_pair(
-                                                        mem.first.get(), size);
-                                                s.check_consistency();
-                                                auto ret = s.remove(key);
-                                                s.check_consistency();
-                                                return ret;
-                                              });
-    reply(qp, ack_message(ret == hydra::SUCCESS));
+  }).then([ =, mem = std::move(mem) ](auto && result) mutable {
+    if (result) {
+      auto ret = dht([ =, mem = std::move(mem) ](hopscotch_server & s) mutable {
+        server_dht::key_type key = std::make_pair(mem.first.get(), size);
+        s.check_consistency();
+        auto ret = s.remove(key);
+        s.check_consistency();
+        return ret;
+      });
+      reply(qp, ack_message(ret == hydra::SUCCESS));
+    }
   });
 }
 
