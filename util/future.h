@@ -458,7 +458,9 @@ template <typename Functor>
 auto future<void>::then(Functor &&f)
     -> future<decltype(f(std::declval<future<void>::expected_type>()))> {
   check_state();
-  return state->set_continuation(std::forward<Functor>(f));
+  auto tmp = state->set_continuation(std::forward<Functor>(f));
+  state.reset();
+  return tmp;
 }
 
 template <typename T> void swap(future<T> &lhs, future<T> &rhs) {
