@@ -110,8 +110,11 @@ public:
   }
 
   template <typename T>
-  auto recv_async(const T &local, const ibv_mr *mr, size_t size = sizeof(T)) {
-    return recv_async_helper(id.get(), local, mr, size, std::is_pointer<T>());
+  auto recv_async(const T &local, const ibv_mr *mr) {
+    using namespace hydra::rdma;
+    const void * ptr = address_of(local);
+    const size_t size = size_of(local);
+    return rdma_recv_async(id.get(), ptr, mr, size);
   }
 
   template <typename T>
