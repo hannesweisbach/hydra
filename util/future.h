@@ -88,6 +88,13 @@ public:
   future();
   future(future &&other);
   future(const future &) = delete;
+  future &operator=(future &&) = default;
+  future &operator=(const future &) = delete;
+
+  void swap(future &rhs) {
+    using std::swap;
+    swap(state, rhs.state);
+  }
 
   expected_type get();
   bool valid() const;
@@ -110,6 +117,13 @@ public:
   future();
   future(future &&other);
   future(const future &) = delete;
+  future &operator=(future &&) = default;
+  future &operator=(const future &) = delete;
+
+  void swap(future &rhs) {
+    using std::swap;
+    swap(state, rhs.state);
+  }
 
   expected_type get();
   bool valid() const;
@@ -372,5 +386,10 @@ auto future<void>::then(Functor &&f)
   check_state();
   return state->set_continuation(std::forward<Functor>(f));
 }
+
+template <typename T> void swap(future<T> &lhs, future<T> &rhs) {
+  lhs.swap(rhs);
+}
+void inline swap(future<void> &lhs, future<void> &rhs) { lhs.swap(rhs); }
 }
 
