@@ -197,7 +197,7 @@ private:
 
   private:
     Callable c_;
-    promise<R> promise;
+    class promise<R> promise;
   };
 
   template <typename Callable>
@@ -229,7 +229,7 @@ private:
 
   private:
     Callable c_;
-    promise<void> promise;
+    class promise<void> promise;
   };
 
   std::unique_ptr<concept> impl;
