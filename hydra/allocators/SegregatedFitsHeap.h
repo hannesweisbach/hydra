@@ -134,22 +134,6 @@ public:
     log_info() << numBins << " " << maxSize;
   }
 
-  SegregatedFitsHeap(SegregatedFitsHeap &&other)
-      : SuperHeap(std::forward<SuperHeap>(other)), entries(other.entries),
-        binmap(std::move(other.binmap)),
-        size2Class(std::move(other.size2Class)), maxSize(other.maxSize),
-        binHeap(std::move(other.binHeap)) {}
-
-  SegregatedFitsHeap &operator=(SegregatedFitsHeap &&other) {
-    std::swap(entries, other.entries);
-    std::swap(binmap, other.binmap);
-    std::swap(size2Class, other.size2Class);
-    std::swap(maxSize, other.maxSize);
-    std::swap(binHeap, other.binHeap);
-
-    return *this;
-  }
-
   template <typename T>
   inline rdma_ptr<T> malloc(const size_t n_elems = 1) {
     const size_t size = n_elems * sizeof(T);
