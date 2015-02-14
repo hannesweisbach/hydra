@@ -14,8 +14,12 @@ namespace hydra {
 class server_dht {
 protected:
   typedef unsigned char value_type;
+#if 1
   typedef std::unique_ptr<value_type, std::function<void(value_type *)> >
   mem_type;
+#else
+  using mem_type = std::shared_ptr<value_type>;
+#endif
   typedef std::unique_ptr<ibv_mr, std::function<void(ibv_mr *)> > mr_type;
   typedef std::pair<mem_type, mr_type> resource_type;
 
