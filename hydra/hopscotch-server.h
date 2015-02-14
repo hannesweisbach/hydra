@@ -53,11 +53,20 @@ class hopscotch_server : public server_dht {
               const size_t old_distance, const size_t new_distance) {
       assert(other);
       assert(!*this);
+
+      /* copy and reset -- leaving the hop information intact.
+       * other might be the same as home.
+       */
       entry = other.entry;
+      other.entry([&](auto &&entry) { entry.empty(); });
+
+      /* update the hop information word */
       home.entry([&](auto &&entry) {
         entry.set_hop(new_distance);
         entry.clear_hop(old_distance);
       });
+
+      /* move resources */
       mem = std::move(other.mem);
     }
     operator bool() const noexcept {
