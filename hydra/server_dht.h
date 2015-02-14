@@ -21,7 +21,7 @@ protected:
 
   LocalRDMAObj<hash_table_entry> *table = nullptr;
   size_t table_size = 0;
-  size_t used = 0;
+  size_t used_ = 0;
   const double growth_factor;
 
   bool index_valid(size_t index) const { return index < table_size; }
@@ -43,10 +43,11 @@ public:
                       size_t size) = 0;
 
   size_t size() const { return table_size; }
+  size_t used() const { return used_; }
   virtual size_t next_size() const {
     return (size_t)(table_size * growth_factor);
   }
-  double load_factor() const { return double(used) / table_size; }
+  double load_factor() const { return double(used_) / table_size; }
 };
 }
 

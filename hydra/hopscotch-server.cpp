@@ -121,7 +121,7 @@ hydra::Return_t hydra::hopscotch_server::add(
     size_t distance = (next - index + table_size) % table_size;
     if (distance < hop_range) {
       add(e, next, index);
-      used++;
+      used_++;
       shadow_table[next].unlock();
       return SUCCESS;
     }
@@ -162,7 +162,7 @@ hydra::Return_t hydra::hopscotch_server::remove(const key_type &key) {
   const size_t distance = (kv - home + table_size) % table_size;
   shadow_table[kv].empty(shadow_table[home], distance);
   shadow_table[kv].unlock();
-  used--;
+  used_--;
 
   return SUCCESS;
 }
@@ -181,7 +181,7 @@ void hydra::hopscotch_server::resize(LocalRDMAObj<hash_table_entry> *new_table,
   }
 
   std::swap(shadow_table, tmp_shadow_table);
-  used = 0;
+  used_ = 0;
 
   for (auto &&entry : tmp_shadow_table) {
     if (entry) {
