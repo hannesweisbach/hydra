@@ -80,6 +80,8 @@ public:
        uint32_t msg_buffers = 5);
   void join(const std::string& ip, const std::string& port);
   double load() const;
+  size_t size() const;
+  size_t used() const;
   void dump() const;
 };
 

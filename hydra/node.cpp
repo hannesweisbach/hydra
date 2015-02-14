@@ -302,6 +302,22 @@ double node::load() const {
 #endif
 }
 
+size_t node::size() const {
+#if PER_ENTRY_LOCKS
+  return dht.size();
+#else
+  return dht([](const hopscotch_server &s) { return s.size(); });
+#endif
+}
+
+size_t node::used() const {
+#if PER_ENTRY_LOCKS
+  return dht.used();
+#else
+  return dht([](const hopscotch_server &s) { return s.used(); });
+#endif
+}
+
 void node::dump() const {
 #if PER_ENTRY_LOCKS
 #else
