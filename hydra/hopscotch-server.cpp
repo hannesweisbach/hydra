@@ -6,10 +6,11 @@
 #include "Logger.h"
 #include "hopscotch-server.h"
 
-std::ostream &hydra::operator<<(std::ostream &s, const hydra::hash_table_entry &e) {
-  s << std::hex << std::setfill('0') << std::setw(2) << (uint32_t)e.hop << std::dec
-    << " ";
-  s << (void*)e.key() << " (";
+std::ostream &hydra::operator<<(std::ostream &s,
+                                const hydra::hash_table_entry &e) {
+  s << std::hex << std::setfill('0') << std::setw(2) << (uint32_t)e.hop
+    << std::dec << " ";
+  s << (void *)e.key() << " (";
   if (e.key() != nullptr)
     s.write(reinterpret_cast<const char *>(e.key()),
             (std::streamsize)std::min(e.key_length(), static_cast<size_t>(16)));
@@ -34,7 +35,8 @@ size_t hydra::hopscotch_server::next_size() const {
   return std::min(max_size, proposed_next_size);
 }
 
-size_t hydra::hopscotch_server::home_of(const hydra::server_dht::key_type &key) const {
+size_t
+hydra::hopscotch_server::home_of(const hydra::server_dht::key_type &key) const {
   __uint128_t h = hash(key.first, key.second);
   return (h % table_size);
 }
@@ -94,7 +96,7 @@ void hydra::hopscotch_server::move(size_t from, size_t to) {
 
 size_t hydra::hopscotch_server::move_into(size_t to) {
   size_t movable = next_movable(to);
-  if(!index_valid(movable)) {
+  if (!index_valid(movable)) {
     shadow_table[to].unlock();
     return movable;
   }
@@ -155,7 +157,7 @@ size_t hydra::hopscotch_server::contains(const key_type &key) {
 
 hydra::Return_t hydra::hopscotch_server::remove(const key_type &key) {
   const size_t kv = contains(key);
-  if(kv == invalid_index())
+  if (kv == invalid_index())
     return NOTFOUND;
 
   const size_t home = home_of(key);
@@ -191,7 +193,6 @@ void hydra::hopscotch_server::resize(LocalRDMAObj<hash_table_entry> *new_table,
     }
   }
 }
-
 
 void hydra::hopscotch_server::dump() const { dump(0, table_size); }
 void hydra::hopscotch_server::dump(const size_t &from, const size_t &to) const {
