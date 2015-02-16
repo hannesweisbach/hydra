@@ -48,7 +48,7 @@ routing_table::routing_table(RDMAServerSocket &socket, const std::string &host,
   auto id = 0_ID;
   auto generator = [&]() mutable {
     assert(size);
-    auto partition = keys / keyspace_t(size);
+    auto partition = (keys / keyspace_t(size)) + 1_ID;
     keys -= partition;
     size--;
     auto id_ = id;
