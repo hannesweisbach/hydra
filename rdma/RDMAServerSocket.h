@@ -5,6 +5,7 @@
 #include <atomic>
 #include <vector>
 #include <memory>
+#include <unordered_map>
 
 #include "RDMAWrapper.hpp"
 #include "util/WorkerThread.h"
