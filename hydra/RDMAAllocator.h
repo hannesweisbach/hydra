@@ -1,81 +1,17 @@
 #pragma once
 
-#include <vector>
 #include <memory>
 #include <functional>
 
-#include <rdma/rdma_verbs.h>
-#include "Logger.h"
-
-#if 0
-#include <gperftools/malloc_extension.h>
-#include <gperftools/tcmalloc.h>
-#include <tcmalloc_guard.h>
-
-
-/* This is RDMA-TCMalloc glue */
-class RDMAAllocator : public SysAllocator {
-
-  struct rdma_allocator_concept {
-    virtual ~rdma_allocator_concept() = default;
-    virtual void *allocateMapMemory(size_t size, size_t alignment) const = 0;
-    virtual void mapMemory() const = 0;
-  };
-
-  template <typename T> struct rdma_allocator_model : rdma_allocator_concept {
-    T &data_;
-    rdma_allocator_model(T &data) : data_(data) {}
-    void *allocateMapMemory(size_t size, size_t alignment) const override {
-      return ::allocateMapMemory(data_, size, alignment);
-    }
-    void mapMemory() const override {
-      // return ::mapMemory(data_);
-    }
-  };
-  std::shared_ptr<const rdma_allocator_concept> self_;
-
-public:
-  template <typename T>
-  RDMAAllocator(T &rdma_instance)
-      : self_(new rdma_allocator_model<T>(rdma_instance)) {
-    MallocExtension::instance()->SetSystemAllocator(this);
-  }
-  ~RDMAAllocator() override{};
-
-  // Allocates "size"-byte of memory from system aligned with "alignment".
-  // Returns NULL if failed. Otherwise, the returned pointer p up to and
-  // including (p + actual_size -1) have been allocated.
-  // TODO: dealloc?
-  virtual void *Alloc(size_t size, size_t *actual_size,
-                      size_t alignment) override {
-    *actual_size = size;
-    log_info() << "Allocated " << size << " bytes";
-    return self_->allocateMapMemory(size, alignment);
-    // return (void*)mrs.back()->addr;
-  }
-};
-
-extern RDMAAllocator *rdma_alloc;
-SysAllocator *tc_get_sysalloc_override(SysAllocator *def);
-#endif
-
-#include <unordered_map>
-
 #include <sys/mman.h>
-#include "util/exception.h"
-#include "util/concurrent.h"
+#include <rdma/rdma_verbs.h>
 
+#include "util/utils.h"
 #include "allocators/config.h"
 
 #include "rdma/RDMAWrapper.hpp"
 
-namespace hydra {
-class node;
-}
-extern hydra::node *allocation_node;
-
-template <ibv_access access = ibv_access::READ>
-class RdmaHeap {
+template <ibv_access access = ibv_access::READ> class RdmaHeap {
 public:
   enum {
     Alignment = 4096,
@@ -91,40 +27,15 @@ public:
     static_assert(is_power_of_two<Alignment>::value,
                   "Alignment must be power of two");
   }
+
   /* Maybe do something like:
    * template <typename T>
    * alloc_type malloc(size_t size, const T& registrar) {...}
    * but then, the registrar has to be dragged to all heap layers...
    */
-  template <typename T>
-  rdma_ptr<T> malloc(size_t size = sizeof(T)) 
-  {
-// size = (size + CPUInfo::PageSize - 1) & ~(CPUInfo::PageSize - 1);
-#if 0
-    auto ptr = memory_type([=]() {
-                             void *ptr =
-                                 mmap(nullptr, size, PROT_READ | PROT_WRITE,
-                                      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-                             if (ptr == MAP_FAILED)
-                               throw std::bad_alloc();
-
-                             return ptr;
-                           }(),
-                           std::bind(::munmap, std::placeholders::_1, size));
-    switch (access) {
-    case hydra::rdma::REMOTE_READ:
-      return alloc_type(
-          std::move(ptr),
-          std::move(mr_type(self_->register_remote_read(ptr.get(), size))));
-    case hydra::rdma::LOCAL_READ:
-      return alloc_type(
-          std::move(ptr),
-          std::move(mr_type(self_->register_local_read(ptr.get(), size))));
-    }
-#else
-    T *ptr = reinterpret_cast<T *>(
-        mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS,
-             -1, 0));
+  template <typename T> rdma_ptr<T> malloc(size_t size = sizeof(T)) {
+    T *ptr = reinterpret_cast<T *>(mmap(nullptr, size, PROT_READ | PROT_WRITE,
+                                        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0));
     if (ptr == MAP_FAILED)
       throw std::bad_alloc();
     try {
@@ -144,35 +55,18 @@ public:
       mr.release();
       return ret;
     }
-    catch (std::exception &) {
+    catch (const std::exception &e) {
       ::munmap(ptr, size);
+      std::cerr << "foo " << e.what() << std::endl;
       throw;
     }
-#endif
-#if 0
-  assert(reinterpret_cast<size_t>(ptr) % Alignment == 0);
-#endif
   }
-#if 0
-  ibv_mr *getMr(void *ptr) const {
-    void *p = reinterpret_cast<void *>(reinterpret_cast<uintptr_t>(ptr) &
-                                       ~(Alignment - 1));
-    return metadata_map([=](map_type &map) {
-                          const auto it = map.find(p);
-                          if (it == map.end()) {
-                            std::ostringstream s("Invalid getMr on pointer ");
-                            s << ptr;
-                            throw std::runtime_error(s.str());
-                          }
-                          return it->second.second.get();
-                        }).get();
-  }
-#endif
+
 private:
   struct rdma_allocator_concept {
     virtual ~rdma_allocator_concept() = default;
     virtual mr_t register_memory(const ibv_access &flags, void *ptr,
-                                   size_t size) const = 0;
+                                 size_t size) const = 0;
   };
 
   template <typename T> struct rdma_allocator_model : rdma_allocator_concept {
