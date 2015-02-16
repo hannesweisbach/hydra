@@ -3,6 +3,7 @@
 #include <chrono>
 
 #include "rdma/RDMAServerSocket.h"
+#include "hydra/allocators/allocators.h"
 
 #define ALLOC_ONLY 1
 
@@ -41,6 +42,8 @@ void bench_map(RDMAServerSocket &socket, size_t measurements, size_t max_size, s
 }
 
 void bench_small_alloc(RDMAServerSocket &socket, size_t measurements, size_t max_size, size_t step = 8) {
+  default_heap_t heap(48U, default_size_classes, socket);
+
   for (size_t size = step; size < max_size; size += step) {
     size_t min = std::numeric_limits<size_t>::max();
     size_t max = std::numeric_limits<size_t>::min();
@@ -51,11 +54,11 @@ void bench_small_alloc(RDMAServerSocket &socket, size_t measurements, size_t max
       auto start = std::chrono::high_resolution_clock::now();
 
 #if ALLOC_ONLY
-      auto mem = socket.malloc<char>(size);
+      auto mem = heap.malloc<char>(size);
       memcpy(mem.first.get(), ptr, size);
 #else
       {
-        auto mem = socket.malloc<char>(size);
+        auto mem = heap.malloc<char>(size);
         memcpy(mem.first.get(), ptr, size);
       }
 #endif
