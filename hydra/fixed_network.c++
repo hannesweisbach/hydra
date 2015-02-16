@@ -130,6 +130,8 @@ void routing_table::update(const std::string &host, const std::string &port,
        << " in table of size " << table.size();
     throw std::runtime_error(ss.str());
   }
+  for (const auto &e : table)
+    std::cout << e.get() << std::endl;
 }
 
 std::pair<keyspace_t, keyspace_t> routing_table::join(const std::string &host,
