@@ -137,7 +137,41 @@ std::pair<keyspace_t, keyspace_t> routing_table::join(const std::string &host,
   kj::FixedArray<capnp::word, 7> buffer;
   RDMAClientSocket s(host, port);
   s.connect();
+
   auto mr = s.register_memory(ibv_access::MSG, buffer);
+
+  {
+    auto future = s.recv_async(buffer, mr.get());
+
+    s.send(overlay::network_request());
+    future.get();
+
+    auto message = capnp::FlatArrayMessageReader(buffer);
+    auto reader = message.getRoot<protocol::DHTResponse>();
+    assert(reader.which() == hydra::protocol::DHTResponse::NETWORK);
+    auto network_msg = reader.getNetwork();
+    auto t = network_msg.getTable();
+
+    if (network_msg.getType() !=
+        hydra::protocol::DHTResponse::NetworkType::FIXED)
+      throw std::runtime_error("wrong network type.");
+
+    if (network_msg.getSize() != table.size()) {
+      std::ostringstream ss;
+      ss << "Different table sizes (" << table.size() << " local, "
+         << network_msg.getSize() << " remote).";
+      throw std::runtime_error(ss.str());
+    }
+
+    uint64_t addr = t.getAddr();
+    const auto rkey = t.getRkey();
+
+    for (auto &&entry : table) {
+      hydra::rdma::load(s, entry, table_mr.get(), addr, rkey);
+      addr += sizeof(entry);
+    };
+  }
+
   auto future = s.recv_async(buffer, mr.get());
   s.send(join_request(local_host, local_port));
 
