@@ -7,6 +7,7 @@
 
 #include "node.h"
 #include "hydra/chord.h"
+#include "hydra/fixed_network.h"
 
 #include "util/concurrent.h"
 #include "util/Logger.h"
@@ -35,6 +36,8 @@ node::node(std::vector<std::string> ips, const std::string &port, uint32_t msg_b
       request_buffers(msg_buffers),
       buffers_mr(socket.register_memory(
           ibv_access::REMOTE_READ | ibv_access::LOCAL_WRITE, request_buffers)),
+      routing_table(std::make_unique<hydra::overlay::fixed::routing_table>(
+          socket, ips[0], port, 1)),
       ip(ips[0]), port(port) {
 #if 1
   for (int msg_index = 0; msg_index < msg_buffers; msg_index++) {
@@ -122,6 +125,11 @@ void node::recv(const request_t &request, const qp_t &qp) {
 void node::join(const std::string &ip, const std::string &port) {
   // TODO: this should probably implemented in routing_table, since it is
   // overlay-specific.
+  auto keyspace = routing_table->join(ip, port);
+  start = keyspace.first;
+  end = keyspace.second;
+
+  std::cout << "Responsible for [" << start << ", " << end << ")" << std::endl;
 #if 0
   notify_ulp();
 #endif
