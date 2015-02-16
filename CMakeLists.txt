@@ -11,6 +11,8 @@ enable_testing(true)
 execute_process(COMMAND getconf LEVEL1_DCACHE_LINESIZE OUTPUT_VARIABLE LEVEL1_DCACHE_LINESIZE OUTPUT_STRIP_TRAILING_WHITESPACE)
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS LEVEL1_DCACHE_LINESIZE=${LEVEL1_DCACHE_LINESIZE})
 
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Weverything -Wno-c++98-compat -Wno-c++98-compat-pedantic")
@@ -27,8 +29,6 @@ else()
   message(ERROR "Unsupported compiler.")
 endif()
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y")
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -pthread")
 
 #TODO: llok for librdmacm, libibverbs ...
 FIND_PACKAGE(Threads)
