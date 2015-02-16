@@ -7,7 +7,7 @@
 namespace hydra {
 
 struct keyspace_t {
-  using value_type = uint16_t;
+  using value_type = uint64_t;
 
   static_assert(std::numeric_limits<value_type>::digits,
                 "You have to implement std::numeric_limits<keyspace_t>.");
