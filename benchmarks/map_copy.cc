@@ -75,8 +75,7 @@ void bench_small_alloc(RDMAServerSocket &socket, size_t measurements, size_t max
 
 int main() {
   RDMAServerSocket socket("10.1", "8042");
-  //bench_map(socket, 1000, 16 * 1024 * 1024, 1024);
-  //
+
   //bench_map(socket, 10000, 64 * 1024, 1024);
   bench_small_alloc(socket, 10000, 64 * 1024, 1024);
 }
