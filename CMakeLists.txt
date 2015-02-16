@@ -39,6 +39,7 @@ endif()
 FIND_PACKAGE(Threads)
 find_library(LIBDISPATCH dispatch "/usr/local/")
 find_library(LIBCITYHASH cityhash "/usr/local")
+find_library(LIBTCMALLOC tcmalloc)
 find_library(LIBCAPNP    capnp "/usr/local")
 find_library(LIBKJ       kj "/usr/local")
 
