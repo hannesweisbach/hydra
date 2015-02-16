@@ -67,6 +67,17 @@ endif()
 
 SET(LIBCAPNP "${LIBCAPNP};${LIBKJ}")
 
+if(${PROFILER})
+  message(STATUS "Profiler enabled")
+  find_library(LIBPROFILER profiler /usr/local)
+  if(${LIBPROFILER} MATCHES "NOTFOUND")
+    message(FATAL_ERROR "libprofiler not found.")
+  endif()
+  LIST(APPEND COMMON_LIBS ${LIBPROFILER})
+  add_definitions(-DPROFILER)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+endif()
+
 include_directories(.)
 include_directories(util rdma hydra)
 include_directories("/usr/local/include")
@@ -87,12 +98,7 @@ LIST(APPEND CLIENT_SOURCES RDMAClient.cpp ${COMMON_SOURCES})
 add_subdirectory(benchmarks)
 
 add_executable(serversocket RDMATest.cpp)
-target_link_libraries(serversocket logger hydra util ${COMMON_LIBS})
-set(PROFILER ON)
-if(${PROFILER})
-  target_link_libraries(serversocket profiler)
-  add_definitions(-DPROFILER)
-endif()
+target_link_libraries(serversocket logger hydra util ${COMMON_LIBS} ${LIBTCMALLOC_LIBS})
 add_test(RDMAServerSocket serversocket)
 add_custom_command(TARGET serversocket POST_BUILD
     COMMAND sudo setcap cap_sys_resource+ep serversocket
