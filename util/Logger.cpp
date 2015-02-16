@@ -41,7 +41,7 @@ Logger::~Logger() {
     s << std::endl;
     auto task = [](std::string &&s) { Logger::underlying_stream << s; };
 #ifdef HAVE_LIBDISPATCH
-    hydra::async(priv.log_queue, task, s.str()).wait();
+    hydra::async(priv.log_queue, task, s.str());
 #else
     priv.t.send(task, s.str());
 #endif
