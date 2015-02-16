@@ -1,11 +1,12 @@
 #pragma once
 
+#include "RDMAAllocator.h"
+
 #include "allocators/PerThreadAllocator.h"
 #include "allocators/ZoneHeap.h"
 #include "allocators/ThreadSafeHeap.h"
 #include "allocators/FreeListHeap.h"
 #include "allocators/SegregatedFitsHeap.h"
-#include "RDMAAllocator.h"
 
 #include "util/utils.h"
 
