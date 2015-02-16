@@ -3,6 +3,7 @@
 #include "Logger.h"
 
 Logger::Logger_data Logger::priv;
+std::ostream& Logger::underlying_stream = std::cerr;
 
 std::ostream &operator<<(std::ostream &ostream,
                          const Logger::severity_level& severity) {
@@ -38,7 +39,7 @@ Logger::Logger(const severity_level &level, const std::string &func,
 Logger::~Logger() {
   if (entry_severity >= severity) {
     s << std::endl;
-    auto task = [](std::string &&s) { std::cerr << s; };
+    auto task = [](std::string &&s) { Logger::underlying_stream << s; };
 #ifdef HAVE_LIBDISPATCH
     hydra::async(priv.log_queue, task, s.str()).wait();
 #else
