@@ -70,6 +70,7 @@ public:
   }
 
   static void set_severity(int severity);
+  static std::ostream& underlying_stream;
 
 private:
 #ifdef HAVE_LIBDISPATCH
