@@ -85,8 +85,8 @@ private:
   };
 #endif
   static struct Logger_data priv;
-
   static severity_level severity;
+
   std::ostringstream s;
   severity_level entry_severity;
 };
