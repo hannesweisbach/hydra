@@ -9,7 +9,7 @@
 #include "RDMAAllocator.h"
 
 #ifdef PROFILER
-#include <google/profiler.h>
+#include <gperftools/profiler.h>
 #endif
 
 #if 0
