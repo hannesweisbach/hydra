@@ -9,8 +9,13 @@
 #include "hydra/server_dht.h"
 #include "hydra/hopscotch-server.h"
 
+#define SPIN_LOCK 1
+
 #if PER_ENTRY_LOCKS
 using hash_table_t = hydra::hopscotch_server;
+#elif SPIN_LOCK
+#include "util/concurrent.h"
+using hash_table_t = monitor<hydra::hopscotch_server, hydra::spinlock>;
 #else
 using hash_table_t = monitor<hydra::hopscotch_server>;
 #endif
