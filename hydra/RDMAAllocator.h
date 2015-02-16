@@ -146,7 +146,7 @@ public:
     }
     catch (std::exception &) {
       ::munmap(ptr, size);
-      throw std::current_exception;
+      throw;
     }
 #endif
 #if 0
