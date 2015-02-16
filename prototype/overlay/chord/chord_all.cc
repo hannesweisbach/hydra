@@ -9,6 +9,8 @@
 #include "hydra/types.h"
 #include "util/Logger.h"
 
+using namespace hydra::literals;
+
 static std::map<hydra::keyspace_t, hydra::routing_table> network;
 
 bool node_exists(const hydra::keyspace_t &id) {
@@ -47,7 +49,7 @@ hydra::routing_entry predecessor(const hydra::routing_table &table,
                                  const hydra::keyspace_t &id) {
   hydra::routing_entry node = table.self();
   hydra::routing_table t = table;
-  while (!id.in(t.self().node.id + 1, t.successor().node.id)) {
+  while (!id.in(t.self().node.id + 1_ID, t.successor().node.id)) {
     auto preceding_node = t.preceding_node(id);
     t = network[preceding_node.node.id];
     node = t.self();
@@ -111,7 +113,7 @@ void init_table(hydra::routing_table &n, const hydra::routing_table &n_) {
   std::transform(std::begin(t) + 1, std::end(t), std::begin(t),
                  std::begin(t) + 1,
                  [&](auto && elem, auto && prev)->hydra::routing_entry {
-    if (elem.start.in(id, prev.node.id - 1)) {
+    if (elem.start.in(id, prev.node.id - 1_ID)) {
 #if 0
       log_info() << elem.start << "  in [" << id << ", "
                  << prev.node.id << ")";
@@ -156,7 +158,7 @@ void update_table(hydra::routing_table &table, const hydra::routing_entry &s,
                   size_t &i) {
   indent_guard guard(Logger::underlying_stream);
 
-  if (s.node.id.in(table.self().node.id, table[i].node.id - 1)) {
+  if (s.node.id.in(table.self().node.id, table[i].node.id - 1_ID)) {
 #if 0
     log_info() << indent << s.node.id << "  in [" << table.self().node.id
                << ", " << table[i].node.id << ") " << i;
@@ -187,7 +189,7 @@ void update_others(const hydra::routing_table &table) {
   for (size_t k = 0;
        k < std::numeric_limits<hydra::keyspace_t::value_type>::digits; k++) {
     hydra::keyspace_t key =
-        table.self().node.id - static_cast<hydra::keyspace_t>((1 << k) - 1);
+        table.self().node.id - static_cast<hydra::keyspace_t>((1 << k) - 1_ID);
 
     auto pred = predecessor(table, key);
 #if 0
@@ -301,7 +303,7 @@ int main() {
       for (size_t third = 0; third < max; third++) {
         if (first == second || first == third || second == third)
           continue;
-        test(first, second, third);
+        test(hydra::keyspace_t(first), hydra::keyspace_t(second), hydra::keyspace_t(third));
         network.clear();
       }
 #else

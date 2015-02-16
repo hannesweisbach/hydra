@@ -9,6 +9,8 @@
 #include "hydra/types.h"
 #include "util/Logger.h"
 
+using namespace hydra::literals;
+
 static std::map<hydra::keyspace_t, hydra::routing_table> network;
 
 bool node_exists(const hydra::keyspace_t &id) {
@@ -47,7 +49,7 @@ hydra::routing_entry predecessor(const hydra::routing_table &table,
                                  const hydra::keyspace_t &id) {
   hydra::routing_entry node = table.self();
   hydra::routing_table t = table;
-  while (!id.in(t.self().node.id + 1, t.successor().node.id)) {
+  while (!id.in(t.self().node.id + 1_ID, t.successor().node.id)) {
     auto preceding_node = t.preceding_node(id);
     t = network[preceding_node.node.id];
     node = t.self();
@@ -111,7 +113,7 @@ void init_table(hydra::routing_table &n, const hydra::routing_table &n_) {
   std::transform(std::begin(t) + 1, std::end(t), std::begin(t),
                  std::begin(t) + 1,
                  [&](auto && elem, auto && prev)->hydra::routing_entry {
-    if (elem.start.in(id, prev.node.id - 1)) {
+    if (elem.start.in(id, prev.node.id - 1_ID)) {
 #if 1
       log_info() << elem.start << "  in [" << id << ", "
                  << prev.node.id << ")";
@@ -145,7 +147,7 @@ void update_table(hydra::routing_table &table, const hydra::routing_entry &s,
                   size_t &i) {
   indent_guard guard(Logger::underlying_stream);
 
-  if (s.node.id.in(table.self().node.id, table[i].node.id - 1)) {
+  if (s.node.id.in(table.self().node.id, table[i].node.id - 1_ID)) {
 #if 1
     log_info() << indent << s.node.id << "  in [" << table.self().node.id
                << ", " << table[i].node.id << ") " << i;
@@ -248,7 +250,7 @@ int main() {
   const std::string port("8042");
   const std::string seed_node = "10.1";
 
-  network.emplace(hydra::hash(seed_node),
+  network.emplace(hydra::keyspace_t(hydra::hash(seed_node)),
                   hydra::routing_table(seed_node, port));
 
   for (auto &&node : network)
@@ -261,7 +263,7 @@ int main() {
 #else
     s << i;
 #endif
-    if (node_exists(hydra::hash(s.str()))) {
+    if (node_exists(hydra::keyspace_t(hydra::hash(s.str())))) {
       log_info() << "colliding ID with " << s.str() << " and "
                  << hydra::hex(hydra::hash(s.str()));
       continue;
@@ -272,7 +274,7 @@ int main() {
     hydra::routing_table new_table(s.str(), port);
     auto key = new_table.self().node.id;
 
-    init_table(new_table, network[hydra::hash(seed_node)]);
+    init_table(new_table, network[hydra::keyspace_t(hydra::hash(seed_node))]);
 
     update_others(new_table);
 
