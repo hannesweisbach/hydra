@@ -7,18 +7,8 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 add_subdirectory(gtest-1.7.0)
 include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
 
-if(${BUILD_SHARED_LIBS})
-  message(STATUS "Shared linking enabled")
-  #  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIE -fPIC")
-  #set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} -fPIE -fPIC")
-else()
-  message(STATUS "Static linking enabled")
-  #  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--eh-frame-hdr ")
-endif()
-
 enable_testing(true)
 execute_process(COMMAND getconf LEVEL1_DCACHE_LINESIZE OUTPUT_VARIABLE LEVEL1_DCACHE_LINESIZE OUTPUT_STRIP_TRAILING_WHITESPACE)
-set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS NDEBUG)
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS LEVEL1_DCACHE_LINESIZE=${LEVEL1_DCACHE_LINESIZE})
 
 
