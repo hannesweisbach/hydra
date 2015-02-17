@@ -220,7 +220,7 @@ using lock_type = std::mutex;
 using lock_type = hydra::spinlock;
 #endif
 
-
+#if 0
 template <typename Callable> void schedule_task(Callable &&c) {
   using packaged_type = std::packaged_task<void(void)>;
   auto queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
@@ -231,6 +231,9 @@ template <typename Callable> void schedule_task(Callable &&c) {
     delete packaged_task;
   });
 }
+#else
+template <typename Callable> void schedule_task(Callable &&c) { c(); }
+#endif
 
 template <typename T> class continuation {
 public:
@@ -258,7 +261,6 @@ private:
 
     virtual void
     dispatch(boost::expected<T, std::exception_ptr> value) override {
-#if 0
       schedule_task([
         c = std::move(c_),
         promise = std::move(promise),
@@ -274,19 +276,6 @@ private:
             }
           }
         });
-#else
-
-      try {
-        promise.set_value(c_(std::move(value)));
-      }
-      catch (...) {
-        try {
-          promise.set_exception(std::current_exception());
-        }
-        catch (...) {
-        }
-      }
-#endif
     }
 
   private:
