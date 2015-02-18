@@ -9,6 +9,9 @@
 #include "hydra/chord.h"
 #include "hydra/fixed_network.h"
 
+#include "hydra/hopscotch-server.h"
+#include "hydra/cuckoo-server.h"
+
 #include "util/concurrent.h"
 #include "util/Logger.h"
 
@@ -31,7 +34,8 @@ node::node(std::vector<std::string> ips, const std::string &port, uint32_t msg_b
       local_heap(socket), 
       table_ptr(
           heap.malloc<LocalRDMAObj<hash_table_entry> >(initial_table_size)),
-      dht(table_ptr.first.get(), 32U, initial_table_size),
+      dht(std::make_unique<hopscotch_server>(table_ptr.first.get(), 32U,
+                                             initial_table_size)),
       info(heap.malloc<LocalRDMAObj<node_info> >()),
       request_buffers(msg_buffers),
       buffers_mr(socket.register_memory(
@@ -187,28 +191,27 @@ bool node::handle_add(rdma_ptr<unsigned char> kv, const size_t size,
     return false;
   }
 #if PER_ENTRY_LOCKS
-  hopscotch_server &hs = dht;
+  server_dht &hs = *dht;
 #else
-  return dht(
-      [ =, kv = std::move(kv) ](hopscotch_server & hs) mutable {
+  return dht([ =, kv = std::move(kv) ](std::unique_ptr<server_dht> & hs) mutable {
 #endif
 
   auto e =
       std::make_tuple(std::move(kv.first), size, key_size, kv.second->rkey);
 
-  // hs.check_consistency();
-  auto ret = hs.add(e);
-  // hs.check_consistency();
+  //hs->check_consistency();
+  auto ret = hs->add(e);
+  //hs->check_consistency();
   if (ret == hydra::NEED_RESIZE) {
-    hs.dump();
+    //hs->dump();
     std::cout << "key: " << std::get<0>(e).get();
     info([&](auto &rdma_obj) {
-      size_t new_size = hs.next_size();
+      size_t new_size = hs->next_size();
       log_info() << "Allocating " << new_size
                  << " entries: " << new_size * sizeof(hash_table_entry);
       auto new_table = heap.malloc<LocalRDMAObj<hash_table_entry> >(new_size);
-      hs.resize(new_table.first.get(), new_size);
-      hs.check_consistency();
+      hs->resize(new_table.first.get(), new_size);
+      hs->check_consistency();
       (*rdma_obj.first)([&](auto &info) {
         info.table_size = new_size;
         info.key_extents = *new_table.second;
@@ -216,8 +219,8 @@ bool node::handle_add(rdma_ptr<unsigned char> kv, const size_t size,
       std::swap(table_ptr, new_table);
     });
     std::terminate();
-    ret = hs.add(e);
-    hs.check_consistency();
+    ret = hs->add(e);
+    hs->check_consistency();
     assert(ret != hydra::NEED_RESIZE);
     return ret == hydra::SUCCESS;
 #if 0
@@ -238,17 +241,15 @@ void node::handle_del(const protocol::DHTRequest::Del::Inline::Reader &reader,
   
   memcpy(key, data.begin(), reader.getSize());
 
-  auto ret =
-      dht([ =, &reader, mem = std::move(mem) ](hopscotch_server & s) mutable {
-                                                server_dht::key_type key =
-                                                    std::make_pair(
-                                                        mem.first.get(),
-                                                        reader.getSize());
-                                                s.check_consistency();
-                                                auto ret = s.remove(key);
-                                                s.check_consistency();
-                                                return ret;
-                                              });
+  auto ret = dht([ =, &reader, mem = std::move(mem) ]
+      (std::unique_ptr<server_dht> & s) mutable {
+            server_dht::key_type key =
+                std::make_pair(mem.first.get(), reader.getSize());
+            s->check_consistency();
+            auto ret = s->remove(key);
+            s->check_consistency();
+            return ret;
+  });
   reply(qp, ack_message(ret == hydra::SUCCESS));
 }
 
@@ -268,11 +269,12 @@ void node::handle_del(const protocol::DHTRequest::Del::Remote::Reader &reader,
                              mr.getRkey());
   }).then([ =, mem = std::move(mem) ](auto && result) mutable {
     if (result) {
-      auto ret = dht([ =, mem = std::move(mem) ](hopscotch_server & s) mutable {
+      auto ret = dht([ =, mem = std::move(mem) ]
+          (std::unique_ptr<server_dht> & s) mutable {
         server_dht::key_type key = std::make_pair(mem.first.get(), size);
-        s.check_consistency();
-        auto ret = s.remove(key);
-        s.check_consistency();
+        s->check_consistency();
+        auto ret = s->remove(key);
+        s->check_consistency();
         return ret;
       });
       reply(qp, ack_message(ret == hydra::SUCCESS));
@@ -304,32 +306,32 @@ void node::reply(const qp_t &qp,
 
 double node::load() const {
 #if PER_ENTRY_LOCKS
-  return dht.load_factor();
+  return dht->load_factor();
 #else
-  return dht([](const hopscotch_server &s) { return s.load_factor(); });
+  return dht([](const auto &s) { return s->load_factor(); });
 #endif
 }
 
 size_t node::size() const {
 #if PER_ENTRY_LOCKS
-  return dht.size();
+  return dht->size();
 #else
-  return dht([](const hopscotch_server &s) { return s.size(); });
+  return dht([](const auto &s) { return s->size(); });
 #endif
 }
 
 size_t node::used() const {
 #if PER_ENTRY_LOCKS
-  return dht.used();
+  return dht->used();
 #else
-  return dht([](const hopscotch_server &s) { return s.used(); });
+  return dht([](const auto &s) { return s->used(); });
 #endif
 }
 
 void node::dump() const {
 #if PER_ENTRY_LOCKS
 #else
-  dht([](const auto &s) { s.dump(); });
+  dht([](const auto &s) { s->dump(); });
 #endif
 }
 }

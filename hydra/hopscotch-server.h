@@ -3,8 +3,6 @@
 #include "server_dht.h"
 #include "util/Logger.h"
 
-#define PER_ENTRY_LOCKS 0
-
 namespace hydra {
 
 class hopscotch_server : public server_dht {
@@ -179,8 +177,8 @@ public:
   size_t contains(const key_type &key) override;
   size_t next_size() const override;
   void dump(const size_t &, const size_t &) const;
-  void dump() const;
-  void check_consistency() const;
+  void dump() const override;
+  void check_consistency() const override;
 };
 }
 

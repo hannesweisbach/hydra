@@ -10,6 +10,8 @@
 #include "types.h"
 #include "util/concurrent.h"
 
+#define PER_ENTRY_LOCKS 0
+
 namespace hydra {
 class server_dht {
 protected:
@@ -45,6 +47,9 @@ public:
   virtual size_t contains(const key_type &key) = 0;
   virtual void resize(LocalRDMAObj<hash_table_entry> *new_table,
                       size_t size) = 0;
+
+  virtual void check_consistency() const = 0;
+  virtual void dump() const = 0;
 
   size_t size() const { return table_size; }
   size_t used() const { return used_; }

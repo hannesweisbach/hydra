@@ -11,7 +11,7 @@
 #include "rdma/RDMAWrapper.hpp"
 #include "rdma/RDMAServerSocket.h"
 #include "rdma/RDMAClientSocket.h"
-#include "hydra/hopscotch-server.h"
+#include "hydra/server_dht.h"
 #include "hydra/types.h"
 #include "hydra/chord.h"
 #include "protocol/message.h"
@@ -38,9 +38,9 @@ class node {
   mutable ThreadSafeHeap<ZoneHeap<RdmaHeap<ibv_access::MSG>, 256> > local_heap;
   decltype(heap.malloc<LocalRDMAObj<hash_table_entry> >()) table_ptr;
 #if PER_ENTRY_LOCKS
-  hopscotch_server dht;
+  std::unique_ptr<server_dht> dht;
 #else
-  monitor<hopscotch_server> dht;
+  monitor<std::unique_ptr<server_dht>> dht;
 #endif
 
   using request_t = kj::FixedArray<capnp::word, 9>;
