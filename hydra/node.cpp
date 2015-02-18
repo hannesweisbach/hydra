@@ -52,9 +52,13 @@ node::node(std::vector<std::string> ips, const std::string &port,
 #endif
 
   info([&](auto &rdma_obj) {
-         (*rdma_obj.first)([&](auto &info) {
-           info.table_size = 8;
-           info.key_extents = *table_ptr.second;
+    (*rdma_obj.first)([&](auto &info) {
+#if PER_ENTRY_LOCKS
+      info.table_size = dht->size();
+#else
+      info.table_size = dht([](auto &table) { return table->size(); });
+#endif
+      info.key_extents = *table_ptr.second;
       info.id = keyspace_t(
           hash((ips.front() + port).c_str(), ips.front().size() + port.size()));
 
