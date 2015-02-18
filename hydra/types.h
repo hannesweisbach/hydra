@@ -90,7 +90,13 @@ struct hash_table_entry {
   void set_hop(size_t i) { hop |= (1 << i); }
   void clear_hop(size_t i) { hop &= ~(1 << i); }
   const unsigned char *key() const { return ptr.get(); }
-  const unsigned char *value() const { return ptr.get() + key_size; }
+  const unsigned char *value() const {
+    if (ptr.get() == nullptr) {
+      return nullptr;
+    } else {
+      return ptr.get() + key_size;
+    }
+  }
   size_t key_length() const { return key_size; }
   size_t value_length() const { return ptr.size - key_size; }
 };
