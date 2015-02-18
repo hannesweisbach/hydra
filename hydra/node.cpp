@@ -29,13 +29,13 @@ auto size2Class = [](size_t size) -> size_t {
            hydra::util::static_log2<4096>::value;
 };
 
-node::node(std::vector<std::string> ips, const std::string &port, uint32_t msg_buffers)
+node::node(std::vector<std::string> ips, const std::string &port,
+           size_t initial_size, uint32_t msg_buffers)
     : socket(ips, port, msg_buffers), heap(48U, size2Class, socket),
       local_heap(socket), 
-      table_ptr(
-          heap.malloc<LocalRDMAObj<hash_table_entry> >(initial_table_size)),
+      table_ptr(heap.malloc<LocalRDMAObj<hash_table_entry> >(initial_size)),
       dht(std::make_unique<hopscotch_server>(table_ptr.first.get(), 32U,
-                                             initial_table_size)),
+                                             initial_size)),
       info(heap.malloc<LocalRDMAObj<node_info> >()),
       request_buffers(msg_buffers),
       buffers_mr(socket.register_memory(
