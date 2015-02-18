@@ -62,11 +62,11 @@ node::node(std::vector<std::string> ips, const std::string &port,
       info.id = keyspace_t(
           hash((ips.front() + port).c_str(), ips.front().size() + port.size()));
 
-           log_info() << "key extents mr " << info.key_extents;
-           log_info() << "table extents" << info.routing_table;
-         });
-         log_trace() << "node_info mr = " << rdma_obj.second;
-       }).get();
+      log_info() << "key extents mr " << info.key_extents;
+      log_info() << "table extents" << info.routing_table;
+    });
+    log_trace() << "node_info mr = " << rdma_obj.second;
+  });
 
   socket.listen();
   //socket.accept();
