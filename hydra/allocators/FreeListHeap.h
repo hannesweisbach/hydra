@@ -54,9 +54,7 @@ public:
   template <typename... Args, typename = std::enable_if<
                                   !std::is_same<FreeListHeap, Args...>::value> >
   FreeListHeap(Args &&... args)
-      : SuperHeap(std::forward<Args>(args)...),
-        freelist(std::make_shared<freelist_t>()),
-        freelist_lock(std::make_shared<spinlock>()) {}
+      : SuperHeap(std::forward<Args>(args)...) {}
 
 #if 1
   template <typename T> inline rdma_ptr<T> malloc(const size_t n_elems = 1) {
@@ -64,11 +62,11 @@ public:
     char *p = nullptr;
     ibv_mr *mr = nullptr;
     {
-      std::unique_lock<spinlock> l(*freelist_lock);
-      if (!freelist->empty()) {
-        p = freelist->back().first;
-        mr = freelist->back().second;
-        freelist->pop_back();
+      std::unique_lock<decltype(freelist_lock)> l(freelist_lock);
+      if (!freelist.empty()) {
+        p = freelist.back().first;
+        mr = freelist.back().second;
+        freelist.pop_back();
       }
     }
     if (p == nullptr) {
@@ -130,16 +128,16 @@ private:
 
   template <typename T> rdma_ptr<T> make_pointer(char *p, ibv_mr *mr) {
     return rdma_ptr<T>(pointer_t<T>(reinterpret_cast<T *>(p), [=](T *p) {
-                         std::unique_lock<spinlock> l(*freelist_lock);
-                         freelist->emplace_back(reinterpret_cast<char *>(p),
+                         std::unique_lock<decltype(freelist_lock)> l(freelist_lock);
+                         freelist.emplace_back(reinterpret_cast<char *>(p),
                                                 mr);
                        }),
                        mr);
   }
 
   std::vector<rdma_ptr<char> > allocs;
-  std::shared_ptr<freelist_t> freelist;
-  std::shared_ptr<spinlock> freelist_lock;
+  freelist_t freelist;
+  spinlock freelist_lock;
 
 };
 }
