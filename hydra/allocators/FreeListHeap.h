@@ -127,7 +127,7 @@ private:
   using freelist_t = std::vector<std::pair<char *, ibv_mr *> >;
 
   template <typename T> rdma_ptr<T> make_pointer(char *p, ibv_mr *mr) {
-    return rdma_ptr<T>(pointer_t<T>(reinterpret_cast<T *>(p), [=](T *p) {
+    return rdma_ptr<T>(pointer_t<T>(reinterpret_cast<T *>(p), [this, mr, p](T *p) {
                          std::unique_lock<decltype(freelist_lock)> l(freelist_lock);
                          freelist.emplace_back(reinterpret_cast<char *>(p),
                                                 mr);
