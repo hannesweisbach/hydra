@@ -42,7 +42,7 @@ node::node(std::vector<std::string> ips, const std::string &port,
           ibv_access::REMOTE_READ | ibv_access::LOCAL_WRITE, request_buffers)),
       routing_table(std::make_unique<hydra::overlay::fixed::routing_table>(
           socket, ips[0], port, 1)),
-      ip(ips[0]), port(port) {
+      ip(ips[0]), port(port), ack(ack_message(true)), nack(ack_message(false)) {
 #if 1
   for (int msg_index = 0; msg_index < msg_buffers; msg_index++) {
     post_recv(request_buffers.at(msg_index));
@@ -154,7 +154,7 @@ void node::handle_add(const protocol::DHTRequest::Put::Inline::Reader &reader,
 
   auto success =
       handle_add(std::move(mem), reader.getSize(), reader.getKeySize());
-  reply(qp, ack_message(success));
+  reply(qp, success ? ack : nack);
 }
 
 void node::handle_add(const protocol::DHTRequest::Put::Remote::Reader &reader,

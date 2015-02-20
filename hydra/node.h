@@ -58,6 +58,10 @@ class node {
   keyspace_t start;
   keyspace_t end;
 
+  using response_t = kj::Array<capnp::word>;
+  response_t ack;
+  response_t nack;
+
   void post_recv(const request_t &);
   void recv(const request_t &, const qp_t &qp);
   void send(const uint64_t id);
