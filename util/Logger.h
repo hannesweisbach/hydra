@@ -91,15 +91,15 @@ private:
   severity_level entry_severity;
 };
 
-#define log__(lvl) (Logger((lvl), (__func__), (__LINE__)))
+#define log_impl_(lvl) (Logger((lvl), (__func__), (__LINE__)))
 
-#define log_trace() log__(Logger::severity_level::trace)
-#define log_debug() log__(Logger::severity_level::debug)
-#define log_info() log__(Logger::severity_level::info)
-#define log_warn() log__(Logger::severity_level::warn)
-#define log_error() log__(Logger::severity_level::error)
-#define log_err() log__(Logger::severity_level::error)
-#define log_fatal() log__(Logger::severity_level::fatal)
+#define log_trace() log_impl_(Logger::severity_level::trace)
+#define log_debug() log_impl_(Logger::severity_level::debug)
+#define log_info() log_impl_(Logger::severity_level::info)
+#define log_warn() log_impl_(Logger::severity_level::warn)
+#define log_error() log_impl_(Logger::severity_level::error)
+#define log_err() log_impl_(Logger::severity_level::error)
+#define log_fatal() log_impl_(Logger::severity_level::fatal)
 
 template <typename T>
 void hexdump__(const T *buffer, const size_t size, const char *func,
