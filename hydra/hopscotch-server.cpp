@@ -153,7 +153,6 @@ hydra::Return_t hydra::hopscotch_server::add(
 }
 
 size_t hydra::hopscotch_server::contains(const key_type &key) {
-  const size_t size = key.second;
   size_t start = home_of(key);
   size_t end = (start + hop_range) % table_size;
   const auto &home = shadow_table[start];
