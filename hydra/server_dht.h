@@ -52,12 +52,12 @@ public:
   virtual void check_consistency() const = 0;
   virtual void dump() const = 0;
 
-  size_t size() const { return table_size; }
-  size_t used() const { return used_; }
+  size_t size() const noexcept { return table_size; }
+  size_t used() const noexcept { return used_; }
   virtual size_t next_size() const {
     return (size_t)(table_size * growth_factor);
   }
-  double load_factor() const { return double(used_) / table_size; }
+  double load_factor() const noexcept { return double(used_) / table_size; }
   size_t rehashes() const noexcept { return rehash_count; }
 };
 }
