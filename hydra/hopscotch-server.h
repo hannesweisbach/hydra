@@ -121,7 +121,7 @@ class hopscotch_server : public server_dht {
   }
 
   template <typename Pred>
-  size_t find_if(size_t begin, size_t end, Pred &&predicate) const {
+  size_t find_if(const size_t begin, const size_t end, Pred &&predicate) const {
     if (begin < end) {
       auto first = std::begin(shadow_table) + begin;
       auto last = std::begin(shadow_table) + end;
