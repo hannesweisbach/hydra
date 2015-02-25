@@ -26,8 +26,9 @@ protected:
   typedef std::pair<mem_type, mr_type> resource_type;
 
   LocalRDMAObj<hash_table_entry> *table = nullptr;
-  size_t table_size = 0;
   size_t used_ = 0;
+  size_t table_size = 0;
+  size_t rehash_count = 0;
   const double growth_factor;
 
   bool index_valid(size_t index) const { return index < table_size; }
@@ -57,6 +58,7 @@ public:
     return (size_t)(table_size * growth_factor);
   }
   double load_factor() const { return double(used_) / table_size; }
+  size_t rehashes() const noexcept { return rehash_count; }
 };
 }
 
