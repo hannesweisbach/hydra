@@ -109,8 +109,27 @@ size_t hydra::hopscotch_server::move_into(size_t to) {
 hydra::Return_t hydra::hopscotch_server::add(
     std::tuple<mem_type, size_t, size_t, uint32_t> &e) {
   key_type key(std::get<0>(e).get(), std::get<2>(e));
-  /* overwrite existing key */
-  auto index = contains(key);
+
+  const size_t start = home_of(key);
+  const size_t end = (start + hop_range) % table_size;
+  const auto &home = shadow_table[start];
+  size_t hop = 0;
+
+  auto has_key_or_empty = [&home, &hop, &key](const auto &e) {
+    const auto i = hop++;
+    /* empty */
+    if (!e) {
+      return true;
+    } else if (!home.has_hop(i)) {
+      return false;
+    } else if (e.has_key(key)) {
+      return true;
+    }
+    return false;
+  };
+
+  auto index = find_if(start, end, has_key_or_empty);
+
   if (index != invalid_index()) {
     add(e, index, home_of(key));
     shadow_table[index].unlock();
