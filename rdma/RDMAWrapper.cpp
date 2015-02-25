@@ -308,20 +308,16 @@ rdma_id_ptr createCmId(const std::string &host, const std::string &port,
 void rdma_completion(const ibv_wc &wc) noexcept {
   hydra::promise<qp_t> *promise =
       reinterpret_cast<hydra::promise<qp_t> *>(wc.wr_id);
-  try {
-    if (promise && wc.status == IBV_WC_SUCCESS) {
-      promise->set_value(wc.qp_num);
-    } else {
-      log_info() << (enum ibv_wc_status)wc.status << " : " << wc.byte_len
-                 << " wr_id: " << reinterpret_cast<void *>(promise) << " ("
-                 << reinterpret_cast<void *>(wc.wr_id) << ")";
-      std::ostringstream s;
-      s << wc.opcode << " resulted in " << wc.status;
-      throw std::runtime_error(s.str());
-    }
-  }
-  catch (std::exception &) {
-    promise->set_exception(std::current_exception());
+  if (promise && wc.status == IBV_WC_SUCCESS) {
+    promise->set_value(wc.qp_num);
+  } else {
+    log_info() << (enum ibv_wc_status)wc.status << " : " << wc.byte_len
+               << " wr_id: " << reinterpret_cast<void *>(promise) << " ("
+               << reinterpret_cast<void *>(wc.wr_id) << ")";
+    std::ostringstream s;
+    s << wc.opcode << " resulted in " << wc.status;
+    promise->set_exception(
+        std::make_exception_ptr(std::runtime_error(s.str())));
   }
   delete promise;
 }
