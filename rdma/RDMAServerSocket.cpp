@@ -84,27 +84,7 @@ RDMAServerSocket::~RDMAServerSocket() {
 }
 
 void RDMAServerSocket::disconnect(const qp_t qp_num) const {
-  return clients([=](auto &clients) {
-    auto client = clients.find(qp_num);
-    if (client != std::end(clients)) {
-      rdma_disconnect(client->second.get());
-      clients.erase(client);
-    } else {
-      std::ostringstream s;
-      s << "rdma_cm_id* for qp " << qp_num << " not found." << std::endl;
-      throw std::runtime_error(s.str());
-    }
-  });
-}
-
-rdma_cm_id *RDMAServerSocket::find(const qp_t qp_num) const {
-  return clients([=](const auto & clients)->rdma_cm_id * {
-    auto client = clients.find(qp_num);
-    if (client != std::end(clients))
-      return client->second.get();
-    else
-      return nullptr;
-  });
+  (*this)(qp_num, [qp_num](rdma_cm_id *client) { rdma_disconnect(client); });
 }
 
 void RDMAServerSocket::listen(int backlog) {
@@ -133,8 +113,13 @@ void RDMAServerSocket::accept(client_t client_id) const {
 
   check_zero(rdma_accept(client_id.get(), nullptr));
 
-  clients([client_id = std::move(client_id)](auto & clients) mutable {
-    clients.emplace(client_id->qp->qp_num, std::move(client_id));
+  clients([client_id = std::move(client_id)](auto && clients) mutable {
+    auto pos = std::lower_bound(std::begin(clients), std::end(clients),
+                                client_id->qp->qp_num,
+                                [](const auto &client, const qp_t &qp_num) {
+      return client->qp->qp_num < qp_num;
+    });
+    clients.insert(pos, std::move(client_id));
   });
 }
 

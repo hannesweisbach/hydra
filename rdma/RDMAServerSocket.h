@@ -6,6 +6,8 @@
 #include <vector>
 #include <memory>
 #include <unordered_map>
+#include <iterator>
+#include <algorithm>
 
 #include "RDMAWrapper.hpp"
 #include "util/WorkerThread.h"
@@ -38,7 +40,7 @@ private:
   completion_queue cq;
   WorkerThread eventThread;
   std::atomic_bool running;
-  mutable monitor<std::unordered_map<qp_t, RDMAServerSocket::client_t> > clients;
+  mutable monitor<std::vector<RDMAServerSocket::client_t> > clients;
 
   void accept(client_t id) const;
   void cm_events() const;
@@ -86,21 +88,25 @@ public:
   template <typename Functor>
   auto operator()(const qp_t qp_num, Functor &&functor)
       const -> typename std::result_of<Functor(rdma_cm_id *)>::type {
-    return clients([=](const auto &clients) {
-      auto client = clients.find(qp_num);
-      if (client != std::end(clients)) {
-        return functor(client->second.get());
-      } else {
-        std::ostringstream s;
-        s << "rdma_cm_id* for qp " << qp_num << " not found." << std::endl;
-        throw std::runtime_error(s.str());
-      }
+    return clients([ functor = std::move(functor), qp_num ]
+        (const auto & clients) {
+          auto client = std::lower_bound(std::begin(clients),
+              std::end(clients), qp_num,
+              [](const auto &client, const qp_t &qp_num) {
+                return client->qp->qp_num < qp_num;
+          });
+          if ((*client)->qp->qp_num == qp_num) {
+            return functor(client->get());
+          } else {
+            std::ostringstream s;
+            s << "rdma_cm_id* for qp " << qp_num << " not found." << std::endl;
+            throw std::runtime_error(s.str());
+          }
     });
   }
 
   void disconnect(const qp_t qp_num) const;
   void listen(int backlog = 10);
-  rdma_cm_id * find(const qp_t qp_num) const;
 
   template <typename T>
   std::future<T *> recv_async(const T *local, const ibv_mr *mr,
@@ -119,16 +125,19 @@ public:
   template <typename T>
   auto recv_async(const qp_t qp_num, const T &local, const ibv_mr *mr,
                   size_t size = sizeof(T)) {
-    return recv_async_helper(find(qp_num), local, mr, size,
-                             std::is_pointer<T>());
+    (*this)(qp_num, [&local, qp_num, mr, size, this](rdma_cm_id *id) {
+      return recv_async_helper(id, local, mr, size, std::is_pointer<T>());
+    });
   }
 
   template <typename T>
   auto read(const qp_t &qp_num, T &local, const ibv_mr *mr,
             const uint64_t &remote, const uint32_t &rkey,
             const size_t size = sizeof(T)) {
-    return read_helper(find(qp_num), local, size, mr, remote, rkey,
-                       std::is_pointer<T>());
+    (*this)(qp_num, [&local, remote, rkey, mr, size, this](rdma_cm_id *id) {
+      return read_helper(id, local, size, mr, remote, rkey,
+                         std::is_pointer<T>());
+    });
   }
 
   template <typename T>
