@@ -15,3 +15,6 @@ target_link_libraries(get ${COMMON_LIBS} hydra)
 
 add_executable(get_loop get_loop.cc)
 target_link_libraries(get_loop ${COMMON_LIBS} hydra)
+
+add_executable(mixed mixed.c++)
+target_link_libraries(mixed ${COMMON_LIBS} hydra)
