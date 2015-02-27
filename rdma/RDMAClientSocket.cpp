@@ -24,6 +24,7 @@ RDMAClientSocket::RDMAClientSocket(const std::string &host,
   attr.recv_cq = cq;
   attr.send_cq = cq;
   attr.srq = srq_id->srq;
+  attr.qp_type = IBV_QPT_UC;
   attr.sq_sig_all = 1;
 
   for (max_inline_data = 1;; max_inline_data = attr.cap.max_inline_data + 1) {
