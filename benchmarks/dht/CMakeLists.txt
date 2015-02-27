@@ -10,5 +10,8 @@ target_link_libraries(put_loop_inline ${COMMON_LIBS} hydra)
 add_executable(put_loop_future put_loop_future.c++)
 target_link_libraries(put_loop_future ${COMMON_LIBS} hydra)
 
+add_executable(get get.c++)
+target_link_libraries(get ${COMMON_LIBS} hydra)
+
 add_executable(get_loop get_loop.cc)
 target_link_libraries(get_loop ${COMMON_LIBS} hydra)
