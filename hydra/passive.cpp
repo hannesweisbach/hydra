@@ -26,6 +26,7 @@ hydra::passive::passive(const std::string &host, const std::string &port)
   log_info() << "Starting client to " << host << ":" << port;
 
   connect();
+  update_info();
 }
 
 bool hydra::passive::put(const std::vector<unsigned char> &kv,
@@ -91,7 +92,9 @@ std::vector<unsigned char>
 hydra::passive::find_entry(const std::vector<unsigned char> &key) {
   std::vector<unsigned char> value;
 
-  update_info();
+  //TODO: update only, if read later fails.
+  //a failing read means that the server resized.
+  //update_info();
 
   const size_t entry_size = sizeof(RDMAObj<hash_table_entry>);
   const size_t table_size = info->table_size;
