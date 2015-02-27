@@ -189,6 +189,7 @@ hydra::Return_t hydra::hopscotch_server::remove(const key_type &key) {
 
 void hydra::hopscotch_server::resize(LocalRDMAObj<hash_table_entry> *new_table,
                                      size_t size) {
+  ++rehash_count;
   table_size = size;
   table = new_table;
 
