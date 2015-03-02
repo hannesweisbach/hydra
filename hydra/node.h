@@ -19,7 +19,6 @@
 #include "util/concurrent.h"
 #include "util/WorkerThread.h"
 
-#include "passive.h"
 #include "allocators/allocators.h"
 
 namespace hydra {
