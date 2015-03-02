@@ -141,15 +141,12 @@ void node::join(const std::string &ip, const std::string &port) {
 
 void node::handle_add(const protocol::DHTRequest::Put::Inline::Reader &reader,
                       const qp_t &qp) {
-  auto data = reader.getData();
+  const size_t size = reader.getSize();
+  auto mem = heap.malloc<unsigned char>(size);
+  memcpy(mem.first.get(), reader.getData().begin(), size);
 
-  auto mem = heap.malloc<unsigned char>(reader.getSize());
-  auto key = mem.first.get();
-  
-  memcpy(key, data.begin(), reader.getSize());
+  auto success = handle_add(std::move(mem), size, reader.getKeySize());
 
-  auto success =
-      handle_add(std::move(mem), reader.getSize(), reader.getKeySize());
   reply(qp, success ? ack : nack);
 }
 
