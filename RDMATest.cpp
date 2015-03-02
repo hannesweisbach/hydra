@@ -93,16 +93,11 @@ int main(int argc, char *const argv[]) {
 #endif
   //HeapProfilerStart("./server-heap.profile");
 
-  double load = node.load();
-
   while(1) {
     std::this_thread::sleep_for(std::chrono::seconds(10));
-    if(load != node.load()) {
-      node.dump();
-      load = node.load();
-      log_info() << "Load factor: " << node.load();
-    }
-
+    std::cout << "Load factor: " << node.load() << std::endl;
+    std::cout << "Table Size:  " << node.size() << std::endl;
+    std::cout << "used entries: " << node.used() << std::endl;
 #ifdef PROFILER
     ProfilerFlush();
 #endif
