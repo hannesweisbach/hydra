@@ -17,7 +17,7 @@ static void load_keys(RDMAClientSocket &socket, const size_t max_keys,
     size_t key_length;
     size_t length;
     const buffer_t &buffer;
-    std::future<qp_t> result;
+    hydra::future<qp_t> result;
     data(const size_t length, const size_t key_length, const buffer_t &buffer)
         : kv(length), key_length(key_length), buffer(buffer) {}
   };
