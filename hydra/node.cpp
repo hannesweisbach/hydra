@@ -103,7 +103,7 @@ void node::recv(const request_t &request, const qp_t &qp) {
     info([&](const auto &info) {
       auto mr = msg.initInit().initInfo();
       mr.setAddr(reinterpret_cast<uintptr_t>(info.second->addr));
-      mr.setSize(info.second->length);
+      mr.setSize(static_cast<uint32_t>(info.second->length));
       mr.setRkey(info.second->rkey);
     });
     reply(qp, response);
