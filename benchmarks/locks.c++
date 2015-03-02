@@ -1,8 +1,9 @@
 #include <chrono>
 #include <mutex>
-#include "util/concurrent.h"
 #include <algorithm>
 #include <vector>
+
+#include "util/concurrent.h"
 
 static uint64_t start_benchmark() {
   uint64_t high, low;
@@ -22,7 +23,11 @@ static uint64_t start_benchmark() {
 
 static uint64_t end_benchmark() {
   uint64_t high, low;
+#if 1
   asm volatile("rdtscp\n\t"
+#else
+  asm volatile("rdtsc\n\t"
+#endif
                "mov %%rdx, %0\n\t"
                "mov %%rax, %1\n\t"
                "cpuid\n\t"
@@ -30,44 +35,26 @@ static uint64_t end_benchmark() {
   return (high << 32) | low;
 }
 
-template <typename F>
-static std::vector<uint64_t> measure(F &&f, size_t rounds) {
+template <typename Lock>
+static std::vector<uint64_t> measure(Lock &&lock, size_t rounds) {
   std::vector<uint64_t> results;
   results.reserve(rounds);
 
   for (size_t i = 0; i < rounds; i++) {
-    auto begin = start_benchmark();
-    { f(); }
-    auto end = end_benchmark();
-    results.push_back(end - begin);
+#if 0
+    { std::unique_lock<std::remove_reference_t<Lock>> l(lock); }
+#else
+    { std::lock_guard<Lock> l(lock); }
+#endif
   }
 
-  return results;
-}
-
-static std::vector<uint64_t> measure_mutex(size_t rounds) {
-  std::mutex mutex;
-  std::vector<uint64_t> results;
-  results.reserve(rounds);
-
   for (size_t i = 0; i < rounds; i++) {
     auto begin = start_benchmark();
-    { std::lock_guard<std::mutex> l(mutex); }
-    auto end = end_benchmark();
-    results.push_back(end - begin);
-  }
-
-  return results;
-}
-
-static std::vector<uint64_t> measure_spinlock(size_t rounds) {
-  hydra::spinlock spinlock;
-  std::vector<uint64_t> results;
-  results.reserve(rounds);
-
-  for (size_t i = 0; i < rounds; i++) {
-    auto begin = start_benchmark();
-    { std::lock_guard<hydra::spinlock> l(spinlock); }
+#if 0
+    { std::unique_lock<std::remove_reference_t<Lock>> l(lock); }
+#else
+    { std::lock_guard<Lock> l(lock); }
+#endif
     auto end = end_benchmark();
     results.push_back(end - begin);
   }
@@ -79,20 +66,15 @@ int main() {
   constexpr size_t rounds = 1000 * 10;
   std::mutex mutex;
   hydra::spinlock spinlock;
-  auto mutex_times =
-      measure([&]() { std::lock_guard<std::mutex> l(mutex); }, rounds);
-  auto spinlock_times =
-      measure([&]() { std::lock_guard<hydra::spinlock> l(spinlock); }, rounds);
+  std::shared_timed_mutex rw;
 
-  auto mutex_times2 = measure_mutex(rounds);
-  auto spinlock_times2 = measure_spinlock(rounds);
+  auto mutex_times = measure(mutex, rounds);
+  auto spinlock_times = measure(spinlock, rounds);
+  auto rw_times = measure(rw, rounds);
 
   std::cout << *std::min(std::begin(mutex_times), std::end(mutex_times))
             << std::endl;
-  std::cout << *std::min(std::begin(mutex_times2), std::end(mutex_times2))
-            << std::endl;
   std::cout << *std::min(std::begin(spinlock_times), std::end(spinlock_times))
             << std::endl;
-  std::cout << *std::min(std::begin(spinlock_times2), std::end(spinlock_times2))
-            << std::endl;
+  std::cout << *std::min(std::begin(rw_times), std::end(rw_times)) << std::endl;
 }
