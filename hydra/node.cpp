@@ -28,10 +28,10 @@ node::node(std::vector<std::string> ips, const std::string &port,
 #else
       dht(std::make_unique<cuckoo_server>(table_ptr.first.get(), initial_size)),
 #endif
-      info(heap.malloc<LocalRDMAObj<node_info> >()),
       request_buffers(msg_buffers),
       buffers_mr(socket.register_memory(
           ibv_access::REMOTE_READ | ibv_access::LOCAL_WRITE, request_buffers)),
+      info(heap.malloc<LocalRDMAObj<node_info> >()),
       routing_table(std::make_unique<hydra::overlay::fixed::routing_table>(
           socket, ips[0], port, 1)),
       ip(ips[0]), port(port), ack(ack_message(true)), nack(ack_message(false)) {
