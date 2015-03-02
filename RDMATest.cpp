@@ -81,7 +81,7 @@ int main(int argc, char *const argv[]) {
     host.first.push_back("10.0.0.1");
 
   Logger::set_severity(verbosity);
-  hydra::node node(host.first, host.second);
+  hydra::node node(host.first, host.second, 1000 * 1000 * 3);
 
   if(connect_remote)
     node.join(remote.first, remote.second);
