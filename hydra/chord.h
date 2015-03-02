@@ -37,21 +37,21 @@ public:
 
 class chord : public virtual RDMAClientSocket, public network {
 public:
-  chord(const std::string &host, const std::string &port);
+  chord(const std::string &, const std::string &);
   chord(const std::string &host, const std::string &port, const uint64_t,
-        const size_t, const uint32_t);
+        const uint32_t, const uint16_t);
   ~chord();
-  node_id predecessor_node(const keyspace_t &id) const;
-  node_id successor_node(const keyspace_t &id) const;
-  node_id self() const;
+  node_id predecessor_node(const keyspace_t &id);
+  node_id successor_node(const keyspace_t &id);
+  node_id self();
 
 private:
   passive &successor(const keyspace_t &id) override;
 
   std::vector<network::node> cache;
-  routing_table load_table() const;
-  routing_table find_table(const keyspace_t &) const;
-  std::unique_ptr<RDMAObj<routing_table> > table;
+  std::vector<entry_t> load_table();
+  std::vector<entry_t> find_table(const keyspace_t &);
+  std::vector<entry_t> local_table;
   mr_t local_table_mr;
   mr table_mr;
 };

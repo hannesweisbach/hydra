@@ -12,13 +12,21 @@ namespace hydra {
 namespace overlay {
 namespace chord {
 
-chord::chord(const std::string &host, const std::string &port)
-    : RDMAClientSocket(host, port),
-      table(std::make_unique<RDMAObj<routing_table> >()),
-      local_table_mr(register_memory(ibv_access::MSG, *table)) {
-  connect();
+routing_entry preceding_node(const std::vector<entry_t> &table,
+                             const keyspace_t &id) {
+  auto self_id = table[routing_table::self_index].get().node.id;
+  auto it =
+      std::find_if(table.rbegin(), table.rend() + 2, [=](const auto &node) {
+        return node.get().node.id.in(self_id + 1_ID, id - 1_ID);
+      });
+  assert(it != table.rend() + 2);
 
-  kj::FixedArray<capnp::word, 9> response;
+  return it->get();
+}
+
+chord::chord(const std::string &host, const std::string &port)
+    : RDMAClientSocket(host, port) {
+  kj::FixedArray<capnp::word, 7> response;
   auto mr = register_memory(ibv_access::MSG, response);
 
   auto future = recv_async(response, mr.get());
@@ -35,6 +43,9 @@ chord::chord(const std::string &host, const std::string &port)
   table_mr.addr = t.getAddr();
   table_mr.size = t.getSize();
   table_mr.rkey = t.getRkey();
+
+  local_table = std::vector<entry_t>(network.getSize());
+  local_table_mr = register_memory(ibv_access::MSG, local_table);
 }
 
 chord::chord(const std::string &host, const std::string &port,
