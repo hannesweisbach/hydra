@@ -19,22 +19,14 @@
 #include "util/concurrent.h"
 #include "util/WorkerThread.h"
 
-#include "allocators/ZoneHeap.h"
-#include "allocators/ThreadSafeHeap.h"
-#include "allocators/FreeListHeap.h"
-#include "allocators/SegregatedFitsHeap.h"
-#include "RDMAAllocator.h"
-#include "RDMAObj.h"
-
 #include "passive.h"
+#include "allocators/allocators.h"
 
 namespace hydra {
 class node {
   RDMAServerSocket socket;
 
-  mutable ThreadSafeHeap<SegregatedFitsHeap<
-      FreeListHeap<ZoneHeap<RdmaHeap<ibv_access::READ>, 256> >,
-      ZoneHeap<RdmaHeap<ibv_access::READ>, 256> > > heap;
+  mutable default_heap_t heap;
   mutable ThreadSafeHeap<ZoneHeap<RdmaHeap<ibv_access::MSG>, 256> > local_heap;
   decltype(heap.malloc<LocalRDMAObj<hash_table_entry> >()) table_ptr;
 #if PER_ENTRY_LOCKS

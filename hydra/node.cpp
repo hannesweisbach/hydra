@@ -17,22 +17,10 @@
 
 namespace hydra {
 
-auto size2Class = [](size_t size) -> size_t {
-  if (size == 0)
-    return 0;
-  if (size <= 128) // 16 bins
-    return ((size + (8 - 1)) & ~(8 - 1)) / 8 - 1;
-  else if (size <= 4096) // 31 bins
-    return ((size + (128 - 1)) & ~(128 - 1)) / 128 + 14;
-  else
-    return 47 + hydra::util::log2(size - 1) -
-           hydra::util::static_log2<4096>::value;
-};
-
 node::node(std::vector<std::string> ips, const std::string &port,
            size_t initial_size, uint32_t msg_buffers)
-    : socket(ips, port, msg_buffers), heap(48U, size2Class, socket),
-      local_heap(socket), 
+    : socket(ips, port, msg_buffers), heap(48U, default_size_classes, socket),
+      local_heap(socket),
       table_ptr(heap.malloc<LocalRDMAObj<hash_table_entry> >(initial_size)),
       dht(std::make_unique<hopscotch_server>(table_ptr.first.get(), 32U,
                                              initial_size)),
