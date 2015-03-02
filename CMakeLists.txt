@@ -43,7 +43,6 @@ find_library(LIBTCMALLOC tcmalloc)
 find_library(LIBCAPNP    capnp "/usr/local")
 find_library(LIBKJ       kj "/usr/local")
 
-#set(LIBDISPATCH "dispatch-NOTFOUND")
 if(${LIBDISPATCH} MATCHES "-NOTFOUND")
   message(STATUS "libdispatch not found. Will build without it")
   set(HAVE_LIBDISPATCH OFF)
