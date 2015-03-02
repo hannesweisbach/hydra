@@ -25,7 +25,11 @@ namespace hydra {
 class node {
   RDMAServerSocket socket;
 
+#if 1
   mutable default_heap_t heap;
+#else
+  mutable ZoneHeap<RdmaHeap<ibv_access::READ>, 1024 * 1024 * 512> heap;
+#endif
   mutable ThreadSafeHeap<ZoneHeap<RdmaHeap<ibv_access::MSG>, 1024 * 1024 * 16> >
   local_heap;
   decltype(heap.malloc<LocalRDMAObj<hash_table_entry> >()) table_ptr;
