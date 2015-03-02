@@ -16,4 +16,6 @@ target_link_libraries(map_copy  ${COMMON_LIBS} hydra util)
 add_executable(locks locks.c++)
 target_link_libraries(locks util ${COMMON_LIBS})
 
+add_executable(generate_load generate_load_file.c++)
+
 add_subdirectory(dht)
