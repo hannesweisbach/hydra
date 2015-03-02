@@ -43,7 +43,7 @@ class node {
   monitor<std::unique_ptr<server_dht>> dht;
 #endif
 
-  using request_t = kj::FixedArray<capnp::word, 9>;
+  using request_t = kj::FixedArray<capnp::word, 128>;
   std::vector<request_t> request_buffers;
   mr_t buffers_mr;
 
