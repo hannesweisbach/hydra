@@ -136,23 +136,26 @@ bool test_wrong_add(const std::string &host, const std::string &port) {
   return passive.put(key, key_size);
 }
 
-#if 0
-bool test_grow(hydra::client& c) {
+bool test_grow(hydra::passive& c) {
   const size_t key_size = 16;
   const size_t val_size = 16;
-  std::unique_ptr<unsigned char[]> key(get_random_string(key_size));
-  std::unique_ptr<unsigned char[]> value(get_random_string(val_size));
 
-  size_t old_size = c.size();
-  for(size_t i = 0; i < old_size + 1; i++) {
-    std::unique_ptr<unsigned char[]> key(get_random_string(key_size));
-    c.add(key.get(), key_size, value.get(), val_size);
-    assert(c.contains(key.get(), key_size));
-    //std::this_thread::sleep_for(std::chrono::seconds(1));
+  size_t old_size = c.table_size();
+
+  if (old_size > 128) {
+    log_info() << "Table size is " << old_size
+               << ". Aborting, since it is deemed too large.";
+    return true;
   }
-  return c.size() > old_size;
+
+  for (size_t i = 0; i < old_size + 1; i++) {
+    auto key = get_random_string(key_size + val_size);
+    assert(c.put(key, key_size));
+    assert(c.contains(key));
+  }
+
+  return c.table_size() > old_size;
 }
-#endif
 
 int main(int argc, char * const argv[]) {
   static struct option long_options[] = {
