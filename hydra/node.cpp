@@ -207,7 +207,7 @@ bool node::handle_add(rdma_ptr<unsigned char> kv, const size_t size,
       });
       std::swap(table_ptr, new_table);
     });
-    std::terminate();
+    //std::terminate();
     ret = hs->add(e);
     hs->check_consistency();
     assert(ret != hydra::NEED_RESIZE);
