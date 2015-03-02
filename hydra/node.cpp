@@ -22,8 +22,12 @@ node::node(std::vector<std::string> ips, const std::string &port,
     : socket(ips, port, msg_buffers), heap(48U, default_size_classes, socket),
       local_heap(socket),
       table_ptr(heap.malloc<LocalRDMAObj<hash_table_entry> >(initial_size)),
+#if 1
       dht(std::make_unique<hopscotch_server>(table_ptr.first.get(), 32U,
                                              initial_size)),
+#else
+      dht(std::make_unique<cuckoo_server>(table_ptr.first.get(), initial_size)),
+#endif
       info(heap.malloc<LocalRDMAObj<node_info> >()),
       request_buffers(msg_buffers),
       buffers_mr(socket.register_memory(
