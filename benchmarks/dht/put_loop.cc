@@ -2,6 +2,7 @@
 #include <sstream>
 #include <atomic>
 #include <thread>
+#include <iostream>
 
 #include "rdma/RDMAClientSocket.h"
 #include "protocol/message.h"
@@ -35,8 +36,7 @@ static void send(RDMAClientSocket &socket, data &request) {
 }
 
 static void load_keys(const std::string &host, const std::string &port,
-                      const size_t max_keys, const size_t value_length,
-                      std::atomic_bool &run, std::atomic<uint64_t> &cnt) {
+                      const size_t max_keys, const size_t value_length) {
   RDMAClientSocket socket(host, port);
   socket.connect();
   hydra::ZoneHeap<RdmaHeap<ibv_access::READ>, 1024 * 1024 * 16> heap(socket);
@@ -66,39 +66,53 @@ static void load_keys(const std::string &host, const std::string &port,
     }
   }
 
-  for (;;) {
-    for (auto &&request : requests) {
-      send(socket, request);
-      cnt++;
-      if (!run)
-        return;
-    }
+  auto start = std::chrono::high_resolution_clock::now();
+
+  for (auto &&request : requests) {
+    send(socket, request);
   }
+
+  auto end = std::chrono::high_resolution_clock::now();
+
+  auto duration = end - start;
+
+  size_t ops = 0;
+  auto time =
+      std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
+
+  std::cout << time << "ns" << std::endl;
+
+  std::string unit;
+  if (auto seconds =
+          std::chrono::duration_cast<std::chrono::seconds>(duration).count()) {
+    ops = max_keys / seconds;
+    unit = "s";
+  } else if (auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                 duration).count()) {
+    ops = max_keys / ms;
+    unit = "ms";
+  } else if (auto us = std::chrono::duration_cast<std::chrono::microseconds>(
+                 duration).count()) {
+    ops = max_keys / us;
+    unit = "us";
+  }
+
+  std::cout << ops << " Ops/" << unit << std::endl;
 }
 
 int main(int argc, char const *const argv[]) {
   const size_t value_length = (argc < 2) ? 64 : atoi(argv[1]);
-  const size_t max_keys = 255;
+  const size_t max_keys = 1000 * 10;
   const size_t min_threads = 1;
-  const size_t max_threads = 20;
-  const auto measurement_time = std::chrono::seconds(2);
+  const size_t max_threads = 1;
 
   static_assert(min_threads <= max_threads,
                 "The minimum number of threads must "
                 "be smaller than the maximum number");
 
-  std::atomic<uint64_t> cnt(0);
-
   for (const auto &value_size : { value_length /*64, 128, 256, 1024, 4096*/ }) {
     for (size_t cur_threads = min_threads; cur_threads <= max_threads;
          cur_threads++) {
-      std::atomic_bool run(true);
-
-      hydra::async([&]() {
-        std::this_thread::sleep_for(measurement_time);
-        run = false;
-      });
-
       std::cout << "Running with a value_size of " << value_size << " and "
                 << cur_threads << " threads ... ";
       std::cout.flush();
@@ -107,17 +121,12 @@ int main(int argc, char const *const argv[]) {
       threads.reserve(cur_threads);
 
       std::generate_n(std::back_inserter(threads), cur_threads, [&]() {
-        return std::thread(load_keys, "10.1", "8042", max_keys, value_length,
-                           std::ref(run), std::ref(cnt));
+        return std::thread(load_keys, "10.10", "8042", max_keys, value_length);
       });
 
       for (auto &&thread : threads) {
         thread.join();
       }
-
-      const uint64_t seconds = std::chrono::duration_cast<std::chrono::seconds>(
-          measurement_time).count();
-      std::cout << "kOps/s: " << cnt.fetch_and(0) / seconds / 1000 << std::endl;
     }
   }
 }
