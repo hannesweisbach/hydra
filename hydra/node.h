@@ -47,9 +47,6 @@ class node {
   std::vector<request_t> request_buffers;
   mr_t buffers_mr;
 
-  /* occupy threads for blocking work, so libdispatch doesn't choke */
-  WorkerThread messageThread;
-
   monitor<decltype(heap.malloc<LocalRDMAObj<node_info>>())> info;
   std::unique_ptr<hydra::overlay::routing_table> routing_table;
 
