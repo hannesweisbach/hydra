@@ -103,8 +103,8 @@ bool test_add_remove(hydra::client &c) {
   return !c.contains(key);
 }
 
-auto find_key_in(const size_t key_size, const hydra::keyspace_t &start,
-                 const hydra::keyspace_t &end) {
+static auto find_key_in(const size_t key_size, const hydra::keyspace_t &start,
+                        const hydra::keyspace_t &end) {
   for (;;) {
     auto key = get_random_string(key_size);
     if (hydra::keyspace_t(hydra::hash(key.data(), key.size())).in(start, end))
