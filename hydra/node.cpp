@@ -70,7 +70,7 @@ node::node(std::vector<std::string> ips, const std::string &port,
 }
 
 void node::post_recv(const request_t &request) {
-  socket.recv_async(request, buffers_mr.get()).then([=, &request](auto &&qp) {
+  socket.recv_async(request, buffers_mr.get()).then([this, &request](auto &&qp) {
     try {
       recv(request, qp.value());
     }
