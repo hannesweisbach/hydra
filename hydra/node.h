@@ -26,7 +26,8 @@ class node {
   RDMAServerSocket socket;
 
   mutable default_heap_t heap;
-  mutable ThreadSafeHeap<ZoneHeap<RdmaHeap<ibv_access::MSG>, 256> > local_heap;
+  mutable ThreadSafeHeap<ZoneHeap<RdmaHeap<ibv_access::MSG>, 1024 * 1024 * 16> >
+  local_heap;
   decltype(heap.malloc<LocalRDMAObj<hash_table_entry> >()) table_ptr;
 #if PER_ENTRY_LOCKS
   std::unique_ptr<server_dht> dht;
