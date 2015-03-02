@@ -43,13 +43,9 @@ node::node(std::vector<std::string> ips, const std::string &port,
       routing_table(std::make_unique<hydra::overlay::fixed::routing_table>(
           socket, ips[0], port, 1)),
       ip(ips[0]), port(port), ack(ack_message(true)), nack(ack_message(false)) {
-#if 1
-  for (int msg_index = 0; msg_index < msg_buffers; msg_index++) {
-    post_recv(request_buffers.at(msg_index));
+  for (const auto &request_buffer : request_buffers) {
+    post_recv(request_buffer);
   }
-#else
-        table.table[0].interval.range.first = k;
-#endif
 
   info([&](auto &rdma_obj) {
     (*rdma_obj.first)([&](auto &info) {
