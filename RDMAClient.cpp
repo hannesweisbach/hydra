@@ -113,7 +113,7 @@ static auto find_key_in(const size_t key_size, const hydra::keyspace_t &start,
 }
 
 bool test_wrong_add(const std::string &host, const std::string &port) {
-  hydra::overlay::chord node(host, port);
+  hydra::overlay::chord::chord node(host, port);
 
   auto self = node.self();
   auto pred = node.predecessor_node(self.id).id;
