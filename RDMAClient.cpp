@@ -37,7 +37,7 @@ bool test_add(hydra::client &c) {
   return c.add(key, value);
 }
 
-bool test_add_contains(hydra::client& c) {
+bool test_add_contains(hydra::client &c) {
   const size_t key_size = 16;
   const size_t val_size = 243;
   auto key = get_random_string(key_size);
@@ -136,7 +136,7 @@ bool test_wrong_add(const std::string &host, const std::string &port) {
   return passive.put(key, key_size);
 }
 
-bool test_grow(hydra::passive& c) {
+bool test_grow(hydra::passive &c) {
   const size_t key_size = 16;
   const size_t val_size = 16;
 
@@ -157,9 +157,9 @@ bool test_grow(hydra::passive& c) {
   return c.table_size() > old_size;
 }
 
-int main(int argc, char * const argv[]) {
+int main(int argc, char *const argv[]) {
   static struct option long_options[] = {
-    { "port",      required_argument, 0, 'p' },
+    { "port", required_argument, 0, 'p' },
     { "interface", required_argument, 0, 'i' },
     { "verbosity", optional_argument, 0, 'v' },
     { 0, 0, 0, 0 }
@@ -173,32 +173,32 @@ int main(int argc, char * const argv[]) {
     int option_index = 0;
     int c = getopt_long(argc, argv, "p:i:", long_options, &option_index);
 
-    if(c == -1)
+    if (c == -1)
       break;
-    switch(c) {
-      case 'p':
-        port = optarg; break;
-      case 'i':
-        host = optarg; break;
-      case 'v':
-        if(optarg) {
-          /* TODO: parse optarg for level */
-        } else {
-          verbosity++;
-        }
-        break;
-      case '?':
-      default:
-       log_info() << "Unkown option code " << (char)c;
+    switch (c) {
+    case 'p':
+      port = optarg;
+      break;
+    case 'i':
+      host = optarg;
+      break;
+    case 'v':
+      if (optarg) {
+        /* TODO: parse optarg for level */
+      } else {
+        verbosity++;
+      }
+      break;
+    case '?':
+    default:
+      log_info() << "Unkown option code " << (char)c;
     }
   }
 
   Logger::set_severity(verbosity);
-  
+
   log_info() << "Starting on interface " << host << ":" << port;
   hydra::client c(host, port);
-  
-  //std::this_thread::sleep_for(std::chrono::minutes(60));
 
   log_info() << "Starting test test_add";
   assert(test_add(c));
@@ -207,11 +207,11 @@ int main(int argc, char * const argv[]) {
   log_info() << "Starting test test_add_contains";
   assert(test_add_contains(c));
   log_info() << "Test test_add_contains done";
- 
+
   log_info() << "Starting test test_add_get";
   assert(test_add_get(c));
   log_info() << "Test test_add_get done";
-  
+
   log_info() << "Starting test test_double_add";
   assert(test_double_add(c));
   log_info() << "Test test_double_add done";
@@ -224,11 +224,8 @@ int main(int argc, char * const argv[]) {
   assert(test_wrong_add(host, port));
   log_info() << "Test test_wrong_add done";
 
-#if 0
   log_info() << "Starting test test_grow";
-  assert(test_grow(c));
+  // assert(test_grow(c));
   log_info() << "Test test_grow done";
-#endif
-
 }
 
