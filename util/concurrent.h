@@ -176,7 +176,7 @@ public:
   }
 };
 
-template <typename T, typename Lock = std::shared_timed_mutex> class monitor {
+template <typename T, typename Lock = std::mutex> class monitor {
   template <typename T1> struct arguments;
 
   template <typename T1, typename R, typename... Args>
@@ -224,31 +224,17 @@ template <typename T, typename Lock = std::shared_timed_mutex> class monitor {
   mutable T data_;
   mutable Lock mutex_;
 
-  template <typename F> auto const_helper(F &&f, std::true_type) const {
-    std::shared_lock<Lock> lock(mutex_);
-    return f(static_cast<const T &>(data_));
-  }
-
-  template <typename F> auto const_helper(F &&f, std::false_type) const {
+  template <typename F> auto copy_or_reference(F &&f, std::true_type) const {
     std::unique_lock<Lock> lock(mutex_);
     return f(static_cast<T &>(data_));
-  }
-
-  template <typename F> auto copy_or_reference(F &&f, std::true_type) const {
-    using Args = typename functor_args<F, T>::type;
-    using FirstArgRef = typename std::tuple_element<0, Args>::type;
-    using FirstArg = typename std::remove_reference<FirstArgRef>::type;
-    using IsConst = typename std::is_const<FirstArg>::type;
-    return const_helper(std::forward<F>(f), IsConst());
   }
 
   template <typename F> auto copy_or_reference(F &&f, std::false_type) const {
     T copy;
     {
-      std::shared_lock<Lock> lock(mutex_);
+      std::unique_lock<Lock> lock(mutex_);
       copy = data_;
     }
-    std::cout << "copy - shared" << std::endl;
     return f(std::move(copy));
   }
 
